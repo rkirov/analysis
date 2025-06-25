@@ -58,7 +58,7 @@ postfix:100 "++" => Nat.succ
 instance Nat.instOfNat {n:_root_.Nat} : OfNat Nat n where
   ofNat := _root_.Nat.rec 0 (fun _ n ↦ n++) n
 
-instance Nat.instOne : One Nat := ⟨ 1 ⟩
+-- instance Nat.instOne : One Nat := ⟨ 1 ⟩
 lemma Nat.zero_succ : 0++ = 1 := by rfl
 #check (1:Nat)
 
@@ -75,7 +75,7 @@ lemma Nat.two_succ : 2++ = 3 := by rfl
 -/
 theorem Nat.succ_ne (n:Nat) : n++ ≠ 0 := by
   by_contra h
-  simp only [reduceCtorEq] at h
+  contradiction
 
 /-- Proposition 2.1.6 (4 is not equal to zero) -/
 theorem Nat.four_ne : (4:Nat) ≠ 0 := by

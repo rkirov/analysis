@@ -46,22 +46,82 @@ abbrev Chapter2.Nat.equivNat : Chapter2.Nat ≃ ℕ where
     simp [←succ_eq_add_one]
     exact hn
 
+theorem map_add' (n m : Chapter2.Nat) :
+   (n + m).toNat = n.toNat + m.toNat := by
+    induction n with
+    | zero =>
+      simp
+      change (0 + m).toNat = m.toNat
+      rw [zero_add]
+    | succ n' ih =>
+      rw [Chapter2.Nat.succ_add]
+      rw [Chapter2.Nat.succ_toNat]
+      rw [ih]
+      rw [Nat.succ_add]
+
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
-  map_add' := by
-    intro n m
-    simp [equivNat]
-    sorry
+  map_add' := map_add'
   map_mul' := by
     intro n m
     simp [equivNat]
-    sorry
-  map_le_map_iff' := by sorry
+    induction n with
+    | zero => simp
+    | succ n' ih =>
+      rw [succ_mul]
+      rw [succ_toNat]
+      rw [right_distrib]
+      rw [← ih]
+      simp
+      apply map_add'
+
+  map_le_map_iff' := by
+    intro n m
+    constructor
+    . intro h
+      simp at h
+      have h2 := Nat.le.dest h
+      obtain ⟨k, hk⟩ := h2
+      use k
+      apply_fun equivNat.toFun
+      simp
+      rw [← hk]
+      rw [map_add']
+      -- odd dance, I can't do simply
+      -- rw [equivNat.right_inv k]
+      have h := equivNat.right_inv k
+      simp at h
+      rw [h]
+    . intro h
+      obtain ⟨k, hk⟩ := h
+      apply_fun equivNat.toFun at hk
+      rw [hk]
+      simp
+      rw [map_add']
+      rw [le_add_iff_nonneg_right]
+      apply zero_le
+
+lemma toNat_eq(n: Chapter2.Nat) : n.toNat = n := by
+  induction n with
+  | zero => rfl
+  | succ n' ih =>
+    rw [Chapter2.Nat.succ_toNat]
+    simp
+    rw [ih]
+    rw [Chapter2.Nat.succ_eq_add_one]
 
 lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
     n.toNat ^ m.toNat = n^m := by
-  sorry
-
+  induction m with
+  | zero =>
+    change n.toNat ^ 0 = n ^ 0
+    simp [pow_zero]
+  | succ m ih =>
+    simp [pow_succ]
+    rw [← ih]
+    rw [pow_add]
+    simp
+    rw [toNat_eq]
 
 /-- The Peano axioms for an abstract type `Nat` -/
 @[ext]

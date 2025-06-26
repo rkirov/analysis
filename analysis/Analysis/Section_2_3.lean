@@ -47,13 +47,12 @@ theorem Nat.one_mul (m: Nat) : 1 * m = m := by
 theorem Nat.two_mul (m: Nat) : 2 * m = 0 + m + m := by
   rw [←one_succ, succ_mul, one_mul']
 
-theorem z : (Nat.zero: Nat) = 0 := by rfl
-
 /-- This lemma will be useful to prove Lemma 2.3.2. -/
 lemma Nat.mul_zero (n: Nat) : n * 0 = 0 := by
   induction n with
   | zero =>
-    rw [z, zero_mul]
+    change 0 * 0 = 0
+    rw [zero_mul]
   | succ n ih =>
     rw [Nat.succ_mul]
     rw [ih]
@@ -63,8 +62,7 @@ lemma Nat.mul_zero (n: Nat) : n * 0 = 0 := by
 lemma Nat.mul_succ (n m:Nat) : n * m++ = n * m + n := by
   induction n with
   | zero =>
-    rw [z]
-    rw [zero_mul, zero_mul]
+    change 0 = 0 + 0
     rw [add_zero]
   | succ n ih =>
     rw [Nat.succ_mul]
@@ -82,8 +80,7 @@ lemma Nat.mul_succ (n m:Nat) : n * m++ = n * m + n := by
 lemma Nat.mul_comm (n m: Nat) : n * m = m * n := by
   induction n with
   | zero =>
-    rw [z]
-    rw [zero_mul]
+    change 0 = m * 0
     rw [mul_zero]
   | succ n ih =>
     rw [Nat.succ_mul]
@@ -96,7 +93,7 @@ theorem Nat.mul_one (m: Nat) : m * 1 = m := by
 lemma Nat.pos_mul_pos {n m: Nat} (h₁: n.IsPos) (h₂: m.IsPos) : (n * m).IsPos := by
   induction n with
   | zero =>
-    rw [z] at h₁
+    change (0 * m).isPos
     contradiction
   | succ n ih =>
     rw [Nat.succ_mul]
@@ -111,7 +108,7 @@ lemma Nat.mul_eq_zero (n m: Nat) : n * m = 0 ↔ n = 0 ∨ m = 0 := by
     induction n with
     | zero =>
       left
-      rw [z]
+      rfl
     | succ n ih =>
       rw [Nat.succ_mul] at h
       apply add_eq_zero at h
@@ -145,7 +142,7 @@ theorem Nat.add_mul (a b c: Nat) : (a + b)*c = a*c + b*c := by
 theorem Nat.mul_assoc (a b c: Nat) : (a * b) * c = a * (b * c) := by
   induction c with
   | zero =>
-    rw [z]
+    change (a * b) * 0 = a * (b * 0)
     rw [mul_zero, mul_zero, mul_zero]
   | succ c ih =>
     rw [Nat.mul_succ]

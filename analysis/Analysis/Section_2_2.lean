@@ -325,8 +325,7 @@ theorem Nat.lt_iff_succ_le (a b:Nat) : a < b ↔ a++ ≤ b := by
     obtain ⟨d, hd⟩ := h.1
     cases d with
     | zero =>
-      have zz : zero = 0 := by rfl
-      rw [zz] at hd
+      change b = a + 0 at hd
       rw [add_zero] at hd
       symm at hd
       have nab := h.2
@@ -660,8 +659,7 @@ theorem Nat.backwards_induction {n:Nat} {P: Nat → Prop}
   | zero =>
     intro m hm
     obtain ⟨ h₀, h₁ ⟩ := hm
-    have z: zero = 0 := by rfl
-    rw [z] at h₁
+    change 0 = m + h₀ at h₁
     symm at h₁
     apply Nat.add_eq_zero at h₁
     obtain ⟨ mz, hz ⟩ := h₁
@@ -691,8 +689,7 @@ theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m+
   obtain ⟨ d, hd ⟩ := hm
   induction d generalizing m with
   | zero =>
-    have z : zero = 0 := by rfl
-    rw [z] at hd
+    change m = n + 0 at hd
     rw [add_zero] at hd
     rw [hd]
     exact hn
@@ -701,8 +698,7 @@ theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m+
     | zero =>
       exfalso
       rw [succ_eq_add_one] at hd
-      have z : zero = 0 := by rfl
-      rw [z] at hd
+      change 0 = n + (d + 1) at hd
       symm at hd
       apply add_eq_zero at hd
       obtain ⟨ mz, hz ⟩ := hd

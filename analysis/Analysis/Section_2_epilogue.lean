@@ -194,6 +194,9 @@ theorem natCast_surjective (P : PeanoAxioms) : Function.Surjective P.natCast := 
     simp [natCast]
     rw [hm]
 
+theorem natCast_bijective (P: PeanoAxioms) : Function.Bijective P.natCast :=
+ ⟨natCast_injective P, natCast_surjective P⟩
+
 /-- The notion of an equivalence between two structures obeying the Peano axioms.
     The symbol `≃` is an alias for Mathlib's `Equiv` class; for instance `P.Nat ≃ Q.Nat` is
     an alias for `_root_.Equiv P.Nat Q.Nat`. -/
@@ -232,21 +235,11 @@ theorem zero_or_succ (P : PeanoAxioms) (x : P.Nat): x = P.zero ∨ ∃ n, x = P.
     right
     use n
 
-noncomputable def f (P: PeanoAxioms) (x : P.Nat) : ℕ :=
-  Classical.indefiniteDescription (fun _ => True) ((zero_or_succ P x).elim
-    (fun h_zero => ⟨0, trivial⟩)
-    (fun h_succ => ⟨1 + f P (Classical.choose h_succ), trivial⟩))
-
 /-- Useful Mathlib tools for inverting bijections include `Function.surjInv` and `Function.invFun`. -/
 noncomputable abbrev Equiv.fromNat (P : PeanoAxioms) : Equiv Mathlib_Nat P where
-  equiv := {
-    toFun := P.natCast
-    invFun := f P
-    left_inv := by sorry
-    right_inv := by sorry
-  }
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv := Equiv.ofBijective P.natCast (natCast_bijective P)
+  equiv_zero := by rfl;
+  equiv_succ n := by rfl;
 
 /-- The task here is to establish that any two structures obeying the Peano axioms are equivalent. -/
 noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by
@@ -297,7 +290,7 @@ theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.
       rw [e.equiv.right_inv]
       -- simp [Chapter2.Nat.succ]
       rw [Chapter2.Nat.succ_eq_add_one]
-      rw [e.equiv_succ] -- why does this not work?
+      -- rw [e.equiv_succ] -- why does this not work?
       sorry
     rw [h3, ha2 (e.equiv.invFun n)]
     simp

@@ -113,7 +113,7 @@ lemma Nat.pos_mul_pos {n m: Nat} (h₁: n.IsPos) (h₂: m.IsPos) : (n * m).IsPos
     contradiction
   | succ n ih =>
     rw [Nat.succ_mul]
-    apply Nat.add_pos
+    apply Nat.add_pos_right
     . exact h₂
 
 /-- Lemma 2.3.3 (Positive natural numbers have no zero divisors) / Exercise 2.3.2.
@@ -139,6 +139,7 @@ lemma Nat.mul_eq_zero (n m: Nat) : n * m = 0 ↔ n = 0 ∨ m = 0 := by
     | inr h =>
       rw [h]
       rw [mul_zero]
+
 
 /-- Proposition 2.3.4 (Distributive law)
 Compare with Mathlib's `Nat.mul_add` -/

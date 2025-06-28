@@ -246,7 +246,7 @@ theorem Nat.succ_gt_self (n:Nat) : n++ > n := by
   . use 1
   . by_contra h
     conv_lhs at h => rw [← add_zero n]
-    apply Nat.add_cancel_left at h
+    apply Nat.add_left_cancel at h
     contradiction
 
 /-- Proposition 2.2.12 (Basic properties of order for natural numbers) / Exercise 2.2.3
@@ -281,7 +281,7 @@ theorem Nat.ge_antisymm {a b:Nat} (hab: a ≥ b) (hba: b ≥ a) : a = b := by
   rw [hd] at he
   rw [add_assoc] at he
   conv_lhs at he => rw [← add_zero b]
-  apply Nat.add_cancel_left at he
+  apply Nat.add_left_cancel at he
   have edz := Nat.add_eq_zero _ _ he.symm
   obtain ⟨dz, ez⟩ := edz
   rw [dz] at hd
@@ -301,7 +301,7 @@ theorem Nat.add_ge_add_right (a b c:Nat) : a ≥ b ↔ a + c ≥ b + c := by
   . intro habc
     obtain ⟨d, hd⟩ := habc
     use d
-    apply Nat.add_cancel_left c
+    apply Nat.add_left_cancel c
     rw [add_comm]
     rw [hd]
     rw [add_comm b c]
@@ -354,7 +354,7 @@ theorem Nat.lt_iff_succ_le (a b:Nat) : a < b ↔ a++ ≤ b := by
       conv_lhs at he' => rw [← add_zero b]
       rw [succ_eq_add_one] at he'
       rw [add_assoc] at he'
-      apply add_cancel_left at he'
+      apply add_left_cancel at he'
       symm at he'
       apply Nat.add_eq_zero _ _ at he'
       cases he'
@@ -439,7 +439,7 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
     tauto
   . have why : a++ > b := by
       rw [case2]
-      exact succ_gt b
+      exact succ_gt_self b
     tauto
   have why : a++ > b := by
     obtain ⟨ d, hd ⟩ := case3
@@ -454,7 +454,7 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
       rw [succ_eq_add_one] at he
       conv_lhs at he => rw [← add_zero a]
       rw [add_assoc] at he
-      apply add_cancel_left at he
+      apply add_left_cancel at he
       have := Nat.add_eq_zero _ _ he.symm
       cases this
       contradiction
@@ -554,7 +554,7 @@ theorem add_lt_false (a b : Nat) (h: a + b < a) : False := by
   obtain ⟨ e, he ⟩ := d
   rw [add_assoc] at he
   conv_lhs at he => rw [← add_zero a]
-  apply Nat.add_cancel_left at he
+  apply Nat.add_left_cancel at he
   have := Nat.add_eq_zero _ _ he.symm
   obtain ⟨ dz, ez ⟩ := this
   rw [dz] at hd
@@ -583,7 +583,7 @@ theorem le_lt_to_le (a b c: Nat) (h: a ≤ b) (h2: b < c) : a < c := by
     rw [hf, hd] at he
     rw [add_assoc] at he
     conv_lhs at he => rw [← add_zero a]
-    apply Nat.add_cancel_left at he
+    apply Nat.add_left_cancel at he
     have := Nat.add_eq_zero _ _ he.symm
     obtain ⟨ dz, ez ⟩ := this
     rw [ez] at hf
@@ -604,7 +604,7 @@ theorem lt_le_to_le (a b c: Nat) (h: a < b) (h2: b ≤ c) : a < c := by
     rw [he, hf] at hd
     rw [add_assoc] at hd
     conv_lhs at hd => rw [← add_zero a]
-    apply Nat.add_cancel_left at hd
+    apply Nat.add_left_cancel at hd
     have := Nat.add_eq_zero _ _ hd.symm
     obtain ⟨ dz, ez ⟩ := this
     rw [dz] at hf
@@ -713,7 +713,7 @@ theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m+
       rw [← add_assoc] at hd
       rw [add_comm _ 1] at hd
       rw [add_comm _ 1] at hd
-      apply add_cancel_left at hd
+      apply add_left_cancel at hd
       exact hd
 
 end Chapter2

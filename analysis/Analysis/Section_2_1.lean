@@ -58,7 +58,7 @@ postfix:100 "++" => Nat.succ
 instance Nat.instOfNat {n:_root_.Nat} : OfNat Nat n where
   ofNat := _root_.Nat.rec 0 (fun _ n ↦ n++) n
 
--- instance Nat.instOne : One Nat := ⟨ 1 ⟩
+instance Nat.instOne : One Nat := ⟨ 1 ⟩
 lemma Nat.zero_succ : 0++ = 1 := by rfl
 #check (1:Nat)
 

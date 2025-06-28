@@ -232,7 +232,6 @@ theorem zero_or_succ (P : PeanoAxioms) (x : P.Nat): x = P.zero ∨ ∃ n, x = P.
     right
     use n
 
-
 noncomputable def f (P: PeanoAxioms) (x : P.Nat) : ℕ :=
   Classical.indefiniteDescription (fun _ => True) ((zero_or_succ P x).elim
     (fun h_zero => ⟨0, trivial⟩)
@@ -315,7 +314,7 @@ theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.
         sorry
       . intro n
         dsimp [h1']
-        congr 1
+        apply congrArg
         -- rw [e.equiv_succ] -- why does this not work?
         sorry
     have hi2' : h2' (0: _root_.Chapter2.Nat) = e.equiv.invFun c ∧

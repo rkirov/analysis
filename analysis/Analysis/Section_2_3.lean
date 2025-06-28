@@ -119,7 +119,7 @@ lemma Nat.pos_mul_pos {n m: Nat} (h₁: n.isPos) (h₂: m.isPos) : (n * m).isPos
     contradiction
   | succ n ih =>
     rw [Nat.succ_mul]
-    apply Nat.add_pos
+    apply Nat.add_pos_right
     . exact h₂
 
 /-- Proposition 2.3.4 (Distributive law)-/

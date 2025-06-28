@@ -90,7 +90,7 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
       -- odd dance, I can't do simply
       -- rw [equivNat.right_inv k]
       have h := equivNat.right_inv k
-      simp at h
+      simp at h -- why is this needed?
       rw [h]
     . intro h
       obtain ⟨k, hk⟩ := h
@@ -160,10 +160,36 @@ abbrev natCast (P : PeanoAxioms) : ℕ → P.Nat := fun n ↦ match n with
   | Nat.succ n => P.succ (natCast P n)
 
 theorem natCast_injective (P : PeanoAxioms) : Function.Injective P.natCast  := by
-  sorry
+  intro a b h
+  induction a generalizing b with
+  | zero =>
+    induction b with
+    | zero => rfl
+    | succ b ih =>
+      simp [natCast] at h
+      symm at h
+      exfalso
+      exact P.succ_ne _ h
+  | succ a ih =>
+    induction b with
+    | zero =>
+      simp [natCast] at h
+      exfalso
+      exact P.succ_ne _ h
+    | succ b ih2 =>
+      repeat rw [natCast] at h
+      apply P.succ_cancel at h
+      have a_eq_b := ih h
+      rw [a_eq_b]
 
 theorem natCast_surjective (P : PeanoAxioms) : Function.Surjective P.natCast := by
-  sorry
+  apply P.induction
+  . use 0
+  . intro n ih
+    obtain ⟨m, hm⟩ := ih
+    use Nat.succ m
+    simp [natCast]
+    rw [hm]
 
 /-- The notion of an equivalence between two structures obeying the Peano axioms -/
 class Equiv (P Q : PeanoAxioms) where
@@ -173,34 +199,126 @@ class Equiv (P Q : PeanoAxioms) where
 
 abbrev Equiv.symm (equiv : Equiv P Q) : Equiv Q P where
   equiv := equiv.equiv.symm
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by
+    apply_fun equiv.equiv
+    simp
+    rw [equiv.equiv_zero]
+  equiv_succ n := by
+    apply_fun equiv.equiv
+    simp
+    rw [equiv.equiv_succ]
+    simp
 
 abbrev Equiv.trans (equiv1 : Equiv P Q) (equiv2 : Equiv Q R) : Equiv P R where
   equiv := equiv1.equiv.trans equiv2.equiv
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by simp [equiv1.equiv_zero, equiv2.equiv_zero]
+  equiv_succ n := by simp [equiv1.equiv_succ, equiv2.equiv_succ]
+
+theorem zero_or_succ (P : PeanoAxioms) (x : P.Nat): x = P.zero ∨ ∃ n, x = P.succ n := by
+  revert x
+  apply P.induction
+  . left
+    rfl
+  . intro n ih
+    right
+    use n
+
+
+noncomputable def f (P: PeanoAxioms) (x : P.Nat) : ℕ :=
+  Classical.indefiniteDescription (fun _ => True) ((zero_or_succ P x).elim
+    (fun h_zero => ⟨0, trivial⟩)
+    (fun h_succ => ⟨1 + f P (Classical.choose h_succ), trivial⟩))
 
 /-- Note: I suspect that this construction is non-computable and requires classical logic. -/
 noncomputable abbrev Equiv.fromNat (P : PeanoAxioms) : Equiv Mathlib.Nat P where
   equiv := {
     toFun := P.natCast
-    invFun := by sorry
+    invFun := f P
     left_inv := by sorry
     right_inv := by sorry
   }
   equiv_zero := by sorry
   equiv_succ n := by sorry
 
-noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by sorry
+noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by
+  exact Equiv.trans (Equiv.symm (Equiv.fromNat P)) (Equiv.fromNat Q)
+
 
 theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
     equiv1 = equiv2 := by
-  sorry
+  obtain ⟨f1, f2, f3⟩ := equiv1
+  obtain ⟨g1, g2, g3⟩ := equiv2
+  have h1 : f1 = g1 := by
+    ext x
+    revert x
+    apply P.induction
+    . rw [f2, g2]
+    . intro n ih
+      rw [f3, g3]
+      apply congrArg
+      exact ih
+  subst h1
+  simp
+
+noncomputable abbrev Equiv.fromCh2Nat (P : PeanoAxioms) : Equiv Chapter2.Nat P := Equiv.mk' Chapter2.Nat P
 
 /-- A sample result: recursion is well-defined on any structure obeying the Peano axioms-/
 theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.Nat) :
     ∃! (a: P.Nat → P.Nat), a P.zero = c ∧ ∀ n, a (P.succ n) = f n (a n) := by
-  sorry
+  -- basic idea, we already proved this in chapter 2 for Chapter2.Nat
+  -- so we just need to use the equivalence between Chapter2.Nat and P.Nat
+  -- to transfer the result.
+  have e := Equiv.fromCh2Nat P
+  have r := Chapter2.Nat.recurse_uniq (fun a => fun b => e.equiv.invFun (f (e.equiv a) (e.equiv b))) (e.equiv.invFun c)
+  apply existsUnique_of_exists_of_unique
+  have re := ExistsUnique.exists r
+  obtain ⟨a, ha1, ha2⟩ := re
+  use fun n => e.equiv.toFun (a (e.equiv.invFun n))
+  constructor
+  . have h1 : e.equiv.invFun zero = Chapter2.Nat.zero := by
+      rw [← e.equiv_zero]
+      -- rw [e.equiv.left_inv] -- feels like this should work ??
+      sorry
+    rw [h1]
+    have h2 : 0 = Chapter2.Nat.zero := by rfl
+    rw [h2] at ha1
+    rw [ha1]
+    rw [e.equiv.right_inv c]
+  . intro n
+    have h3 : e.equiv.invFun (P.succ n) = Chapter2.Nat.succ (e.equiv.invFun n) := by
+      apply_fun e.equiv.toFun -- why does replacing with e.equiv make the next line fail?
+      rw [e.equiv.right_inv]
+      -- simp [Chapter2.Nat.succ]
+      rw [Chapter2.Nat.succ_eq_add_one]
+      rw [e.equiv_succ] -- why does this not work?
+      sorry
+    rw [h3, ha2 (e.equiv.invFun n)]
+    simp
+  . intro h1 h2 ih1 ih2
+    let h1' := fun n ↦ e.equiv.invFun (h1 (e.equiv.toFun n))
+    let h2' := fun n ↦ e.equiv.invFun (h2 (e.equiv.toFun n))
+    have hi1' : h1' (0: _root_.Chapter2.Nat) = e.equiv.invFun c ∧
+    ∀ (n : _root_.Chapter2.Nat),
+      h1' (n++) = e.equiv.invFun (f (e.equiv n) (e.equiv (h1' n))) := by
+      constructor
+      . simp [h1']
+        change h1 (e.equiv _root_.Chapter2.Nat.zero) = c
+        -- rw [e.equiv_zero] -- why does this not work?
+        sorry
+      . intro n
+        dsimp [h1']
+        congr 1
+        -- rw [e.equiv_succ] -- why does this not work?
+        sorry
+    have hi2' : h2' (0: _root_.Chapter2.Nat) = e.equiv.invFun c ∧
+    ∀ (n : _root_.Chapter2.Nat),
+      h2' (n++) = e.equiv.invFun (f (e.equiv n) (e.equiv (h2' n))) := by sorry
+    have eq' := ExistsUnique.unique r hi1' hi2'
+    ext n
+    have eq'n : h1' (e.equiv.invFun n) = h2' (e.equiv.invFun n) := by rw [eq']
+    unfold h1' h2' at eq'n
+    apply_fun e.equiv.toFun at eq'n
+    repeat rw [e.equiv.right_inv] at eq'n
+    exact eq'n
 
 end PeanoAxioms

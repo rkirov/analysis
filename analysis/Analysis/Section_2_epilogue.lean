@@ -301,7 +301,7 @@ theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.
       exact h3.symm
     rw [hz]
     simp [Chapter2.Nat.recurse, f_lift]
-  -- uniqueness easy enough to prove from scratch, insteadf of lifting
+  -- uniqueness easy enough to prove from scratch, instead of lifting
   intro a b h1 h2
   ext n
   revert n

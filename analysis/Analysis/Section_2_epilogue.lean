@@ -268,57 +268,46 @@ theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.
   -- basic idea, we already proved this in chapter 2 for Chapter2.Nat
   -- so we just need to use the equivalence between Chapter2.Nat and P.Nat
   -- to transfer the result.
-  have e := Equiv.fromCh2Nat P
-  have r := Chapter2.Nat.recurse_uniq (fun a => fun b => e.equiv.invFun (f (e.equiv a) (e.equiv b))) (e.equiv.invFun c)
   apply existsUnique_of_exists_of_unique
-  have re := ExistsUnique.exists r
-  obtain ⟨a, ha1, ha2⟩ := re
-  use fun n => e.equiv.toFun (a (e.equiv.invFun n))
+  let e := Equiv.fromCh2Nat P
+  let f_lift := fun a b ↦ e.equiv.symm (f (e.equiv a) (e.equiv b))
+  let c_lift := e.equiv.symm c
+  let r := Chapter2.Nat.recurse f_lift c_lift
+  use fun n ↦ e.equiv (r (e.equiv.symm n))
   constructor
-  . have h1 : e.equiv.invFun zero = Chapter2.Nat.zero := by
-      rw [← e.equiv_zero]
-      -- rw [e.equiv.left_inv] -- feels like this should work ??
-      sorry
-    rw [h1]
-    have h2 : 0 = Chapter2.Nat.zero := by rfl
-    rw [h2] at ha1
-    rw [ha1]
-    rw [e.equiv.right_inv c]
-  . intro n
-    have h3 : e.equiv.invFun (P.succ n) = Chapter2.Nat.succ (e.equiv.invFun n) := by
-      apply_fun e.equiv.toFun -- why does replacing with e.equiv make the next line fail?
-      rw [e.equiv.right_inv]
-      -- simp [Chapter2.Nat.succ]
-      rw [Chapter2.Nat.succ_eq_add_one]
-      -- rw [e.equiv_succ] -- why does this not work?
-      sorry
-    rw [h3, ha2 (e.equiv.invFun n)]
-    simp
-  . intro h1 h2 ih1 ih2
-    let h1' := fun n ↦ e.equiv.invFun (h1 (e.equiv.toFun n))
-    let h2' := fun n ↦ e.equiv.invFun (h2 (e.equiv.toFun n))
-    have hi1' : h1' (0: _root_.Chapter2.Nat) = e.equiv.invFun c ∧
-    ∀ (n : _root_.Chapter2.Nat),
-      h1' (n++) = e.equiv.invFun (f (e.equiv n) (e.equiv (h1' n))) := by
-      constructor
-      . simp [h1']
-        change h1 (e.equiv _root_.Chapter2.Nat.zero) = c
-        -- rw [e.equiv_zero] -- why does this not work?
-        sorry
-      . intro n
-        dsimp [h1']
-        apply congrArg
-        -- rw [e.equiv_succ] -- why does this not work?
-        sorry
-    have hi2' : h2' (0: _root_.Chapter2.Nat) = e.equiv.invFun c ∧
-    ∀ (n : _root_.Chapter2.Nat),
-      h2' (n++) = e.equiv.invFun (f (e.equiv n) (e.equiv (h2' n))) := by sorry
-    have eq' := ExistsUnique.unique r hi1' hi2'
-    ext n
-    have eq'n : h1' (e.equiv.invFun n) = h2' (e.equiv.invFun n) := by rw [eq']
-    unfold h1' h2' at eq'n
-    apply_fun e.equiv.toFun at eq'n
-    repeat rw [e.equiv.right_inv] at eq'n
-    exact eq'n
-
-end PeanoAxioms
+  . simp [r]
+    -- some tricky things to note, there are inverse versions of
+    -- equiv_zero and equiv_succ that need extra proofs.
+    have hz : e.equiv.symm P.zero = _root_.Chapter2.Nat.zero := by
+      apply_fun e.equiv
+      simp
+      -- equiv_zero needs an extra simp before it can be applied
+      -- to fully expand Equiv.Nat to the underlying Chapter2.Nat
+      have h2 := e.equiv_zero
+      simp at h2
+      exact h2.symm
+    rw [hz]
+    simp [Chapter2.Nat.recurse, c_lift]
+  . intro a
+    simp [r, Chapter2.Nat.recurse]
+    have hz : ∀ n, e.equiv.symm (P.succ n) = Chapter2.Nat.succ (e.equiv.symm n) := by
+      intro n
+      apply_fun e.equiv
+      simp
+      have h2 := e.equiv_succ
+      simp at h2
+      have h3 := h2 (e.equiv.symm n)
+      simp at h3
+      exact h3.symm
+    rw [hz]
+    simp [Chapter2.Nat.recurse, f_lift]
+  -- uniqueness easy enough to prove from scratch, insteadf of lifting
+  intro a b h1 h2
+  ext n
+  revert n
+  apply P.induction
+  . rw [h1.1, h2.1]
+  . intro n ih
+    rw [h1.2 n, h2.2 n]
+    apply congrArg
+    exact ih

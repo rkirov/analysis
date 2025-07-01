@@ -1,3 +1,14 @@
+# Solutions to _Analysis I_
+
+In this repo, I am attempting to solve all exercises from _Analysis I_ to get more fluent with using Lean for math formalization. At some point I will write up 
+a retro on my [blog](https://rkirov.github.io/).
+
+Currently, I am not optimizing for readability or style of the proofs, but rather completing as many of the exercises.
+
+Completed
+- Chapter 2 all 
+- Chapter 3.1 (except one example)
+
 # Lean formalization of _Analysis I_
 
 The files in this directory contain a formalization of my text [_Analysis I_](https://terrytao.wordpress.com/books/analysis-i/) into [Lean](https://lean-lang.org/). The formalization is intended to be as faithful a paraphrasing as possible to the original text, while also showcasing Lean's features and syntax.  In particular, the formalization is _not_ optimized for efficiency, and in some cases may deviate from idiomatic Lean usage.

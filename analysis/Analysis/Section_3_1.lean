@@ -995,9 +995,33 @@ example : ({3,5,9}:Set).replace (P := fun x y ↦ ∃ (n:ℕ), x.val = n ∧ y =
   = {4,6,10} := by
   apply SetTheory.Set.ext
   intro x
-  -- feels like this should work
-  -- rw [SetTheory.replacement_axiom ({3,5,9}:Set) _ _ x]
-  sorry
+  rw [SetTheory.Set.replacement_axiom _ x]
+  simp
+  constructor
+  . intro h
+    rcases h with h3 | h5 | h9
+    . obtain ⟨n, hn⟩ := h3
+      left
+      -- how to finish this proof?
+      sorry
+    . sorry
+    . sorry
+  . intro h
+    rcases h with h4 | h6 | h10
+    . rw [h4]
+      left
+      use 3
+      simp
+    . rw [h6]
+      right
+      left
+      use 5
+      simp
+    . rw [h10]
+      right
+      right
+      use 9
+      simp
 
 /-- Example 3.1.31 -/
 example : ({3,5,9}:Set).replace (P := fun _ y ↦ y=1) (by aesop) = {1} := by

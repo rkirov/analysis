@@ -76,33 +76,28 @@ abbrev Chapter2.Nat.map_mul : ∀ (n m : Nat), (n * m).toNat = n.toNat * m.toNat
     simp
     apply map_add'
 
-
 /-- The conversion preserves order. -/
 abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n ≤ m := by
-  intro n m
-  constructor
-  . intro h
-    simp at h
-    have h2 := Nat.le.dest h
-    obtain ⟨k, hk⟩ := h2
-    use k
-    apply_fun equivNat.toFun
-    simp
-    rw [← hk]
-    rw [map_add']
-    -- odd dance, I can't do simply
-    -- rw [equivNat.right_inv k]
-    have h := equivNat.right_inv k
-    simp at h -- why is this needed?
-    rw [h]
-  . intro h
-    obtain ⟨k, hk⟩ := h
-    apply_fun equivNat.toFun at hk
-    rw [hk]
-    simp
-    rw [map_add']
-    rw [le_add_iff_nonneg_right]
-    apply zero_le
+    intro n m
+    constructor
+    . intro h
+      obtain ⟨k, hk⟩ := Nat.le.dest h
+      use k
+      apply_fun equivNat.toFun
+      rw [← hk]
+      simp
+      rw [map_add']
+      -- need to create a hypothesis to simplify before rw.
+      have inv := equivNat.right_inv k
+      simp at inv
+      rw [inv]
+    . rintro ⟨k, hk⟩
+      apply_fun equivNat.toFun at hk
+      rw [hk]
+      simp
+      rw [map_add']
+      rw [le_add_iff_nonneg_right]
+      apply zero_le
 
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
@@ -138,8 +133,8 @@ structure PeanoAxioms where
 namespace PeanoAxioms
 
 /-- The Chapter 2 natural numbers obey the Peano axioms. -/
-def Chapter2_Nat : PeanoAxioms where
-  Nat := Chapter2.Nat
+def Chapter2.Nat : PeanoAxioms where
+  Nat := _root_.Chapter2.Nat
   zero := Chapter2.Nat.zero
   succ := Chapter2.Nat.succ
   succ_ne := Chapter2.Nat.succ_ne

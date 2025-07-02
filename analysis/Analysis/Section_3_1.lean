@@ -1000,12 +1000,32 @@ example : ({3,5,9}:Set).replace (P := fun x y ↦ ∃ (n:ℕ), x.val = n ∧ y =
   constructor
   . intro h
     rcases h with h3 | h5 | h9
-    . obtain ⟨n, hn⟩ := h3
+    . obtain ⟨n, h1, h2⟩ := h3
       left
-      -- how to finish this proof?
-      sorry
-    . sorry
-    . sorry
+      rw [h2]
+      have hn_eq : n = 3 := by
+        rw [← SetTheory.Object.natCast_inj]
+        exact h1.symm
+      rw [hn_eq]
+      norm_num
+    . obtain ⟨n, h1, h2⟩ := h5
+      right
+      left
+      rw [h2]
+      have hn_eq : n = 5 := by
+        rw [← SetTheory.Object.natCast_inj]
+        exact h1.symm
+      rw [hn_eq]
+      norm_num
+    . obtain ⟨n, h1, h2⟩ := h9
+      right
+      right
+      rw [h2]
+      have hn_eq : n = 9 := by
+        rw [← SetTheory.Object.natCast_inj]
+        exact h1.symm
+      rw [hn_eq]
+      norm_num
   . intro h
     rcases h with h4 | h6 | h10
     . rw [h4]

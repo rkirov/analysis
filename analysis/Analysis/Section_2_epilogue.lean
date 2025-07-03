@@ -65,7 +65,6 @@ abbrev Chapter2.Nat.map_add : ∀ (n m : Nat), (n + m).toNat = n.toNat + m.toNat
 /-- The conversion preserves multiplication. -/
 abbrev Chapter2.Nat.map_mul : ∀ (n m : Nat), (n * m).toNat = n.toNat * m.toNat := by
   intro n m
-  simp [equivNat]
   induction n with
   | zero => simp
   | succ n' ih =>
@@ -74,7 +73,7 @@ abbrev Chapter2.Nat.map_mul : ∀ (n m : Nat), (n * m).toNat = n.toNat * m.toNat
     rw [right_distrib]
     rw [← ih]
     simp
-    apply map_add'
+    apply map_add
 
 /-- The conversion preserves order. -/
 abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n ≤ m := by
@@ -83,19 +82,19 @@ abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n 
     . intro h
       obtain ⟨k, hk⟩ := Nat.le.dest h
       use k
-      apply_fun equivNat.toFun
-      rw [← hk]
+      apply_fun equivNat
       simp
-      rw [map_add']
+      rw [← hk]
+      rw [map_add]
       -- need to create a hypothesis to simplify before rw.
       have inv := equivNat.right_inv k
       simp at inv
       rw [inv]
     . rintro ⟨k, hk⟩
-      apply_fun equivNat.toFun at hk
+      apply_fun equivNat at hk
+      simp at hk
       rw [hk]
-      simp
-      rw [map_add']
+      rw [map_add]
       rw [le_add_iff_nonneg_right]
       apply zero_le
 
@@ -117,7 +116,8 @@ lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
     rw [← ih]
     rw [pow_add]
     simp
-    rw [toNat_eq]
+    congr
+    apply equivNat.left_inv
 
 /-- The Peano axioms for an abstract type `Nat` -/
 @[ext]
@@ -256,6 +256,7 @@ theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
     apply congrArg
     exact ih
 
+noncomputable abbrev Equiv.fromCh2Nat (P : PeanoAxioms) := Equiv.mk' Chapter2.Nat P
 
 /-- A sample result: recursion is well-defined on any structure obeying the Peano axioms-/
 theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.Nat) :

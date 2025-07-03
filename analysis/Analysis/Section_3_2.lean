@@ -119,17 +119,79 @@ theorem SetTheory.Set.replace_exists (h: axiom_of_universal_specification) (A:Se
   exact h P'
 
 /-- Exercise 3.2.2 -/
-theorem SetTheory.Set.not_mem_self (A:Set) : (A:Object) ∉ A := by sorry
+theorem SetTheory.Set.not_mem_self (A:Set) : (A:Object) ∉ A := by
+  set A': Set := {(A :Object)} with ha'
+  have h_non_empty : A' ≠ ∅ := by
+    have ha: (A:Object) ∈ A' := by rw [mem_singleton];
+    apply nonempty_of_inhabited ha
+  have h := axiom_of_regularity h_non_empty
+  obtain ⟨ x, hx ⟩ := h
+  have hx_in_a : (x:Object) ∈ A' := by simp [subtype_property]
+  change (x:Object) ∈ {set_to_object A} at hx_in_a
+  rw [mem_singleton] at hx_in_a
+  rw [hx_in_a] at hx
+  simp at hx
+  rw [disjoint_iff] at hx
+  rw [ha'] at hx
+  rw [eq_empty_iff_forall_notMem] at hx
+  contrapose! hx
+  use A
+  rw [mem_inter]
+  constructor
+  . exact hx
+  . rw [mem_singleton]
 
 /-- Exercise 3.2.2 -/
-theorem SetTheory.Set.not_mem_mem (A B:Set) : (A:Object) ∉ B ∨ (B:Object) ∉ A := by sorry
+theorem SetTheory.Set.not_mem_mem (A B:Set) : (A:Object) ∉ B ∨ (B:Object) ∉ A := by
+  set U: Set := {(A:Object), (B:Object)} with hu
+  have ne : U ≠ ∅ := by
+    rw [hu]
+    apply nonempty_of_inhabited (show (A:Object) ∈ U by rw [hu]; simp)
+  have h := axiom_of_regularity ne
+  rw [hu] at h
+  simp at h
+  cases h with
+  | inl h1 =>
+    rw [disjoint_iff] at h1
+    rw [eq_empty_iff_forall_notMem] at h1
+    right
+    specialize h1 B
+    contrapose! h1
+    rw [mem_inter]
+    constructor
+    . exact h1
+    . rw [mem_pair]
+      tauto
+  | inr h2 =>
+    rw [disjoint_iff] at h2
+    rw [eq_empty_iff_forall_notMem] at h2
+    left
+    specialize h2 A
+    contrapose! h2
+    rw [mem_inter]
+    constructor
+    . exact h2
+    . rw [mem_pair]
+      tauto
 
 /-- Exercise 3.2.3 -/
 theorem SetTheory.Set.univ_iff : axiom_of_universal_specification ↔
-  ∃ (U:Set), ∀ x, x ∈ U := by sorry
+  ∃ (U:Set), ∀ x, x ∈ U := by
+  dsimp [axiom_of_universal_specification]
+  intro P
+  set P' : U → Prop := fun x => P x with hP
+  use specify U P'
+  intro x
+  rw [hP]
+  have xU : x ∈ U := hU x;
+  rw [specification_axiom' P' ⟨x, xU⟩]
 
 /-- Exercise 3.2.3 -/
-theorem SetTheory.Set.no_univ : ¬ ∃ (U:Set), ∀ (x:Object), x ∈ U := by sorry
-
+theorem SetTheory.Set.no_univ : ¬ ∃ (U:Set), ∀ (x:Object), x ∈ U := by
+  by_contra! h
+  obtain ⟨ U, hU ⟩ := h
+  specialize hU U
+  have n := not_mem_self U
+  contradiction
 
 end Chapter3

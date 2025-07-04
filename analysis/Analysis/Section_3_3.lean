@@ -83,6 +83,20 @@ theorem Function.eval {X Y: Set} (f: Function X Y) (x: X) (y: Y) : y = f x ↔ f
 theorem Function.eval_of {X Y: Set} (f: X → Y) (x:X) : (Function.mk_fn f) x = f x := by
   symm; rw [eval]
 
+theorem Function.to_fn_eq {X Y: Set} (f g: Function X Y): f.to_fn = g.to_fn ↔ f = g := by
+  constructor
+  . intro h
+    ext x y
+    have : f.to_fn x = g.to_fn x := by rw [h]
+    repeat rw [to_fn_eval] at this
+    rw [← eval f x y]
+    rw [← eval g x y]
+    -- magic simps, why can't one immediately do rw [this]
+    simp
+    simp at this
+    rw [this]
+  . intro h
+    rw [h]
 
 /-- Example 3.3.2.   -/
 abbrev P_3_3_2a : nat → nat → Prop := fun x y ↦ (y:ℕ) = (x:ℕ)+1
@@ -354,7 +368,7 @@ example : ¬ Function.Injective (fun (n:ℤ) ↦ n^2) := by
 example : Function.Injective (fun (n:ℕ) ↦ n^2) := by
   rw [Function.Injective]
   intro x y ih
-  simp at ih -- which theorem simpifies it?
+  simp at ih
   exact ih
 
 
@@ -496,6 +510,7 @@ example : ¬ Function.Bijective (fun n ↦ n+1) := by
   symm
   exact Nat.zero_ne_add_one a
 
+-- set_option pp.proofs true
 /-- Remark 3.3.24 -/
 theorem Function.bijective_incorrect_def :
     ∃ X Y: Set, ∃ f: Function X Y, (∀ x: X, ∃! y: Y, y = f x) ∧ ¬ f.bijective := by
@@ -544,7 +559,8 @@ theorem Function.inverse_eq {X Y: Set} [Nonempty X] {f: Function X Y} (h: f.bije
   ext x
   congr
   symm
-  rw [inverse_eval]
+  --have h' := inverse_eval _ (Function.invFun f.to_fn x) x
+  rw [Function.inverse_eval]
   -- not needing injective hypothesis?
   obtain ⟨ _, hs ⟩ := (Function.bijective_iff f).mp h
   -- undo some unfortunate expansion
@@ -553,47 +569,134 @@ theorem Function.inverse_eq {X Y: Set} [Nonempty X] {f: Function X Y} (h: f.bije
   rw [hli]
 
 /-- Exercise 3.3.1 -/
-theorem Function.refl {X Y:Set} (f: Function X Y) : f = f := by sorry
+theorem Function.refl {X Y:Set} (f: Function X Y) : f = f := by rfl
 
-theorem Function.symm {X Y:Set} (f g: Function X Y) : f = g ↔ g = f := by sorry
+theorem Function.symm {X Y:Set} (f g: Function X Y) : f = g ↔ g = f := by
+  constructor <;>
+  . intro h
+    symm
+    exact h
 
-theorem Function.trans {X Y:Set} {f g h: Function X Y} (hfg: f = g) (hgh: g = h) : f = h := by sorry
+theorem Function.trans {X Y:Set} {f g h: Function X Y} (hfg: f = g) (hgh: g = h) : f = h := by
+  rw [hfg, hgh]
 
 theorem Function.comp_congr {X Y Z:Set} {f f': Function X Y} (hff': f = f') {g g': Function Y Z}
-  (hgg': g = g') : g ○ f = g' ○ f' := by sorry
+  (hgg': g = g') : g ○ f = g' ○ f' := by
+  rw [hff', hgg']
 
 /-- Exercise 3.3.2 -/
 theorem Function.comp_of_inj {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hf: f.one_to_one)
-  (hg: g.one_to_one) : (g ○ f).one_to_one := by sorry
+  (hg: g.one_to_one) : (g ○ f).one_to_one := by
+  rw [one_to_one_iff]
+  intro x y
+  repeat rw [eval_of]
+  intro h
+  rw [one_to_one_iff] at hf
+  rw [one_to_one_iff] at hg
+  apply hf _ _
+  apply hg _ _
+  exact h
 
 theorem Function.comp_of_surj {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hf: f.onto)
-  (hg: g.onto) : (g ○ f).onto := by sorry
+  (hg: g.onto) : (g ○ f).onto := by
+  rw [onto_iff]
+  rw [onto_iff] at hg
+  rw [onto_iff] at hf
+  rw [Function.Surjective]
+  rw [Function.Surjective] at hf
+  rw [Function.Surjective] at hg
+  intro b
+  specialize hg b
+  obtain ⟨ a, ha ⟩ := hg
+  specialize hf a
+  obtain ⟨ c, hc ⟩ := hf
+  use c
+  rw [comp_eq_comp]
+  simp [hc, ha]
+
 
 /--
   Exercise 3.3.3 - fill in the sorrys in the statements in  a reasonable fashion.
 -/
-example (X: Set) : (SetTheory.Set.f_3_3_9 X).one_to_one ↔ sorry := by sorry
+example (X: Set) : (SetTheory.Set.f_3_3_9 X).one_to_one ↔ True := by
+  simp
 
-example (X: Set) : (SetTheory.Set.f_3_3_9 X).onto ↔ sorry := by sorry
+example (X: Set) : (SetTheory.Set.f_3_3_9 X).onto ↔ X = ∅ := by
+  simp
+  symm
+  exact SetTheory.Set.eq_empty_iff_forall_notMem
 
-example (X: Set) : (SetTheory.Set.f_3_3_9 X).bijective ↔ sorry := by sorry
+example (X: Set) : (SetTheory.Set.f_3_3_9 X).bijective ↔ X = ∅ := by
+  rw [Function.bijective]
+  simp
+  symm
+  exact SetTheory.Set.eq_empty_iff_forall_notMem
 
 /--
   Exercise 3.3.4.  State and prove theorems or counterexamples in the case that `hg` or `hf` is
   omitted as a hypothesis.
 -/
 theorem Function.comp_cancel_left {X Y Z:Set} {f f': Function X Y} {g : Function Y Z}
-  (heq : g ○ f = g ○ f') (hg: g.one_to_one) : f = f' := by sorry
+  (heq : g ○ f = g ○ f') (hg: g.one_to_one) : f = f' := by
+  -- move problem to mathlib defs because it is easier to work there
+  -- without worrying about messy expansions.
+  -- not using mathlib theorems which will make this miss the point.
+  apply_fun to_fn at heq
+  repeat rw [comp_eq_comp] at heq
+  rw [← to_fn_eq]
+  rw [one_to_one_iff'] at hg
+  -- work in Lean's fn here. ext produces clearer result not showing P
+  ext x
+  rw [SetTheory.Set.coe_inj]
+  apply hg
+  -- why doesn't this work
+  -- rw [← Function.comp_apply]
+  change (g.to_fn ∘ f.to_fn) x = (g.to_fn ∘ f'.to_fn) x
+  rw [heq]
+
+example : ∃ X Y Z:Set, ∃ f f': Function X Y, ∃ g : Function Y Z, g ○ f = g ○ f' ∧ f ≠ f' := by
+  use Nat
+  use Nat
+  use Nat
+  use Function.mk_fn (fun n ↦ n)
+  use Function.mk_fn (fun n ↦ 0)
+  use Function.mk_fn (fun n ↦ 0)
+  constructor
+  . simp
+  . simp
+    intro h
+    -- why can't congrFun h 1 1
+    have h1 := congrFun h 1
+    have h2 := congrFun h1 1
+    simp at h2
 
 theorem Function.comp_cancel_right {X Y Z:Set} {f: Function X Y} {g g': Function Y Z}
-  (heq : g ○ f = g' ○ f) (hf: g.onto) : g = g' := by sorry
+  (heq : g ○ f = g' ○ f) (hf: f.onto) : g = g' := by
+  -- move problem to mathlib defs because it is easier to work there
+  -- without worrying about messy expansions.
+  -- not using mathlib theorems which will make miss the point.
+  apply_fun to_fn at heq
+  repeat rw [comp_eq_comp] at heq
+  rw [onto_iff] at hf
+  rw [← to_fn_eq]
+  -- work in lean's fn from here on
+  ext x
+  rw [SetTheory.Set.coe_inj]
+  rw [Function.Surjective] at hf
+  specialize hf x
+  obtain ⟨ y, hy ⟩ := hf
+  have h := congrFun heq y
+  repeat rw [Function.comp_apply] at h
+  repeat rw [hy] at h
+  exact h
 
 /--
   Exercise 3.3.5.  State or prove theorems or counterexamples in the case that `f` is replaced
   with `g` or vice versa in the conclusion.
 -/
 theorem Function.comp_injective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hinj :
-    (g ○ f).one_to_one) : f.one_to_one := by sorry
+    (g ○ f).one_to_one) : f.one_to_one := by
+
 
 theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
   (hinj : (g ○ f).onto) : g.onto := by sorry

@@ -100,7 +100,6 @@ export SetTheory (Set Object)
 -- This instance implicitly imposes the axioms of Zermelo-Frankel set theory with atoms.
 variable [SetTheory]
 
-
 /-- Definition 3.1.1 (objects can be elements of sets) -/
 instance objects_mem_sets : Membership Object Set where
   mem X x := SetTheory.mem x X

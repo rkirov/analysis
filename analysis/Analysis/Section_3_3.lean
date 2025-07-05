@@ -624,12 +624,13 @@ example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).o
   . simp
     use 0
     constructor
-    . sorry -- 0 ∈ Nat
+    . exact (SetTheory.nat_equiv 0).2
     . use 1
       constructor
-      . sorry -- 1 ∈ Nat
+      . exact (SetTheory.nat_equiv 1).2
       intro h
-      sorry -- 0 = 1, contradiction doesn't close
+      have neO : (0:Object) ≠ 1 := by simp
+      exact neO h
 
 theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hsurj :
     (g ○ f).onto) : g.onto := by
@@ -655,16 +656,23 @@ example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).o
   use Function.mk_fn (fun n ↦ 0)
   use Function.mk_fn (fun n ↦ ⟨0, (by simp)⟩)
   constructor
-  . simp
-    intro a b
-    use 1
-    use sorry -- 1 ∈ Nat
-    simp [b]
-    sorry
-  . simp
+  . rw [Function.onto]
+    intro y
+    have : (y:Object) = (0:Object) := by
+      exact (SetTheory.singleton_axiom _ _).mp y.property
     use 0
-    use sorry -- 0 ∈ Nat
-    sorry -- use 1 doesn't work
+    rw [Function.eval_of]
+    rw [Function.eval_of]
+    symm
+    ext -- why does this work?
+    exact this
+  . rw [Function.onto]
+    intro h
+    specialize h 1
+    obtain ⟨ x, hx ⟩ := h
+    rw [Function.eval_of] at hx
+    have neO : (0:Nat) ≠ 1 := by simp
+    contradiction
 
 def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
     (g ○ f).one_to_one), g.one_to_one) := by

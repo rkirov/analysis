@@ -942,8 +942,7 @@ example : ({1, 2, 3, 4}:Set) \ {2,4,6} = {1, 3} := by
 /-- Example 3.1.30 -/
 
 example : ({3,5,9}:Set).replace (P := fun x y ↦ ∃ (n:ℕ), x.val = n ∧ y = (n+1:ℕ))
- -- TODO: find a better way.
- (by intro x y y'; simp; intro x1 h1 h'1 x2 h2 h'2; rw [h'1, h'2]; simp; have h := _root_.trans h1.symm h2; simp at h; exact h)
+ (by aesop)
    = {4,6,10} := by
   apply SetTheory.Set.ext
   intro x

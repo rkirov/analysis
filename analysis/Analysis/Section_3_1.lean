@@ -1517,7 +1517,7 @@ theorem SetTheory.Set.coe_Disjoint (X Y: Set) :
   rw [Set.disjoint_iff_inter_eq_empty]
   rw [← coe_inj']
   -- no idea why the state after simp is the one that is accepted by rfl.
-  simp
+  simp only [mem_inter, not_mem_empty, Set.setOf_false]
   rfl
 
 end Chapter3

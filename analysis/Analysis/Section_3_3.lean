@@ -632,8 +632,8 @@ example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).o
       have neO : (0:Object) ≠ 1 := by simp
       exact neO h
 
-theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hsurj :
-    (g ○ f).onto) : g.onto := by
+theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
+  (hinj : (g ○ f).onto) : g.onto := by
   -- move problem to mathlib defs because it is easier to work there
   -- without worrying about messy expansions.
   -- not using mathlib theorems which will make miss the point.
@@ -769,13 +769,16 @@ theorem Function.inclusion_id (X:Set) :
   ext x
   rw [← eval]
 
+set_option pp.proofs true
+
 theorem Function.inclusion_comp (X Y Z:Set) (hXY: X ⊆ Y) (hYZ: Y ⊆ Z) :
     Function.inclusion hYZ ○ Function.inclusion hXY = Function.inclusion (SetTheory.Set.subset_trans hXY hYZ) := by
-  ext x
-  repeat rw [← eval]
-  rw [inclusion_eval]
-  rw [comp_eval]
-  sorry
+  rw [← to_fn_eq]
+  rw [comp_eq_comp]
+  repeat rw [inclusion]
+  repeat rw [mk_to_fn]
+  ext
+  simp only [Function.comp_apply]
 
 theorem Function.comp_id {A B:Set} (f: Function A B) : f ○ Function.id A = f := by
   ext x
@@ -810,14 +813,53 @@ theorem Function.glue {X Y Z:Set} (hXY: Disjoint X Y) (f: Function X Z) (g: Func
     ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by
   apply existsUnique_of_exists_of_unique
   .
-    set f := Function.mk_fn (fun z ↦ if h: (z ∈ X) then f ⟨z, h⟩ else g ⟨z, _⟩) with hf
-    use f
+    set F : Function (X ∪ Y) Z := Function.mk_fn (fun z ↦
+      if h : (z.val ∈ X) then f ⟨z.val, h⟩
+      else g ⟨z.val, (by
+        have h2 := z.property
+        rw [SetTheory.Set.mem_union] at h2;
+        tauto
+      )⟩) with hF
+
+    use F
     constructor
-    sorry
-  . sorryopen Classical in
+    .
+      ext x
+      repeat rw [← eval]
+      have hsub := (SetTheory.Set.subset_union_left X Y)
+      have hunion : x.val ∈ (X ∪ Y) := hsub x x.property
+      have F_at_x : F ⟨x.val, hunion⟩ = f x := by
+        simp only [hF, eval_of]
+        sorry -- I need to learn how to prove this first
+      sorry
+    . sorryopen Classical in
 theorem Function.glue' {X Y Z:Set} (f: Function X Z) (g: Function Y Z)
     (hfg : ∀ x : ((X ∩ Y): Set), f ⟨x.val, by aesop⟩ = g ⟨x.val, by aesop⟩)  :
     ∃! h: Function (X ∪ Y) Z, (h ○ Function.inclusion (SetTheory.Set.subset_union_left X Y) = f)
-    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by sorry
+    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by
+      sorry
+  . intro F G hF hG
+    ext x
+    have hx : x.val ∈ (X ∪ Y) := x.property
+    rw [SetTheory.Set.mem_union] at hx
+    cases' hx with hX hY
+    . have he : ∃ x': X, (inclusion (SetTheory.Set.subset_union_left X Y)) x' = x := by
+        use ⟨x.val, hX⟩
+        rw [inclusion]
+        rw [eval_of]
+      obtain ⟨ x' , hx' ⟩ := he
+      rw [← hx']
+      repeat rw [← eval]
+      repeat rw [← comp_eval]
+      rw [hF.1, hG.1]
+    . have he : ∃ x': Y, (inclusion (SetTheory.Set.subset_union_right X Y)) x' = x := by
+        use ⟨x.val, hY⟩
+        rw [inclusion]
+        rw [eval_of]
+      obtain ⟨ x' , hx' ⟩ := he
+      rw [← hx']
+      repeat rw [← eval]
+      repeat rw [← comp_eval]
+      rw [hF.2, hG.2]
 
 end Chapter3

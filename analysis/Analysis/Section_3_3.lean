@@ -823,21 +823,36 @@ theorem Function.glue {X Y Z:Set} (hXY: Disjoint X Y) (f: Function X Z) (g: Func
 
     use F
     constructor
-    .
-      ext x
+    . ext x
       repeat rw [← eval]
       have hsub := (SetTheory.Set.subset_union_left X Y)
       have hunion : x.val ∈ (X ∪ Y) := hsub x x.property
       have F_at_x : F ⟨x.val, hunion⟩ = f x := by
-        simp only [hF, eval_of]
-        sorry -- I need to learn how to prove this first
-      sorry
-    . sorryopen Classical in
-theorem Function.glue' {X Y Z:Set} (f: Function X Z) (g: Function Y Z)
-    (hfg : ∀ x : ((X ∩ Y): Set), f ⟨x.val, by aesop⟩ = g ⟨x.val, by aesop⟩)  :
-    ∃! h: Function (X ∪ Y) Z, (h ○ Function.inclusion (SetTheory.Set.subset_union_left X Y) = f)
-    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by
-      sorry
+        rw [hF, Function.eval_of, dif_pos x.property]
+      rw [comp_eval]
+      have inc_eval : (fun x ↦ choose ((inclusion (SetTheory.Set.subset_union_left X Y)).unique x)) x =
+         ⟨x, ((SetTheory.Set.subset_union_left X Y) x) x.property⟩  := by
+        rw [eval_of]
+      rw [inc_eval, F_at_x]
+    . ext x
+      repeat rw [← eval]
+      have hsub := (SetTheory.Set.subset_union_right X Y)
+      have hunion : x.val ∈ (X ∪ Y) := hsub x x.property
+      have F_at_x : F ⟨x.val, hunion⟩ = g x := by
+        have hneqx : (x:Object) ∉ X := by
+          rw [SetTheory.Set.disjoint_iff] at hXY
+          by_contra hx
+          have hy := x.property
+          have hxintery := (SetTheory.Set.mem_inter x _ _).mpr ⟨ hx, hy ⟩
+          rw [hXY] at hxintery
+          have ne := SetTheory.Set.not_mem_empty x
+          contradiction
+        rw [hF, Function.eval_of, dif_neg hneqx]
+      rw [comp_eval]
+      have inc_eval : (fun x ↦ choose ((inclusion (SetTheory.Set.subset_union_right X Y)).unique x)) x =
+         ⟨x, ((SetTheory.Set.subset_union_right X Y) x) x.property⟩  := by
+        rw [eval_of]
+      rw [inc_eval, F_at_x]
   . intro F G hF hG
     ext x
     have hx : x.val ∈ (X ∪ Y) := x.property

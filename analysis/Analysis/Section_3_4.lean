@@ -145,7 +145,23 @@ theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := b
   all_goals simp
 
 theorem SetTheory.Set.image_preimage_f_3_4_2 :
-    image f_3_4_2 (preimage f_3_4_2 {1,2,3}) ≠ {1,2,3} := by sorry
+    image f_3_4_2 (preimage f_3_4_2 {1,2,3}) ≠ {1,2,3} := by
+  have : 1 ∉ image f_3_4_2 (preimage f_3_4_2 {1, 2, 3}) := by
+    by_contra! h
+    rw [mem_image] at h
+    obtain ⟨x, hx⟩ := h
+    rw [mem_preimage] at hx
+    obtain ⟨ h1, h2 ⟩ := hx
+    rw [f_3_4_2] at h2
+    simp at h2
+    have : 2 * nat_equiv.symm x = 1 := by
+      rw [← SetTheory.Object.natCast_inj]
+      exact h2
+    omega
+  by_contra h
+  rw [h] at this
+  rw [mem_triple] at this
+  tauto
 
 /-- Example 3.4.7 (using the Mathlib notion of preimage) -/
 example : (fun n:ℤ ↦ n^2) ⁻¹' {0,1,4} = {-2,-1,0,1,2} := by

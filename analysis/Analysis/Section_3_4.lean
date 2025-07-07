@@ -79,6 +79,14 @@ theorem SetTheory.Set.image_eq_image {X Y:Set} (f:X → Y) (S: Set):
       rw [coe_inj]
       exact hf
 
+theorem SetTheory.Set.image_in_codomain {X Y:Set} (f:X → Y) (U: Set) :
+  image f U ⊆ Y := by
+  rw [SetTheory.Set.subset_def]
+  intro x h
+  rw [mem_image] at h
+  obtain ⟨ x', ⟨ hx', hf ⟩ ⟩ := h
+  rw [← hf]
+  exact (f x').property
 
 theorem SetTheory.Set.image_in_codomain {X Y:Set} (f:X → Y) (S: Set) :
     image f S ⊆ Y := by
@@ -216,9 +224,31 @@ theorem SetTheory.Set.mem_preimage {X Y:Set} (f:X → Y) (U: Set) (x:X) :
     x.val ∈ preimage f U ↔ (f x).val ∈ U := by
   rw [specification_axiom']
 
+theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
+    (preimage f U) ⊆ X := by
+  rw [subset_def]
+  intro x h
+  rw [preimage] at h
+  exact specification_axiom h
+
 /-- Connection with Mathlib's notion of preimage. -/
 theorem SetTheory.Set.preimage_eq {X Y:Set} (f:X → Y) (U: Set) :
-    ((preimage f U): _root_.Set Object) = Subtype.val '' (f⁻¹' {y | y.val ∈ U}) := by sorry
+    ((preimage f U): _root_.Set Object) = Subtype.val '' (f⁻¹' {y | y.val ∈ U}) := by
+  ext x
+  simp only [Set.mem_setOf_eq, Set.preimage_setOf_eq, _root_.Set.mem_image]
+  constructor
+  . intro h
+    have hxX := preimage_in_domain _ _ _ h
+    use ⟨ x, hxX⟩
+    constructor
+    . rw [← mem_preimage]
+      apply h
+    . rfl
+  . intro h
+    obtain ⟨x', ⟨ hx', hxf'⟩⟩  := h
+    rw [← hxf']
+    rw [mem_preimage]
+    exact hx'
 
 theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
     (preimage f U) ⊆ X := by
@@ -227,7 +257,92 @@ theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
   exact specification_axiom h
 
 /-- Example 3.4.5 -/
-theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by sorry
+theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by
+  apply SetTheory.Set.ext
+  intro x
+  constructor
+  . intro h
+    have hx := preimage_in_domain _ _ _ h
+    let x': Nat := ⟨x, hx⟩
+    have :x = x'.val := by rfl
+    rw [this] at h
+    rw [mem_preimage] at h
+    rw [f_3_4_2] at h
+    rw [mem_triple] at ⊢ h
+    rcases h with h | h | h
+    . left
+      rw [SetTheory.Object.ofnat_eq] at h
+      rw [← SetTheory.Object.ofnat_eq'] at h
+      rw [ofNat_inj'] at h
+      change 2 * nat_equiv.symm x' = 2 at h
+      rw [mul_eq_left₀] at h
+      rw [Equiv.symm_apply_eq] at h
+      rw [this, h]
+      rfl -- why does this work?
+      exact Ne.symm (Nat.zero_ne_add_one 1)
+    . right
+      left
+      rw [SetTheory.Object.ofnat_eq] at h
+      rw [← SetTheory.Object.ofnat_eq'] at h
+      rw [ofNat_inj'] at h
+      change 2 * nat_equiv.symm x' = 4 at h
+      have h2 (a: ℕ) : 2 * a = 4 → a = 2 := by omega
+      apply (h2 _) at h
+      rw [Equiv.symm_apply_eq] at h
+      rw [this, h]
+      rfl
+    . right
+      right
+      rw [SetTheory.Object.ofnat_eq] at h
+      rw [← SetTheory.Object.ofnat_eq'] at h
+      rw [ofNat_inj'] at h
+      change 2 * nat_equiv.symm x' = 6 at h
+      have h2 (a: ℕ) : 2 * a = 6 → a = 3 := by omega
+      apply (h2 _) at h
+      rw [Equiv.symm_apply_eq] at h
+      rw [this, h]
+      rfl
+  . intro h
+    rw [mem_triple] at h
+    rcases h with h | h | h
+    . rw [h]
+      have : (1:Object) = (1:Nat) := by rfl
+      rw [this]
+      rw [mem_preimage]
+      rw [mem_triple]
+      left
+      simp_all only [Object.ofnat_eq]
+      have : nat_equiv.symm 1 = 1 := by
+        rw [Equiv.symm_apply_eq]
+        rfl
+      rw [this]
+      simp only [mul_one, Nat.cast_ofNat]
+    . rw [h]
+      have : (2:Object) = (2:Nat) := by rfl
+      rw [this]
+      rw [mem_preimage]
+      rw [mem_triple]
+      right
+      left
+      simp_all only [Object.ofnat_eq]
+      have : nat_equiv.symm 2 = 2 := by
+        rw [Equiv.symm_apply_eq]
+        rfl
+      rw [this]
+      simp only [Nat.reduceMul, Nat.cast_ofNat]
+    . rw [h]
+      have : (3:Object) = (3:Nat) := by rfl
+      rw [this]
+      rw [mem_preimage]
+      rw [mem_triple]
+      right
+      right
+      simp_all only [Object.ofnat_eq]
+      have : nat_equiv.symm 3 = 3 := by
+        rw [Equiv.symm_apply_eq]
+        rfl
+      rw [this]
+      simp only [Nat.reduceMul, Nat.cast_ofNat]
 
 theorem SetTheory.Set.image_preimage_f_3_4_2 :
     image f_3_4_2 (preimage f_3_4_2 {1,2,3}) ≠ {1,2,3} := by sorry

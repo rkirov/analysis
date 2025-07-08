@@ -445,7 +445,7 @@ theorem SetTheory.Set.example_3_4_8 (F:Object) :
         rw [mem_pair] at xin
         cases xin with
         | inl h =>
-          have : y = ⟨ 4, by simp⟩ := by aesop
+          have : y = ⟨4, by simp⟩ := by aesop
           rw [this]
           simp only [h0]
         | inr =>
@@ -458,11 +458,9 @@ theorem SetTheory.Set.example_3_4_8 (F:Object) :
           cases hin with
           | inl h =>
             exfalso
-            have :x ⟨7, by simp⟩ = ⟨0, by simp⟩ := by sorry
+            have :x ⟨7, by simp⟩ = ⟨0, by simp⟩ := by ext; rw [h]
             contradiction
-          | inr h =>
-            have :x ⟨7, by simp⟩ = ⟨1, by simp⟩ := by sorry
-            assumption
+          | inr h => ext; rw [h]
         right
         left
         congr
@@ -474,16 +472,14 @@ theorem SetTheory.Set.example_3_4_8 (F:Object) :
         | inl h =>
           have : y = ⟨ 4, by simp⟩ := by aesop
           rw [this]
-          simp only [h0]
           unfold f_3_4_8_b
-          simp only [↓reduceIte]
+          simp only [h0, ↓reduceIte]
         | inr h =>
           have : y = ⟨ 7, by simp⟩ := by aesop
           rw [this]
-          simp only [h2]
           unfold f_3_4_8_b
           have ne : 7 ≠ 4 := by norm_num
-          simp only [ne, ofNat_inj', ↓reduceIte]
+          simp only [h2, ne, ofNat_inj', ↓reduceIte]
     . sorry -- repeat the above 2 more times
   . intro h
     rcases h with h | h | h | h
@@ -494,10 +490,50 @@ theorem SetTheory.Set.example_3_4_8 (F:Object) :
 
 /-- Lemma 3.4.9.  One needs to provide a suitable definition of the power set here. -/
 abbrev SetTheory.Set.powerset (X:Set) : Set :=
-  (({0, 1}:Set) ^ X).replace (P:=fun f x ↦ x = preimage f {⟨0, by simp⟩}) ()
+  (({0, 1}:Set) ^ X).replace (P :=
+    fun f x ↦ x = preimage (Classical.choose ((power_set_axiom f.val).mp f.property)) ({0} : Set))
+    (by intro x y y' a; simp_all only)
 
+open Classical
 theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
-    x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by sorry
+    x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by
+  rw [powerset, replacement_axiom]
+  constructor
+  . intro h
+    obtain ⟨ x, hx ⟩ := h
+    rw [hx]
+    simp only [EmbeddingLike.apply_eq_iff_eq, exists_eq_left']
+    exact preimage_in_domain _ _
+  . intro h
+    obtain ⟨ x', ⟨ hy, hysub⟩ ⟩ := h
+    rw [hy]
+    simp only [EmbeddingLike.apply_eq_iff_eq, Subtype.exists]
+    set f : X → ({0, 1}:Set) := fun x ↦ if (x:Object) ∈ x' then ⟨0, by simp⟩ else ⟨1, by simp⟩ with hf
+    use (function_to_object _ _ f)
+    use (by rw [power_set_axiom]; use f)
+    simp only [EmbeddingLike.apply_eq_iff_eq, choose_eq]
+    apply SetTheory.Set.ext
+    intro x
+    constructor
+    . intro hx
+      set x'' : x' := ⟨x , hx⟩ with hx''
+      have : (x'':Object) ∈ ↑(preimage f ({0}:Set)) := by
+        rw [mem_preimage f ({0}:Set) ⟨x, (hysub _ hx)⟩]
+        unfold f
+        simp only [hx, ↓reduceIte, mem_singleton, f, x'']
+      simp only [this, f, x'']
+    . intro h
+      have := preimage_in_domain f ({0}:Set)
+      have hx := this x h
+      set y: X := ⟨x, hx⟩ with hy
+      have hpre: ↑y ∈ preimage f {0} := by simp_all only [f, y]
+      rw [mem_preimage] at hpre
+      rw [hf] at hpre
+      simp only [mem_singleton, f, y] at hpre
+      split at hpre
+      next h1 => exact h1
+      next _ => simp_all only [ofNat_inj', one_ne_zero, f, y]
+
 
 /-- Remark 3.4.10 -/
 theorem SetTheory.Set.powerset_of_triple (a b c x:Object) :
@@ -509,7 +545,85 @@ theorem SetTheory.Set.powerset_of_triple (a b c x:Object) :
     ∨ x = ({a,b}:Set)
     ∨ x = ({a,c}:Set)
     ∨ x = ({b,c}:Set)
-    ∨ x = ({a,b,c}:Set) := by sorry
+    ∨ x = ({a,b,c}:Set) := by
+  constructor
+  . intro h
+    rw [mem_powerset] at h
+    obtain ⟨Y, hx, hY⟩ := h
+    rw [hx]
+    simp only [EmbeddingLike.apply_eq_iff_eq]
+    by_cases hc : c ∈ Y
+    · by_cases hb : b ∈ Y
+      · by_cases ha : a ∈ Y
+        . right; right; right; right; right; right; right;
+          apply ext
+          intro y
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+        . right; right; right; right; right; right; left;
+          apply ext
+          intro y
+          simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+      . by_cases ha : a ∈ Y
+        . right; right; right; right; right; left;
+          apply ext
+          intro y
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+        . right; right; right; left;
+          apply ext
+          intro y
+          simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+    . by_cases hb : b ∈ Y
+      · by_cases ha : a ∈ Y
+        . right; right; right; right; left;
+          apply ext
+          intro y
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+        . right; right; left;
+          apply ext
+          intro y
+          simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+      . by_cases ha : a ∈ Y
+        . right; left;
+          apply ext
+          intro y
+          constructor
+          . intro h; have hc := hY _ h; aesop
+          . intro h; aesop
+        . left
+          apply ext
+          intro y
+          simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]
+          contrapose! ha
+          have := hY _ ha
+          rw [mem_triple] at this
+          aesop
+  . intro h
+    rcases h with h | h | h | h | h | h | h | h
+    -- packing on one line for easier copy / paste
+    -- todo: figure out how to use extract set from hypothesis and use <;>
+    . rw [mem_powerset]; use ∅; constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]
+    . rw [mem_powerset]; use ({a}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]; tauto;
+    . rw [mem_powerset]; use ({b}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]; tauto;
+    . rw [mem_powerset]; use ({c}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]; tauto;
+    . rw [mem_powerset]; use ({a, b}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]; tauto;
+    . rw [mem_powerset]; use ({a, c}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]; tauto;
+    . rw [mem_powerset]; use ({b, c}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple]; tauto;
+    . rw [mem_powerset]; use ({a, b, c}:Set); constructor; exact h; rw [subset_def]; intro x; simp [emptyset_mem, mem_singleton, mem_pair, mem_triple];
 
 /-- Axiom 3.11 (Union) -/
 theorem SetTheory.Set.union_axiom (A: Set) (x:Object) :
@@ -518,12 +632,51 @@ theorem SetTheory.Set.union_axiom (A: Set) (x:Object) :
 /-- Example 3.4.11 -/
 theorem SetTheory.Set.example_3_4_11 :
     union { (({2,3}:Set):Object), (({3,4}:Set):Object), (({4,5}:Set):Object) } = {2,3,4,5} := by
-  sorry
+  apply ext
+  intro x
+  rw [union_axiom]
+  constructor
+  . intro h
+    obtain ⟨ X, hx, hs ⟩ := h
+    rw [mem_triple] at hs
+    rcases hs with h | h | h <;>
+    . simp only [EmbeddingLike.apply_eq_iff_eq] at h
+      rw [h] at hx
+      rw [mem_pair] at hx
+      rw [mem_quad]
+      tauto
+  . intro h
+    rw [mem_quad] at h
+    rcases h with h | h | h | h
+    . use (({2,3}:Set)); rw [h]; aesop
+    . use (({2,3}:Set)); rw [h]; aesop
+    . use (({4,5}:Set)); rw [h]; aesop
+    . use (({4,5}:Set)); rw [h]; aesop
+
 
 /-- Connection with Mathlib union -/
 theorem SetTheory.Set.union_eq (A: Set) :
     (union A : _root_.Set Object) =
-    ⋃₀ { S : _root_.Set Object | ∃ S':Set, S = S' ∧ (S':Object) ∈ A } := by sorry
+    ⋃₀ { S : _root_.Set Object | ∃ S':Set, S = S' ∧ (S':Object) ∈ A } := by
+  ext x
+  simp
+  constructor
+  . intro h
+    rw [union_axiom] at h
+    obtain ⟨ s, hs, hS ⟩ := h
+    use s
+    constructor
+    . use s
+    . exact hs
+  . intro h
+    obtain ⟨ s, ⟨ hs, ⟨ hs', hs''⟩ ⟩, hS ⟩ := h
+    rw [union_axiom]
+    use hs
+    constructor
+    . rw [hs'] at hS
+      simp only [Set.mem_setOf_eq] at hS
+      exact hS
+    . exact hs''
 
 /-- Indexed union -/
 abbrev SetTheory.Set.iUnion (I: Set) (A: I → Set) : Set :=
@@ -549,14 +702,66 @@ open Classical in
 noncomputable abbrev SetTheory.Set.index_example : ({1,2,3}:Set) → Set :=
   fun i ↦ if i.val = 1 then {2,3} else if i.val = 2 then {3,4} else {4,5}
 
-theorem SetTheory.Set.iUnion_example : iUnion {1,2,3} index_example = {2,3,4,5} := by sorry
+theorem SetTheory.Set.iUnion_example : iUnion {1,2,3} index_example = {2,3,4,5} := by
+  apply ext
+  intro x
+  rw [mem_iUnion]
+  constructor
+  . intro h
+    obtain ⟨ a, ha ⟩ := h
+    have hapos := a.property
+    rw [mem_triple] at hapos
+    rcases hapos with haeq | haeq | haeq
+    . have ha' : a = ⟨1, by simp⟩ := by
+        simp [← coe_inj]
+        rw [haeq]
+      rw [ha'] at ha
+      rw [index_example] at ha
+      aesop
+    . have ha' : a = ⟨2, by simp⟩ := by
+        simp [← coe_inj]
+        rw [haeq]
+      rw [ha'] at ha
+      rw [index_example] at ha
+      aesop
+    . have ha' : a = ⟨3, by simp⟩ := by
+        simp [← coe_inj]
+        rw [haeq]
+      rw [ha'] at ha
+      rw [index_example] at ha
+      aesop
+  . intro h
+    rw [mem_quad] at h
+    rcases h with h | h | h | h
+    . use ⟨1, by simp⟩ ; rw [index_example] ; aesop
+    . use ⟨1, by simp⟩ ; rw [index_example] ; aesop
+    . use ⟨3, by simp⟩ ; rw [index_example] ; aesop
+    . use ⟨3, by simp⟩ ; rw [index_example] ; aesop
 
 /-- Connection with Mathlib indexed union
 -/
 theorem SetTheory.Set.iUnion_eq (I: Set) (A: I → Set) :
-    (iUnion I A : _root_.Set Object) = ⋃ α, (A α: _root_.Set Object) := by sorry
+    (iUnion I A : _root_.Set Object) = ⋃ α, (A α: _root_.Set Object) := by
+  ext x
+  simp
+  constructor
+  . intro h
+    rw [mem_iUnion] at h
+    obtain ⟨ a, ha ⟩ := h
+    use a
+    use a.property
+  . intro h
+    obtain ⟨ a, ha, hi ⟩ := h
+    rw [mem_iUnion]
+    use ⟨a, ha⟩
 
-theorem SetTheory.Set.iUnion_of_empty (A: (∅:Set) → Set) : iUnion (∅:Set) A = ∅ := by sorry
+theorem SetTheory.Set.iUnion_of_empty (A: (∅:Set) → Set) : iUnion (∅:Set) A = ∅ := by
+  apply ext
+  intro x
+  simp only [not_mem_empty, iff_false]
+  rw [mem_iUnion]
+  push_neg
+  simp only [Subtype.forall, not_mem_empty, IsEmpty.forall_iff, implies_true]
 
 /-- Indexed intersection -/
 noncomputable abbrev SetTheory.Set.nonempty_choose {I:Set} (hI: I ≠ ∅) : I :=
@@ -570,7 +775,18 @@ noncomputable abbrev SetTheory.Set.iInter (I: Set) (hI: I ≠ ∅) (A: I → Set
 
 theorem SetTheory.Set.mem_iInter {I:Set} (hI: I ≠ ∅) (A: I → Set) (x:Object) :
     x ∈ iInter I hI A ↔ ∀ α:I, x ∈ A α := by
-  sorry
+  constructor
+  . intro h
+    rw [iInter, iInter'] at h
+    rw [specification_axiom''] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    intro a
+    have h3 := h2 a
+    exact h3
+  . intro h
+    rw [iInter, iInter']
+    rw [specification_axiom'']
+    use h (nonempty_choose hI)
 
 /-- Exercise 3.4.1 -/
 theorem SetTheory.Set.preimage_eq_image_of_inv {X Y V:Set} (f:X → Y) (f_inv: Y → X)

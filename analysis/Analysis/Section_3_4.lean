@@ -153,7 +153,7 @@ theorem SetTheory.Set.image_preimage_f_3_4_2 :
     rw [mem_preimage] at hx
     obtain ⟨ h1, h2 ⟩ := hx
     rw [f_3_4_2] at h2
-    simp at h2
+    simp only [Object.ofnat_eq] at h2
     have : 2 * nat_equiv.symm x = 1 := by
       rw [← SetTheory.Object.natCast_inj]
       exact h2

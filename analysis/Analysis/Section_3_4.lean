@@ -79,12 +79,12 @@ theorem SetTheory.Set.image_eq_image {X Y:Set} (f:X → Y) (S: Set):
       rw [coe_inj]
       exact hf
 
-theorem SetTheory.Set.image_in_codomain {X Y:Set} (f:X → Y) (U: Set) :
-  image f U ⊆ Y := by
+theorem SetTheory.Set.image_in_codomain {X Y: Set} (f: X → Y) (U: Set) :
+    image f U ⊆ Y := by
   rw [SetTheory.Set.subset_def]
   intro x h
   rw [mem_image] at h
-  obtain ⟨ x', ⟨ hx', hf ⟩ ⟩ := h
+  obtain ⟨ x', hx', hf ⟩ := h
   rw [← hf]
   exact (f x').property
 

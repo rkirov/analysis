@@ -220,7 +220,9 @@ theorem SetTheory.Set.example_3_4_9 (F:Object) :
 
 /-- Exercise 3.4.6 (i). One needs to provide a suitable definition of the power set here. -/
 def SetTheory.Set.powerset (X:Set) : Set :=
-  (({0,1} ^ X): Set).replace (P := sorry) (by sorry)
+  (({0, 1}:Set) ^ X).replace (P :=
+    fun f x ↦ x = preimage (Classical.choose ((power_set_axiom f.val).mp f.property)) ({0} : Set))
+    (by intro x y y' a; simp_all only)
 
 open Classical in
 /-- Exercise 3.4.6 (i) -/
@@ -266,7 +268,27 @@ theorem SetTheory.Set.union_axiom (A: Set) (x:Object) :
 /-- Example 3.4.12 -/
 theorem SetTheory.Set.example_3_4_12 :
     union { (({2,3}:Set):Object), (({3,4}:Set):Object), (({4,5}:Set):Object) } = {2,3,4,5} := by
-  sorry
+  apply ext
+  intro x
+  rw [union_axiom]
+  constructor
+  . intro h
+    obtain ⟨ X, hx, hs ⟩ := h
+    rw [mem_triple] at hs
+    rcases hs with h | h | h <;>
+    . simp only [EmbeddingLike.apply_eq_iff_eq] at h
+      rw [h] at hx
+      rw [mem_pair] at hx
+      rw [mem_quad]
+      tauto
+  . intro h
+    rw [mem_quad] at h
+    rcases h with h | h | h | h
+    . use (({2,3}:Set)); rw [h]; aesop
+    . use (({2,3}:Set)); rw [h]; aesop
+    . use (({4,5}:Set)); rw [h]; aesop
+    . use (({4,5}:Set)); rw [h]; aesop
+
 
 /-- Connection with Mathlib union -/
 theorem SetTheory.Set.union_eq (A: Set) :
@@ -312,7 +334,18 @@ noncomputable abbrev SetTheory.Set.iInter (I: Set) (hI: I ≠ ∅) (A: I → Set
 
 theorem SetTheory.Set.mem_iInter {I:Set} (hI: I ≠ ∅) (A: I → Set) (x:Object) :
     x ∈ iInter I hI A ↔ ∀ α:I, x ∈ A α := by
-  sorry
+  constructor
+  . intro h
+    rw [iInter, iInter'] at h
+    rw [specification_axiom''] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    intro a
+    have h3 := h2 a
+    exact h3
+  . intro h
+    rw [iInter, iInter']
+    rw [specification_axiom'']
+    use h (nonempty_choose hI)
 
 /-- Exercise 3.4.1 -/
 theorem SetTheory.Set.preimage_eq_image_of_inv {X Y V:Set} (f:X → Y) (f_inv: Y → X)

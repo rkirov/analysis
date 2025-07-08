@@ -353,7 +353,7 @@ theorem SetTheory.Set.image_preimage_f_3_4_2 :
     rw [mem_preimage] at hx
     obtain ⟨ h1, h2 ⟩ := hx
     rw [f_3_4_2] at h2
-    simp at h2
+    simp only [Object.ofnat_eq] at h2
     have : 2 * nat_equiv.symm x = 1 := by
       rw [← SetTheory.Object.natCast_inj]
       exact h2
@@ -363,11 +363,48 @@ theorem SetTheory.Set.image_preimage_f_3_4_2 :
   rw [mem_triple] at this
   tauto
 
-
 /-- Example 3.4.6 (using the Mathlib notion of preimage) -/
-example : (fun n:ℤ ↦ n^2) ⁻¹' {0,1,4} = {-2,-1,0,1,2} := by sorry
+example : (fun n:ℤ ↦ n^2) ⁻¹' {0,1,4} = {-2,-1,0,1,2} := by
+  ext x
+  constructor
+  . intro h
+    simp only [Set.mem_preimage, Set.mem_insert_iff, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true,
+      pow_eq_zero_iff, sq_eq_one_iff, Int.reduceNeg, Set.mem_singleton_iff] at h
+    simp only [Int.reduceNeg, Set.mem_insert_iff, Set.mem_singleton_iff]
+    rcases h with h | h | h
+    . tauto
+    . tauto
+    . have : x ^ 2 = 4 → x = 2 ∨ x = -2 := by
+        -- norm_num, omega, aesop all fail :(
+        have h2 : (x - 2) * (x + 2) = 0 := by
+          ring_nf
+          simp_all only [sub_self, Int.reduceNeg, neg_add_cancel]
+        intro a
+        simp_all only [sub_self, mul_eq_zero, Int.reduceNeg]
+        cases h2 with
+        | inl h =>
+          left
+          rw [← Int.add_left_inj (-2)]
+          simp only [Int.reduceNeg, add_neg_cancel]
+          exact h
+        | inr h =>
+          right
+          rw [← Int.add_left_inj 2]
+          simp
+          exact h
+      have this := this h
+      tauto
+  . intro h
+    simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at h
+    simp only [Set.mem_preimage, Set.mem_insert_iff, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true,
+      pow_eq_zero_iff, sq_eq_one_iff, Int.reduceNeg, Set.mem_singleton_iff]
+    rcases h with h | h | h | h | h <;> (rw [h]; tauto)
 
-example : (fun n:ℤ ↦ n^2) ⁻¹' ((fun n:ℤ ↦ n^2) '' {-1,0,1,2}) ≠ {-1,0,1,2} := by sorry
+example : (fun n:ℤ ↦ n^2) ⁻¹' ((fun n:ℤ ↦ n^2) '' {-1,0,1,2}) ≠ {-1,0,1,2} := by
+  have : -2 ∈ (fun n:ℤ ↦ n^2) ⁻¹' ((fun n:ℤ ↦ n^2) '' {-1,0,1,2}) := by simp
+  by_contra! h
+  rw [h] at this
+  contradiction
 
 instance SetTheory.Set.inst_pow : Pow Set Set where
   pow := SetTheory.pow
@@ -393,10 +430,71 @@ abbrev f_3_4_8_d : ({4,7}:Set) → ({0,1}:Set) := fun x ↦ ⟨ 1, by simp ⟩
 
 theorem SetTheory.Set.example_3_4_8 (F:Object) :
     F ∈ ({0,1}:Set) ^ ({4,7}:Set) ↔ F = object_of f_3_4_8_a
-    ∨ F = object_of f_3_4_8_b ∨ F = object_of f_3_4_8_c ∨ F = object_of f_3_4_8_d := by sorry
+    ∨ F = object_of f_3_4_8_b ∨ F = object_of f_3_4_8_c ∨ F = object_of f_3_4_8_d := by
+  rw [power_set_axiom]
+  constructor
+  . intro h
+    obtain ⟨ x, hx ⟩ := h
+    rw [← hx]
+    by_cases h0: x ⟨4, by simp⟩ = ⟨0, by simp⟩
+    . by_cases h1: x ⟨7, by simp⟩ = ⟨0, by simp⟩
+      . left
+        congr
+        ext y
+        have xin := y.property
+        rw [mem_pair] at xin
+        cases xin with
+        | inl h =>
+          have : y = ⟨ 4, by simp⟩ := by aesop
+          rw [this]
+          simp only [h0]
+        | inr =>
+          have : y = ⟨7, by simp⟩ := by aesop
+          rw [this]
+          simp only [h1]
+      . have h2 : x ⟨7, by simp⟩ = ⟨1, by simp⟩ := by
+          have hin := (x ⟨7, by simp⟩).property
+          rw [mem_pair] at hin
+          cases hin with
+          | inl h =>
+            exfalso
+            have :x ⟨7, by simp⟩ = ⟨0, by simp⟩ := by sorry
+            contradiction
+          | inr h =>
+            have :x ⟨7, by simp⟩ = ⟨1, by simp⟩ := by sorry
+            assumption
+        right
+        left
+        congr
+        ext y
+        congr
+        have yin := y.property
+        rw [mem_pair] at yin
+        cases yin with
+        | inl h =>
+          have : y = ⟨ 4, by simp⟩ := by aesop
+          rw [this]
+          simp only [h0]
+          unfold f_3_4_8_b
+          simp only [↓reduceIte]
+        | inr h =>
+          have : y = ⟨ 7, by simp⟩ := by aesop
+          rw [this]
+          simp only [h2]
+          unfold f_3_4_8_b
+          have ne : 7 ≠ 4 := by norm_num
+          simp only [ne, ofNat_inj', ↓reduceIte]
+    . sorry -- repeat the above 2 more times
+  . intro h
+    rcases h with h | h | h | h
+    . use f_3_4_8_a; exact h.symm
+    . use f_3_4_8_b; exact h.symm
+    . use f_3_4_8_c; exact h.symm
+    . use f_3_4_8_d; exact h.symm
 
 /-- Lemma 3.4.9.  One needs to provide a suitable definition of the power set here. -/
-abbrev SetTheory.Set.powerset (X:Set) : Set := sorry
+abbrev SetTheory.Set.powerset (X:Set) : Set :=
+  (({0, 1}:Set) ^ X).replace (P:=fun f x ↦ x = preimage f {⟨0, by simp⟩}) ()
 
 theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
     x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by sorry

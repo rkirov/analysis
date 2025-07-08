@@ -6,8 +6,8 @@ a retro on my [blog](https://rkirov.github.io/).
 Currently, I am not optimizing for readability or style of the proofs, but rather completing as many of the exercises.
 
 Completed
-- Chapter 2 all 
-- Chapter 3.1 (except one example)
+- Chapter 2 - all 
+- Chapter 3 - 1, 2, 3, parts of 4
 
 # Lean formalization of _Analysis I_
 

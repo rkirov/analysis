@@ -419,21 +419,127 @@ theorem SetTheory.Set.preimage_of_image_of_preimage {X Y:Set} (f:X → Y) (U: Se
   Exercise 3.4.3.
 -/
 theorem SetTheory.Set.image_of_inter {X Y:Set} (f:X → Y) (A B: Set) :
-    image f (A ∩ B) ⊆ (image f A) ∩ (image f B) := by sorry
+    image f (A ∩ B) ⊆ (image f A) ∩ (image f B) := by
+  intro y hy
+  rw [mem_inter]
+  rw [mem_image] at ⊢ hy
+  obtain ⟨ x, hx, hf ⟩ := hy
+  rw [mem_inter] at hx
+  constructor
+  . use x
+    constructor
+    . exact hx.1
+    . exact hf
+  . rw [mem_image]
+    use x
+    constructor
+    . exact hx.2
+    . exact hf
 
 theorem SetTheory.Set.image_of_diff {X Y:Set} (f:X → Y) (A B: Set) :
-    (image f A) \ (image f B) ⊆ image f (A \ B) := by sorry
+    (image f A) \ (image f B) ⊆ image f (A \ B) := by
+  intro y hy
+  rw [mem_sdiff] at hy
+  obtain ⟨ h1, h2 ⟩ := hy
+  rw [mem_image] at h1 ⊢
+  obtain ⟨ x, hx, hf ⟩ := h1
+  use x
+  constructor
+  . rw [mem_sdiff]
+    constructor
+    . exact hx
+    . contrapose! h2
+      rw [mem_image]
+      use x
+  . exact hf
 
 theorem SetTheory.Set.image_of_union {X Y:Set} (f:X → Y) (A B: Set) :
-    image f (A ∪ B) = (image f A) ∪ (image f B) := by sorry
+    image f (A ∪ B) = (image f A) ∪ (image f B) := by
+  apply ext
+  intro y
+  rw [mem_union, mem_image]
+  constructor
+  . intro h
+    obtain ⟨ x, hx, hf ⟩ := h
+    rw [mem_union] at hx
+    cases hx with
+    | inl h =>
+      left
+      rw [mem_image]
+      use x
+    | inr h =>
+      right
+      rw [mem_image]
+      use x
+  . intro h
+    repeat rw [mem_image] at h
+    cases h with
+    | inl h =>
+      obtain ⟨ x, hx, hf ⟩ := h
+      use x
+      constructor
+      . rw [mem_union]
+        left
+        exact hx
+      . exact hf
+    | inr h =>
+      obtain ⟨ x, hx, hf ⟩ := h
+      use x
+      constructor
+      . rw [mem_union]
+        right
+        exact hx
+      . exact hf
 
 def SetTheory.Set.image_of_inter' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A B: Set, image f (A ∩ B) = (image f A) ∩ (image f B)) := by
-  -- The first line of this construction should be either `apply isTrue` or `apply isFalse`
-  sorry
+  apply isFalse
+  push_neg
+  use {0, 1, 2}
+  use {0, 1}
+  use fun x ↦ if x = ⟨0, by simp⟩ then ⟨0, by simp⟩ else
+    if x = ⟨1, by simp⟩ then ⟨1, by simp⟩ else ⟨0, by simp⟩
+  use {0, 1}
+  use {1, 2}
+  have :{0, 1} ∩ {1, 2} = ({1}:Set) := by
+    apply ext
+    intro x
+    rw [mem_inter, mem_pair, mem_pair, mem_singleton]
+    aesop
+  rw [this]
+  by_contra h
+  rw [ext_iff] at h
+  specialize h 0
+  rw [mem_inter] at h
+  repeat rw [mem_image] at h
+  simp only [mem_singleton, Subtype.exists, Subtype.mk.injEq, mem_triple, exists_and_left,
+    exists_prop, exists_eq_left, ofNat_inj', one_ne_zero, OfNat.one_ne_ofNat, or_false, or_true,
+    ↓reduceIte, and_false, mem_pair, exists_eq_or_imp, zero_ne_one, OfNat.zero_ne_ofNat, or_self,
+    and_self, OfNat.ofNat_ne_zero, OfNat.ofNat_ne_one, iff_true] at h
 
 def SetTheory.Set.image_of_diff' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A B: Set, image f (A \ B) = (image f A) \ (image f B)) := by
-  -- The first line of this construction should be either `apply isTrue` or `apply isFalse`
-  sorry
+  apply isFalse
+  push_neg
+  use {0, 1, 2}
+  use {0, 1}
+  use fun x ↦ if x = ⟨0, by simp⟩ then ⟨0, by simp⟩ else
+    if x = ⟨1, by simp⟩ then ⟨1, by simp⟩ else ⟨0, by simp⟩
+  use {0, 1}
+  use {1, 2}
+  have :{0, 1} \ {1, 2} = ({0}:Set) := by
+    apply ext
+    intro x
+    rw [mem_sdiff, mem_pair, mem_pair, mem_singleton]
+    aesop
+  rw [this]
+  by_contra h
+  rw [ext_iff] at h
+  specialize h 0
+  rw [mem_sdiff] at h
+  repeat rw [mem_image] at h
+  simp only [mem_singleton, Subtype.exists, Subtype.mk.injEq, mem_triple, exists_and_left,
+    exists_prop, exists_eq_left, ofNat_inj', zero_ne_one, OfNat.zero_ne_ofNat, or_self, or_false,
+    ↓reduceIte, and_self, mem_pair, exists_eq_or_imp, one_ne_zero, OfNat.one_ne_ofNat, or_true,
+    and_false, OfNat.ofNat_ne_zero, OfNat.ofNat_ne_one, not_true_eq_false, iff_false] at h
 
 /-- Exercise 3.4.4 -/
 theorem SetTheory.Set.preimage_of_inter {X Y:Set} (f:X → Y) (A B: Set) :

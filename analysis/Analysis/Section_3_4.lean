@@ -66,13 +66,22 @@ theorem SetTheory.Set.image_eq_image {X Y:Set} (f:X → Y) (S: Set):
   ext y
   simp only [_root_.Set.mem_setOf, _root_.Set.mem_image, Set.mem_image]
   constructor
-  · rintro ⟨x, hx, rfl⟩
-    use f x, ⟨x, hx, rfl⟩
-  rintro ⟨_, ⟨x, hx, rfl⟩, rfl⟩
-  use x, hx
+  . rintro ⟨s, hs, hf⟩
+    use (f s)
+    constructor
+    . use s
+    . exact hf
+  . rintro ⟨y, ⟨s, hs, hf⟩ , hy⟩
+    use s
+    constructor
+    . exact hs
+    . rw [← hy]
+      rw [coe_inj]
+      exact hf
 
-theorem SetTheory.Set.image_in_codomain {X Y:Set} (f:X → Y) (S: Set) :
-    image f S ⊆ Y := by
+theorem SetTheory.Set.image_in_codomain {X Y: Set} (f: X → Y) (U: Set) :
+    image f U ⊆ Y := by
+  rw [SetTheory.Set.subset_def]
   intro x h
   rw [mem_image] at h
   obtain ⟨ x', hx', hf ⟩ := h
@@ -163,12 +172,6 @@ theorem SetTheory.Set.preimage_eq {X Y:Set} (f:X → Y) (U: Set) :
   rintro ⟨x', hy, rfl⟩
   simp only [_root_.Set.mem_setOf] at hy
   use x'
-
-theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
-    (preimage f U) ⊆ X := by
-  intro x h
-  rw [preimage] at h
-  exact specification_axiom h
 
 /-- Example 3.4.6 -/
 theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by

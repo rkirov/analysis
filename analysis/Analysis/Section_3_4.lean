@@ -350,18 +350,70 @@ theorem SetTheory.Set.mem_iInter {I:Set} (hI: I ≠ ∅) (A: I → Set) (x:Objec
 /-- Exercise 3.4.1 -/
 theorem SetTheory.Set.preimage_eq_image_of_inv {X Y V:Set} (f:X → Y) (f_inv: Y → X)
   (hf: Function.LeftInverse f_inv f ∧ Function.RightInverse f_inv f) (hV: V ⊆ Y) :
-    image f_inv V = preimage f V := by sorry
+    image f_inv V = preimage f V := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_image] at h
+    obtain ⟨ x', hx, hxf ⟩ := h
+    rw [← hxf]
+    rw [mem_preimage]
+    rw [hf.2]
+    exact hx
+  . intro h
+    rw [mem_preimage'] at h
+    obtain ⟨ x', hx', hfx' ⟩  := h
+    rw [mem_image]
+    use (f x')
+    constructor
+    . exact hfx'
+    . rw [hf.1]
+      exact hx'
+
 
 /- Exercise 3.4.2.  State and prove an assertion connecting `preimage f (image f S)` and `S`. -/
--- theorem SetTheory.Set.preimage_of_image {X Y:Set} (f:X → Y) (S: Set) (hS: S ⊆ X) : sorry := by sorry
+theorem SetTheory.Set.preimage_of_image {X Y:Set} (f:X → Y) (S: Set) (hS: S ⊆ X): S ⊆ preimage f (image f S) := by
+  intro x
+  rw [mem_preimage']
+  intro h
+  set x' : X := ⟨ x, hS x h ⟩
+  use x'
+  constructor
+  . rfl
+  . rw [mem_image]
+    use x'
 
-/- Exercise 3.4.2.  State and prove an assertion connecting `image f (preimage f U)` and `U`.
+/- Exercise 3.4.2.  State and prove an assertion connecting `image f (preimage f U)` and `U`. -/
+theorem SetTheory.Set.image_of_preimage {X Y:Set} (f:X → Y) (U: Set): image f (preimage f U) ⊆ U := by
+  intro x h
+  rw [mem_image] at h
+  obtain ⟨ y, hy, hf ⟩ := h
+  rw [mem_preimage] at hy
+  rw [← hf]
+  exact hy
+
+
+/- Exercise 3.4.2.  State and prove an assertion connecting `image f f (preimage f U)` and `U`.
 Interestingly, it is not needed for U to be a subset of Y. -/
--- theorem SetTheory.Set.image_of_preimage {X Y:Set} (f:X → Y) (U: Set) : sorry := by sorry
-
-/- Exercise 3.4.2.  State and prove an assertion connecting `preimage f (image f (preimage f U))` and `preimage f U`.
-Interestingly, it is not needed for U to be a subset of Y.-/
--- theorem SetTheory.Set.preimage_of_image_of_preimage {X Y:Set} (f:X → Y) (U: Set) : sorry := by sorry
+theorem SetTheory.Set.preimage_of_image_of_preimage {X Y:Set} (f:X → Y) (U: Set): preimage f (image f (preimage f U)) = preimage f U := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_preimage'] at ⊢ h
+    obtain ⟨ y, hy, hf ⟩ := h
+    use y
+    constructor
+    . exact hy
+    . exact (image_of_preimage f U) _ hf
+  . intro h
+    rw [mem_preimage'] at h
+    obtain ⟨ y, hy, hf ⟩ := h
+    apply preimage_of_image
+    . exact preimage_in_domain f U
+    . rw [mem_preimage']
+      use y
 
 /--
   Exercise 3.4.3.

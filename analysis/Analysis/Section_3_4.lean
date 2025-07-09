@@ -88,14 +88,6 @@ theorem SetTheory.Set.image_in_codomain {X Y: Set} (f: X → Y) (U: Set) :
   rw [← hf]
   exact (f x').property
 
-theorem SetTheory.Set.image_in_codomain {X Y:Set} (f:X → Y) (S: Set) :
-    image f S ⊆ Y := by
-  intro x h
-  rw [mem_image] at h
-  obtain ⟨ x', hx', hf ⟩ := h
-  rw [← hf]
-  exact (f x').property
-
 /-- Example 3.4.2 -/
 abbrev f_3_4_2 : nat → nat := fun n ↦ (2*n:ℕ)
 
@@ -272,12 +264,6 @@ theorem SetTheory.Set.preimage_eq {X Y:Set} (f:X → Y) (U: Set) :
     rw [← hxf']
     rw [mem_preimage]
     exact hx'
-
-theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
-    (preimage f U) ⊆ X := by
-  intro x h
-  rw [preimage] at h
-  exact specification_axiom h
 
 /-- Example 3.4.5 -/
 theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by

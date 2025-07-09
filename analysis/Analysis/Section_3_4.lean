@@ -543,13 +543,100 @@ def SetTheory.Set.image_of_diff' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A 
 
 /-- Exercise 3.4.4 -/
 theorem SetTheory.Set.preimage_of_inter {X Y:Set} (f:X → Y) (A B: Set) :
-    preimage f (A ∩ B) = (preimage f A) ∩ (preimage f B) := by sorry
+    preimage f (A ∩ B) = (preimage f A) ∩ (preimage f B) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_inter]
+    repeat rw [mem_preimage'] at ⊢ h
+    obtain ⟨ x', hx', hf ⟩ := h
+    rw [mem_inter] at hf
+    obtain ⟨ ha, hb ⟩ := hf
+    constructor
+    . use x'
+    . rw [mem_preimage']
+      use x'
+  . intro h
+    rw [mem_inter] at h
+    rw [mem_preimage'] at ⊢ h
+    rw [mem_preimage'] at h
+    obtain ⟨ ha, hb ⟩ := h
+    obtain ⟨ xa, hxa, hfa ⟩ := ha
+    obtain ⟨ xb, hxb, hfb ⟩ := hb
+    use xa
+    constructor
+    . exact hxa
+    . rw [mem_inter]
+      constructor
+      . exact hfa
+      . have : xa = xb := by
+          rw [← coe_inj]
+          rw [hxa, hxb]
+        rw [this]
+        exact hfb
 
 theorem SetTheory.Set.preimage_of_union {X Y:Set} (f:X → Y) (A B: Set) :
-    preimage f (A ∪ B) = (preimage f A) ∪ (preimage f B) := by sorry
+    preimage f (A ∪ B) = (preimage f A) ∪ (preimage f B) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_union]
+    rw [mem_preimage', mem_preimage']
+    rw [mem_preimage'] at h
+    obtain ⟨ x', hx', hf ⟩ := h
+    rw [mem_union] at hf
+    cases hf with
+    | inl ha =>
+      left
+      use x'
+    | inr hb =>
+      right
+      use x'
+  . intro h
+    rw [mem_union] at h
+    rw [mem_preimage', mem_preimage'] at h
+    rw [mem_preimage']
+    cases h with
+    | inl ha =>
+      obtain ⟨ xa, hxa, hfa ⟩ := ha
+      use xa
+      constructor
+      . exact hxa
+      . rw [mem_union]
+        left
+        exact hfa
+    | inr hb =>
+      obtain ⟨ xb, hxb, hfb ⟩ := hb
+      use xb
+      constructor
+      . exact hxb
+      . rw [mem_union]
+        right
+        exact hfb
 
 theorem SetTheory.Set.preimage_of_diff {X Y:Set} (f:X → Y) (A B: Set) :
-    preimage f (A \ B) = (preimage f A) \ (preimage f B)  := by sorry
+    preimage f (A \ B) = (preimage f A) \ (preimage f B) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_preimage'] at h
+    obtain ⟨ x', hx', hf ⟩ := h
+    rw [mem_sdiff] at ⊢ hf
+    obtain ⟨ ha, hb ⟩ := hf
+    constructor
+    . rw [mem_preimage']
+      use x'
+    . contrapose! hb
+      rw [mem_preimage'] at hb
+      obtain ⟨ x'', hx'', hf ⟩ := hb
+      have : x' = x'' := by
+        rw [← coe_inj]
+        rw [hx', hx'']
+      rw [this]
+      exact hf
 
 /-- Exercise 3.4.5 -/
 theorem SetTheory.Set.image_preimage_of_surj {X Y:Set} (f:X → Y) :

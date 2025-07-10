@@ -749,8 +749,25 @@ lemma SetTheory.Set.mem_union_powerset_replace_iff {S : Set} {P : S.powerset →
 /-- Exercise 3.4.7 -/
 theorem SetTheory.Set.partial_functions {X Y:Set} :
     ∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ X' Y':Set, X' ⊆ X ∧ Y' ⊆ Y ∧ ∃ f: X' → Y', F = f := by
-  -- doesn't work. How to get replace to use mem_powerset?
-  use union ((powerset X).replace (P := fun X' ↦ (powerset Y).replace (P := fun Y' ↦ Y'.val ^ X'.val) (by aesop)) (by aesop))
+  use union ((powerset X).replace (P := fun X' x ↦
+    have hX' := (mem_powerset _).mp X'.property
+    x ∈ (powerset Y).replace (P := fun Y' y ↦
+      have hY' := (mem_powerset _).mp Y'.property
+      y ∈ Classical.choose hY' ^ Classical.choose hX'
+    ) ( by
+        intro Y' y y' hy
+        obtain ⟨ hy, hy' ⟩ := hy
+        sorry
+    )
+  ) ( by
+    intro X' y y' hy
+    obtain ⟨ hy, hy' ⟩ := hy
+    -- doesn't work
+    -- rw [replacement_axiom] at hy
+    sorry
+  ))
+  -- actual proof below
+  sorry
 
 /--
   Exercise 3.4.8.  The point of this exercise is to prove it without using the

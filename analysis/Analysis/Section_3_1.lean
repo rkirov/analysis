@@ -1321,7 +1321,8 @@ theorem SetTheory.Set.specification_from_replacement {A:Set} {P: A → Prop} :
 /-- Exercise 3.1.12.-/
 theorem SetTheory.Set.subset_union_subset {A B A' B':Set} (hA'A: A' ⊆ A) (hB'B: B' ⊆ B) :
     A' ∪ B' ⊆ A ∪ B := by
-  intro x h
+  intro x
+  intro h
   rw [mem_union] at *
   cases h with
   | inl ha => left; exact hA'A _ ha

@@ -477,19 +477,50 @@ theorem SetTheory.Set.example_3_4_8 (F:Object) :
         congr
         have yin := y.property
         rw [mem_pair] at yin
+        unfold f_3_4_8_b
         cases yin with
         | inl h =>
           have : y = ⟨ 4, by simp⟩ := by aesop
           rw [this]
-          unfold f_3_4_8_b
           simp only [h0, ↓reduceIte]
         | inr h =>
           have : y = ⟨ 7, by simp⟩ := by aesop
           rw [this]
-          unfold f_3_4_8_b
           have ne : 7 ≠ 4 := by norm_num
           simp only [h2, ne, ofNat_inj', ↓reduceIte]
-    . sorry -- repeat the above 2 more times
+    . have h1 : x ⟨4, by simp⟩ = ⟨1, by simp⟩ := by
+        have hin := (x ⟨4, by simp⟩).property
+        rw [mem_pair] at hin
+        cases hin with
+          | inl h =>
+            exfalso
+            have :x ⟨4, by simp⟩ = ⟨0, by simp⟩ := by ext; rw [h]
+            contradiction
+          | inr h => ext; rw [h]
+      . by_cases h2: x ⟨7, by simp⟩ = ⟨0, by simp⟩
+        . right; right; left;
+          congr
+          unfold f_3_4_8_c
+          ext y
+          have hy := y.property
+          rw [mem_pair] at hy
+          rcases hy <;> aesop
+        . have h2' : x ⟨7, by simp⟩ = ⟨1, by simp⟩ := by
+            have hin := (x ⟨7, by simp⟩).property
+            rw [mem_pair] at hin
+            cases hin with
+              | inl h =>
+                exfalso
+                have :x ⟨7, by simp⟩ = ⟨0, by simp⟩ := by ext; rw [h]
+                contradiction
+              | inr h => ext; rw [h]
+          right; right; right;
+          congr
+          unfold f_3_4_8_d
+          ext y
+          have hy := y.property
+          rw [mem_pair] at hy
+          rcases hy <;> aesop
   . intro h
     rcases h with h | h | h | h
     . use f_3_4_8_a; exact h.symm
@@ -1187,8 +1218,25 @@ theorem SetTheory.Set.preimage_image_of_inj {X Y:Set} (f:X → Y) :
 /-- Exercise 3.4.7 -/
 theorem SetTheory.Set.partial_functions {X Y:Set} :
     ∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ X' Y':Set, X' ⊆ X ∧ Y' ⊆ Y ∧ ∃ f: X' → Y', F = object_of f := by
-  -- doesn't work. How to get replace to use mem_powerset?
-  use union ((powerset X).replace (P := fun X' ↦ (powerset Y).replace (P := fun Y' ↦ Y'.val ^ X'.val) (by aesop)) (by aesop))
+  use union ((powerset X).replace (P := fun X' x ↦
+    have hX' := (mem_powerset _).mp X'.property
+    x ∈ (powerset Y).replace (P := fun Y' y ↦
+      have hY' := (mem_powerset _).mp Y'.property
+      y ∈ Classical.choose hY' ^ Classical.choose hX'
+    ) ( by
+        intro Y' y y' hy
+        obtain ⟨ hy, hy' ⟩ := hy
+        sorry
+    )
+  ) ( by
+    intro X' y y' hy
+    obtain ⟨ hy, hy' ⟩ := hy
+    -- doesn't work
+    -- rw [replacement_axiom] at hy
+    sorry
+  ))
+  -- actual proof below
+  sorry
 
 /--
   Exercise 3.4.8.  The point of this exercise is to prove it without using the

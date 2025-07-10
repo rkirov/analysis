@@ -637,14 +637,103 @@ theorem SetTheory.Set.preimage_of_diff {X Y:Set} (f:X → Y) (A B: Set) :
         rw [hx', hx'']
       rw [this]
       exact hf
+  . intro h
+    rw [mem_sdiff] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    rw [mem_preimage'] at ⊢ h1
+    obtain ⟨ x , hx, hf ⟩ := h1
+    use x
+    constructor
+    . exact hx
+    . rw [mem_sdiff]
+      constructor
+      . exact hf
+      . contrapose! h2
+        rw [mem_preimage']
+        use x
 
 /-- Exercise 3.4.5 -/
 theorem SetTheory.Set.image_preimage_of_surj {X Y:Set} (f:X → Y) :
-    (∀ S, S ⊆ Y → image f (preimage f S) = S) ↔ Function.Surjective f := by sorry
+    (∀ S, S ⊆ Y → image f (preimage f S) = S) ↔ Function.Surjective f := by
+  constructor
+  . intro h
+    rw [Function.Surjective]
+    intro y'
+    obtain ⟨ y, hy ⟩ := y'
+    specialize h {y}
+    have : {y} ⊆ Y := by
+      intro x hx
+      rw [mem_singleton] at hx
+      rw [hx]
+      exact hy
+    have h2 := h this
+    rw [ext_iff] at h2
+    specialize h2 y
+    rw [mem_singleton] at h2
+    simp only [iff_true] at h2
+    rw [mem_image] at h2
+    obtain ⟨x, hx, hf⟩ := h2
+    use x
+    rw [← coe_inj]
+    rw [hf]
+  . intro h
+    rw [Function.Surjective] at h
+    intro S hS
+    apply subset_antisymm
+    . exact image_of_preimage f S
+    . intro s hs
+      rw [mem_image]
+      have hy := hS _ hs
+      specialize h ⟨ s, hy ⟩
+      obtain ⟨ x, hx ⟩ := h
+      use x
+      rw [hx]
+      constructor
+      . rw [mem_preimage]
+        rw [hx]
+        exact hs
+      . rfl
 
 /-- Exercise 3.4.5 -/
 theorem SetTheory.Set.preimage_image_of_inj {X Y:Set} (f:X → Y) :
-    (∀ S, S ⊆ X → preimage f (image f S) = S) ↔ Function.Injective f := by sorry
+    (∀ S, S ⊆ X → preimage f (image f S) = S) ↔ Function.Injective f := by
+  constructor
+  . intro h
+    rw [Function.Injective]
+    intro a b ha
+    specialize h {b.val}
+    have :{b.val} ⊆ X := by
+      intro x
+      rw [mem_singleton]
+      intro h
+      rw [h]
+      exact b.property
+    have h1 := h this
+    have : a.val ∈ preimage f (image f {↑b}) := by
+      rw [mem_preimage]
+      rw [ha]
+      rw [mem_image]
+      use b
+      constructor <;> simp only [mem_singleton]
+    rw [h1] at this
+    rw [mem_singleton] at this
+    rw [coe_inj] at this
+    exact this
+  . intro h
+    rw [Function.Injective] at h
+    intro S hS
+    apply subset_antisymm
+    . intro s
+      rw [mem_preimage']
+      intro hx
+      obtain ⟨ x', hx', hf' ⟩ := hx
+      rw [mem_image] at hf'
+      obtain ⟨ x'', hx'', hf'' ⟩ := hf'
+      have := h ((coe_inj _ _ _).mp hf'')
+      rw [← hx']
+      rw [← this]
+      exact hx''
+    . exact preimage_of_image f S hS
 
 /-- Helper lemma for Exercise 3.4.7. -/
 @[simp]
@@ -660,40 +749,194 @@ lemma SetTheory.Set.mem_union_powerset_replace_iff {S : Set} {P : S.powerset →
 /-- Exercise 3.4.7 -/
 theorem SetTheory.Set.partial_functions {X Y:Set} :
     ∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ X' Y':Set, X' ⊆ X ∧ Y' ⊆ Y ∧ ∃ f: X' → Y', F = f := by
-  sorry
+  -- doesn't work. How to get replace to use mem_powerset?
+  use union ((powerset X).replace (P := fun X' ↦ (powerset Y).replace (P := fun Y' ↦ Y'.val ^ X'.val) (by aesop)) (by aesop))
 
 /--
   Exercise 3.4.8.  The point of this exercise is to prove it without using the
   pairwise union operation `∪`.
 -/
 theorem SetTheory.Set.union_pair_exists (X Y:Set) : ∃ Z:Set, ∀ x, x ∈ Z ↔ (x ∈ X ∨ x ∈ Y) := by
-  sorry
+  use union {set_to_object X, set_to_object Y}
+  intro x
+  rw [union_axiom]
+  constructor
+  . intro h
+    obtain ⟨ S, hx, hS⟩ := h
+    rw [mem_pair] at hS
+    simp only [EmbeddingLike.apply_eq_iff_eq] at hS
+    cases hS with
+    | inl h => rw [← h]; left; exact hx
+    | inr h => rw [← h]; right; exact hx
+  . intro h
+    cases h with
+    | inl h =>
+      use X
+      constructor
+      . exact h
+      . simp only [mem_pair, EmbeddingLike.apply_eq_iff_eq, true_or]
+    | inr h =>
+      use Y
+      constructor
+      . exact h
+      . simp only [mem_pair, EmbeddingLike.apply_eq_iff_eq, or_true]
 
 /-- Exercise 3.4.9 -/
 theorem SetTheory.Set.iInter'_insensitive {I:Set} (β β':I) (A: I → Set) :
-    iInter' I β A = iInter' I β' A := by sorry
+    iInter' I β A = iInter' I β' A := by
+  repeat rw [iInter']
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [specification_axiom''] at ⊢ h
+    obtain ⟨ h , ha⟩ := h
+    have hb := ha β'
+    use hb
+  . intro h
+    rw [specification_axiom''] at ⊢ h
+    obtain ⟨ h , ha⟩ := h
+    have hb := ha β
+    use hb
 
 /-- Exercise 3.4.10 -/
 theorem SetTheory.Set.union_iUnion {I J:Set} (A: (I ∪ J:Set) → Set) :
-    iUnion I (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
-    ∪ iUnion J (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
-    = iUnion (I ∪ J) A := by sorry
+    iUnion I (fun α ↦ A ⟨ α.val, by simp only [mem_union, α.property, true_or]⟩)
+    ∪ iUnion J (fun α ↦ A ⟨ α.val, by simp only [mem_union, α.property, or_true]⟩)
+    = iUnion (I ∪ J) A := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_union] at h
+    cases h with
+    | inl h =>
+      rw [mem_iUnion] at h ⊢
+      obtain ⟨a, ha ⟩ := h
+      use ⟨ a, by simp [a.property] ⟩
+    | inr h =>
+      rw [mem_iUnion] at h ⊢
+      obtain ⟨a, ha ⟩ := h
+      use ⟨ a, by simp [a.property] ⟩
+  . intro h
+    rw [mem_union]
+    rw [mem_iUnion] at h
+    repeat rw [mem_iUnion]
+    obtain ⟨ a, ha ⟩ := h
+    have hij := a.property
+    rw [mem_union] at hij
+    cases hij with
+    | inl h =>
+      left
+      use ⟨a, h⟩
+    | inr h =>
+      right
+      use ⟨a, h⟩
 
 /-- Exercise 3.4.10 -/
-theorem SetTheory.Set.union_of_nonempty {I J:Set} (hI: I ≠ ∅) (hJ: J ≠ ∅) : I ∪ J ≠ ∅ := by sorry
+theorem SetTheory.Set.union_of_nonempty {I J:Set} (hI: I ≠ ∅) (hJ: J ≠ ∅) : I ∪ J ≠ ∅ := by
+  contrapose! hI
+  rw [eq_empty_iff_forall_notMem] at hI
+  apply ext
+  intro x
+  simp only [not_mem_empty, iff_false]
+  contrapose! hJ
+  specialize hI x
+  exfalso
+  have : x ∈ I ∪ J := by rw [mem_union]; left; exact hJ
+  contradiction
 
 /-- Exercise 3.4.10 -/
 theorem SetTheory.Set.inter_iInter {I J:Set} (hI: I ≠ ∅) (hJ: J ≠ ∅) (A: (I ∪ J:Set) → Set) :
     iInter I hI (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
     ∩ iInter J hJ (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
-    = iInter (I ∪ J) (union_of_nonempty hI hJ) A := by sorry
+    = iInter (I ∪ J) (union_of_nonempty hI hJ) A := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_inter] at h
+    obtain ⟨ ha , hb ⟩ := h
+    rw [mem_iInter] at ha hb ⊢
+    intro i
+    have hi := i.property
+    rw [mem_union] at hi
+    cases hi with
+    | inl h =>
+      specialize ha ⟨ i, h ⟩
+      exact ha
+    | inr h =>
+      specialize hb ⟨ i, h ⟩
+      exact hb
+  . intro h
+    rw [mem_inter]
+    rw [mem_iInter] at h
+    repeat rw [mem_iInter]
+    constructor <;>
+    . intro i
+      specialize h ⟨ i, by simp [i.property] ⟩
+      exact h
 
 /-- Exercise 3.4.11 -/
 theorem SetTheory.Set.compl_iUnion {X I: Set} (hI: I ≠ ∅) (A: I → Set) :
-    X \ iUnion I A = iInter I hI (fun α ↦ X \ A α) := by sorry
+    X \ iUnion I A = iInter I hI (fun α ↦ X \ A α) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_sdiff] at h
+    rw [mem_iInter]
+    intro i
+    rw [mem_sdiff]
+    constructor
+    . exact h.1
+    . have h2 := h.2
+      contrapose! h2
+      rw [mem_iUnion]
+      use i
+  . intro h
+    rw [mem_sdiff]
+    rw [mem_iInter] at h
+    have h2 := nonempty_def hI
+    obtain ⟨i, hi⟩ := h2
+    have h' := h ⟨i, hi⟩
+    rw [mem_sdiff] at h'
+    constructor
+    . exact h'.1
+    . rw [mem_iUnion]
+      push_neg
+      intro i
+      specialize h i
+      rw [mem_sdiff] at h
+      exact h.2
 
 /-- Exercise 3.4.11 -/
 theorem SetTheory.Set.compl_iInter {X I: Set} (hI: I ≠ ∅) (A: I → Set) :
-    X \ iInter I hI A = iUnion I (fun α ↦ X \ A α) := by sorry
+    X \ iInter I hI A = iUnion I (fun α ↦ X \ A α) := by
+  apply ext
+  intro x
+  rw [mem_sdiff]
+  constructor
+  . intro h
+    obtain ⟨ h1, h2 ⟩ := h
+    rw [mem_iUnion]
+    simp only [mem_iInter, Subtype.forall, not_forall] at h2
+    obtain ⟨i, Ai, hi⟩ := h2
+    use ⟨i, Ai⟩
+    rw [mem_sdiff]
+    constructor
+    . exact h1
+    . exact hi
+  . intro h
+    rw [mem_iUnion] at h
+    obtain ⟨ i, hi ⟩ := h
+    rw [mem_sdiff] at hi
+    constructor
+    . exact hi.1
+    . have h2 := hi.2
+      contrapose! h2
+      rw [mem_iInter] at h2
+      specialize h2 i
+      exact h2
 
 end Chapter3

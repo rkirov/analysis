@@ -749,25 +749,59 @@ lemma SetTheory.Set.mem_union_powerset_replace_iff {S : Set} {P : S.powerset →
 /-- Exercise 3.4.7 -/
 theorem SetTheory.Set.partial_functions {X Y:Set} :
     ∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ X' Y':Set, X' ⊆ X ∧ Y' ⊆ Y ∧ ∃ f: X' → Y', F = f := by
-  use union ((powerset X).replace (P := fun X' x ↦
+  use union ((powerset X).replace (P := fun X' Xout ↦
     have hX' := (mem_powerset _).mp X'.property
-    x ∈ (powerset Y).replace (P := fun Y' y ↦
+    Xout = union ((powerset Y).replace (P := fun Y' Yout ↦
       have hY' := (mem_powerset _).mp Y'.property
-      y ∈ Classical.choose hY' ^ Classical.choose hX'
-    ) ( by
-        intro Y' y y' hy
-        obtain ⟨ hy, hy' ⟩ := hy
-        sorry
-    )
-  ) ( by
-    intro X' y y' hy
-    obtain ⟨ hy, hy' ⟩ := hy
-    -- doesn't work
-    -- rw [replacement_axiom] at hy
-    sorry
-  ))
-  -- actual proof below
-  sorry
+      Yout = set_to_object (Classical.choose hY' ^ Classical.choose hX')
+    ) (by intro x y y' a; simp_all only))
+  ) (by intro x y y' a; simp_all only))
+  intro F
+  constructor
+  . intro h
+    rw [union_axiom] at h
+    obtain ⟨ S, hS, h ⟩ := h
+    rw [replacement_axiom] at h
+    obtain ⟨ X', hX ⟩ := h
+    extract_lets hl at hX
+    obtain ⟨ X'', hX'', hPx ⟩ := hl
+    simp only [EmbeddingLike.apply_eq_iff_eq] at hX
+    use X''
+    rw [hX] at hS
+    rw [union_axiom] at hS
+    obtain ⟨ S', hS', h ⟩ := hS
+    rw [replacement_axiom] at h
+    obtain ⟨ Y', hY' ⟩ := h
+    simp only [EmbeddingLike.apply_eq_iff_eq] at hY'
+    rw [hY'] at hS'
+    rw [power_set_axiom] at hS'
+    obtain ⟨ f, hf ⟩ := hS'
+    have h2 := Y'.property
+    rw [mem_powerset] at h2
+    obtain ⟨ Y'', hY'', hPy ⟩ := h2
+    use Y''
+    constructor
+    . assumption
+    . constructor
+      . assumption
+      .
+        let f' : X'' → Y'' := fun x ↦ ⟨f ⟨x, (by
+          -- why doesn't this work
+          rw [Classical.choose_eq]
+        )⟩, by
+          rw [Classical.choose_eq]
+        ⟩
+        use f'
+        rw [← hf]
+        congr
+        rw [Classical.choose_eq]
+  . intro h
+    obtain ⟨X', Y', hX', hY', f, hf⟩ := h
+    rw [union_axiom]
+    -- S should be
+    -- have : (∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ Y':Set, Y' ⊆ Y ∧ ∃ f: X' → Y', F = object_of f) := by sorry
+    -- use choose this
+    -- but I am not sure if that makes sense
 
 /--
   Exercise 3.4.8.  The point of this exercise is to prove it without using the

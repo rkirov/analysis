@@ -763,10 +763,7 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
     obtain ⟨ S, hS, h ⟩ := h
     rw [replacement_axiom] at h
     obtain ⟨ X', hX ⟩ := h
-    extract_lets hl at hX
-    obtain ⟨ X'', hX'', hPx ⟩ := hl
     simp only [EmbeddingLike.apply_eq_iff_eq] at hX
-    use X''
     rw [hX] at hS
     rw [union_axiom] at hS
     obtain ⟨ S', hS', h ⟩ := hS
@@ -776,32 +773,64 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
     rw [hY'] at hS'
     rw [power_set_axiom] at hS'
     obtain ⟨ f, hf ⟩ := hS'
-    have h2 := Y'.property
-    rw [mem_powerset] at h2
-    obtain ⟨ Y'', hY'', hPy ⟩ := h2
-    use Y''
+    generalize_proofs a b at f
+    use choose a
+    use choose b
     constructor
-    . assumption
+    . exact (Classical.choose_spec a).2
     . constructor
-      . assumption
-      .
-        let f' : X'' → Y'' := fun x ↦ ⟨f ⟨x, (by
-          -- why doesn't this work
-          rw [Classical.choose_eq]
-        )⟩, by
-          rw [Classical.choose_eq]
-        ⟩
-        use f'
-        rw [← hf]
-        congr
-        rw [Classical.choose_eq]
+      . exact (Classical.choose_spec b).2
+      . use f
+        exact hf.symm
   . intro h
     obtain ⟨X', Y', hX', hY', f, hf⟩ := h
     rw [union_axiom]
-    -- S should be
-    -- have : (∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ Y':Set, Y' ⊆ Y ∧ ∃ f: X' → Y', F = object_of f) := by sorry
-    -- use choose this
-    -- but I am not sure if that makes sense
+    have hxpow := (mem_powerset (set_to_object X')).mpr ⟨ X', by
+      constructor
+      . rfl
+      . exact hX'
+    ⟩
+    have hypow := (mem_powerset (set_to_object Y')).mpr ⟨ Y', by
+      constructor
+      . rfl
+      . exact hY'
+    ⟩
+    have hxchoose : choose ((mem_powerset _).mp hxpow) = X' := by
+      have h := ((mem_powerset _).mp hxpow).choose_spec
+      obtain ⟨ h1, h2 ⟩ := h
+      simp at h1
+      -- this should do it, but it does not :(
+      -- exact h1.symm
+      sorry
+
+    have hychoose : choose ((mem_powerset _).mp hypow) = Y' := by sorry
+
+    -- find out a way to do without copy/paste from defintion
+    -- it is just a specific X' instantiation
+    use (
+      union ((powerset Y).replace (P := fun Y' Yout ↦
+        have hY' := (mem_powerset _).mp Y'.property
+        Yout = set_to_object (Classical.choose hY' ^ X')
+      ) (by intro x y y' a; simp_all only)))
+    constructor
+    . rw [union_axiom]
+      -- use choose (b ⟨Y', hypow⟩ ) ^ choose (a ⟨X', hxpow⟩)
+      use Y' ^ X'
+      constructor
+      . rw [power_set_axiom]
+        use f
+        exact hf.symm
+      . rw [replacement_axiom]
+        rw [← hychoose]
+        simp only [EmbeddingLike.apply_eq_iff_eq, Subtype.exists]
+        use Y'
+        use hypow
+        simp only [EmbeddingLike.apply_eq_iff_eq]
+    . rw [replacement_axiom]
+      use ⟨ X', hxpow ⟩
+      congr!
+      extract_lets hl
+      rw [hxchoose]
 
 /--
   Exercise 3.4.8.  The point of this exercise is to prove it without using the

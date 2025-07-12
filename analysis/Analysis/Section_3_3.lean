@@ -95,13 +95,8 @@ theorem Function.to_fn_eq {X Y: Set} (f g: Function X Y): f.to_fn = g.to_fn ↔ 
   constructor
   . intro h
     ext x y
-    have : f.to_fn x = g.to_fn x := by rw [h]
-    repeat rw [to_fn_eval] at this
     repeat rw [← eval]
-    -- magic simps, why can't one immediately do rw [this]
-    simp
-    simp at this
-    rw [this]
+    congr!
   . intro h
     rw [h]
 
@@ -600,18 +595,15 @@ def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Funct
 -/
 theorem Function.comp_injective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hinj :
     (g ○ f).one_to_one) : f.one_to_one := by
-  -- move problem to mathlib defs because it is easier to work there
-  -- without worrying about messy expansions.
-  -- not using mathlib theorems which will make miss the point.
-  rw [one_to_one_iff'] at hinj
-  rw [one_to_one_iff']
-  rw [comp_eq_comp] at hinj
-  -- work in mathlib fn from here on
-  rw [Function.Injective]
-  rw [Function.Injective] at hinj
-  intro a b h
-  apply_fun g.to_fn at h
-  exact hinj h
+  rw [one_to_one] at hinj
+  rw [one_to_one]
+  intro x y h
+  contrapose! h
+  specialize hinj x y
+  by_contra hn
+  have := hinj hn
+  rw [comp_eval] at this
+  simp_all only [Subtype.forall, ne_eq, not_false_eq_true, forall_eq, not_true_eq_false, imp_false]
 
 example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).one_to_one ∧ ¬ g.one_to_one := by
   use {0}
@@ -634,20 +626,13 @@ example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).o
 
 theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
   (hinj : (g ○ f).onto) : g.onto := by
-  -- move problem to mathlib defs because it is easier to work there
-  -- without worrying about messy expansions.
-  -- not using mathlib theorems which will make miss the point.
-  rw [onto_iff] at hinj
-  rw [onto_iff]
-  rw [comp_eq_comp] at hinj
-  -- work in mathlib fn from here on
-  rw [Function.Surjective]
-  rw [Function.Surjective] at hinj
-  intro b
-  specialize hinj b
-  obtain ⟨ a, ha ⟩ := hinj
-  use (f.to_fn a)
-  exact ha
+  rw [onto] at hinj
+  rw [onto]
+  intro z
+  specialize hinj z
+  obtain ⟨ y, hy ⟩ := hinj
+  rw [comp_eval] at hy
+  use f y
 
 example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).onto ∧ ¬ f.onto := by
   use Nat
@@ -663,9 +648,8 @@ example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).o
     use 0
     rw [Function.eval_of]
     rw [Function.eval_of]
-    symm
-    ext -- why does this work?
-    exact this
+    rw [← SetTheory.Set.coe_inj]
+    exact this.symm
   . rw [Function.onto]
     intro h
     specialize h 1
@@ -759,6 +743,7 @@ abbrev Function.inclusion {X Y:Set} (h: X ⊆ Y) :
     Function X Y := Function.mk_fn (fun x ↦ ⟨ x.val, h x.val x.property ⟩ )
 
 theorem Function.inclusion_eval (X Y: Set) (x: X) (h: X ⊆ Y) : ((inclusion h) x).val = x.val := by rw [eval_of]
+theorem Function.inclusion_eval' (X Y: Set) (x: X) (h: X ⊆ Y) : ((inclusion h) x) = x.val := by rw [eval_of]
 
 abbrev Function.id (X:Set) : Function X X := Function.mk_fn (fun x ↦ x)
 
@@ -769,16 +754,12 @@ theorem Function.inclusion_id (X:Set) :
   ext x
   rw [← eval]
 
-set_option pp.proofs true
-
 theorem Function.inclusion_comp (X Y Z:Set) (hXY: X ⊆ Y) (hYZ: Y ⊆ Z) :
     Function.inclusion hYZ ○ Function.inclusion hXY = Function.inclusion (SetTheory.Set.subset_trans hXY hYZ) := by
-  rw [← to_fn_eq]
-  rw [comp_eq_comp]
-  repeat rw [inclusion]
-  repeat rw [mk_to_fn]
-  ext
-  simp only [Function.comp_apply]
+  rw [Function.eq_iff]
+  intro x
+  rw [← SetTheory.Set.coe_inj]
+  rw [comp_eval, inclusion_eval', inclusion_eval',  inclusion_eval']
 
 theorem Function.comp_id {A B:Set} (f: Function A B) : f ○ Function.id A = f := by
   ext x

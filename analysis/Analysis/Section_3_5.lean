@@ -57,7 +57,69 @@ lemma SetTheory.Set.pair_eq_singleton_iff {a b c: Object} : {a, b} = ({c}: Set) 
 /-- Exercise 3.5.1, first part -/
 def OrderedPair.toObject : OrderedPair ↪ Object where
   toFun p := ({ (({p.fst}:Set):Object), (({p.fst, p.snd}:Set):Object) }:Set)
-  inj' := by sorry
+  inj' := by
+    rw [Function.Injective]
+    intro a b h
+    simp only [EmbeddingLike.apply_eq_iff_eq] at h
+    rw [SetTheory.Set.ext_iff] at h
+    simp only [SetTheory.Set.mem_pair] at h
+    have h1 := h (SetTheory.set_to_object {a.fst})
+    have h2 := h (SetTheory.set_to_object {a.fst, a.snd})
+    simp only [EmbeddingLike.apply_eq_iff_eq, true_or, true_iff, or_true] at h1 h2
+    have fst_eq : a.fst = b.fst := by
+      cases h1 with
+        | inl h =>
+            rw [SetTheory.Set.ext_iff] at h
+            have := h a.fst
+            simp only [SetTheory.Set.mem_singleton, true_iff] at this
+            exact this
+        | inr h =>
+          rw [SetTheory.Set.ext_iff] at h
+          have := h a.fst
+          simp at this
+          cases this with
+          | inl h' => exact h'
+          | inr h' =>
+            simp_all only [SetTheory.Set.mem_singleton, SetTheory.Set.mem_pair, iff_or_self,
+              forall_eq]
+    simp_all [fst_eq]
+    have h3 := h (SetTheory.set_to_object {b.fst, a.snd})
+    have h4 := h (SetTheory.set_to_object {b.fst, b.snd})
+    simp only [EmbeddingLike.apply_eq_iff_eq, or_true, true_iff] at h3
+    simp only [EmbeddingLike.apply_eq_iff_eq, or_true, iff_true] at h4
+    have h5 : a.snd = b.fst ∨ a.snd = b.snd := by
+      rcases h3 with h | h
+      . rw [SetTheory.Set.ext_iff] at h
+        simp only [SetTheory.Set.mem_pair, SetTheory.Set.mem_singleton, or_iff_left_iff_imp,
+          forall_eq] at h
+        left
+        exact h
+      . rw [SetTheory.Set.ext_iff] at h
+        simp only [SetTheory.Set.mem_pair] at h
+        have := h a.snd
+        simp only [or_true, true_iff] at this
+        exact this
+    have h6 : b.snd = b.fst ∨ b.snd = a.snd := by
+      rcases h4 with h | h
+      . rw [SetTheory.Set.ext_iff] at h
+        simp only [SetTheory.Set.mem_pair, SetTheory.Set.mem_singleton, or_iff_left_iff_imp,
+          forall_eq] at h
+        left
+        exact h
+      . rw [SetTheory.Set.ext_iff] at h
+        simp only [SetTheory.Set.mem_pair] at h
+        have := h b.snd
+        simp only [or_true, true_iff] at this
+        exact this
+    have snd_eq : a.snd = b.snd := by
+      rcases h5 with h | h
+      . rcases h6 with h' | h'
+        . rw [h, h']
+        . exact h'.symm
+      . exact h
+    ext
+    . exact fst_eq
+    . exact snd_eq
 
 instance OrderedPair.inst_coeObject : Coe OrderedPair Object where
   coe := toObject

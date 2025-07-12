@@ -795,15 +795,17 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
       . rfl
       . exact hY'
     ⟩
-    have hxchoose : choose ((mem_powerset _).mp hxpow) = X' := by
-      have h := ((mem_powerset _).mp hxpow).choose_spec
-      obtain ⟨ h1, h2 ⟩ := h
-      simp at h1
-      -- this should do it, but it does not :(
-      -- exact h1.symm
-      sorry
+    have hxchoose : choose ((mem_powerset X').mp hxpow) = X' := by
+      let prf := (mem_powerset (set_to_object X')).mp hxpow
+      suffices choose prf = X' by exact this
+      have h := choose_spec prf
+      exact set_to_object.injective h.1.symm
 
-    have hychoose : choose ((mem_powerset _).mp hypow) = Y' := by sorry
+    have hychoose : choose ((mem_powerset Y').mp hypow) = Y' := by
+      let prf := (mem_powerset (set_to_object Y')).mp hypow
+      suffices choose prf = Y' by exact this
+      have h := choose_spec prf
+      exact set_to_object.injective h.1.symm
 
     -- find out a way to do without copy/paste from defintion
     -- it is just a specific X' instantiation

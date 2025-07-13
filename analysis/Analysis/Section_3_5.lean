@@ -642,7 +642,7 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
   ⟩
   invFun := fun z ↦ ⟨ object_of ((fun i ↦
     -- failed to synthesize decidable
-    if i.val = 0 then z.val.1 else z.val.2): (i:({0,1}:Set)) → X i), by
+    if i = ⟨0, by simp⟩  then z.val.1 else z.val.2): (i:({0,1}:Set)) → X i), by
     sorry
   ⟩
   left_inv := sorry
@@ -744,6 +744,13 @@ abbrev SetTheory.Set.Fin_embed (n N:ℕ) (h: n ≤ N) (i: Fin n) : Fin N := ⟨ 
   have := i.property; rw [mem_Fin] at *; grind
 ⟩
 
+theorem SetTheory.Set.Fin_mk_ext {n x y: ℕ} {h1: x < n} {h2: y < n}:
+    Fin_mk n x h1 = Fin_mk n y h2 → x = y := by
+  intro h
+  repeat rw [Fin_mk] at h
+  simp only [Subtype.mk.injEq, Object.natCast_inj] at h
+  exact h
+
 /-- Connections with Mathlib's `Fin n` -/
 noncomputable abbrev SetTheory.Set.Fin.Fin_equiv_Fin (n:ℕ) : Fin n ≃ _root_.Fin n where
   toFun m := _root_.Fin.mk m (toNat_lt m)
@@ -781,7 +788,67 @@ theorem SetTheory.Set.finite_choice {n:ℕ} {X: Fin n → Set} (h: ∀ i, X i �
 /-- Exercise 3.5.1, second part (requires axiom of regularity) -/
 abbrev OrderedPair.toObject' : OrderedPair ↪ Object where
   toFun p := ({ p.fst, (({p.fst, p.snd}:Set):Object) }:Set)
-  inj' := by sorry
+  inj' := by
+    intro a b h
+    simp only [EmbeddingLike.apply_eq_iff_eq] at h
+    rw [SetTheory.Set.ext_iff] at h
+    have h1 := h a.fst
+    have h2 := h b.fst
+    simp only [SetTheory.Set.mem_pair, true_or, true_iff, iff_true] at h1 h2
+    have hfst : a.fst = b.fst := by
+      by_contra! hne
+      simp [hne] at h1
+      -- why no hne.symm?
+      have : b.fst ≠ a.fst := by
+        contrapose! hne
+        simp [hne]
+      simp [this] at h2
+      have hi1 : SetTheory.set_to_object {b.fst, b.snd} ∈ ({a.fst, a.snd}:Set) := by
+        rw [h1]
+        simp only [SetTheory.Set.mem_pair, true_or]
+      have hi2 : SetTheory.set_to_object {a.fst, a.snd} ∈ ({b.fst, b.snd}:Set) := by
+        rw [h2]
+        simp only [SetTheory.Set.mem_pair, true_or]
+      exfalso
+      have h_not_mem := SetTheory.Set.not_mem_mem ({a.fst, a.snd}:Set) ({b.fst, b.snd}:Set)
+      tauto
+    ext
+    . exact hfst
+    . have h3 := h (SetTheory.set_to_object {a.fst, a.snd})
+      have h4 := h (SetTheory.set_to_object {b.fst, b.snd})
+      simp [hfst] at h3 h4
+      have h3ne : SetTheory.set_to_object {b.fst, a.snd} ≠ b.fst := by
+        by_contra! hne
+        have h_not_mem := SetTheory.Set.not_mem_self ({b.fst, a.snd}:Set)
+        have : SetTheory.set_to_object {b.fst, a.snd} ∈ ({b.fst, a.snd}:Set) := by
+          rw [hne]
+          simp only [SetTheory.Set.mem_pair, true_or]
+        contradiction
+      simp [h3ne] at h3
+      rw [SetTheory.Set.ext_iff] at h3
+      have h3f := h3 a.snd
+      simp at h3f
+      have h4ne : SetTheory.set_to_object {b.fst, b.snd} ≠ b.fst := by
+        by_contra! hne
+        have h_not_mem := SetTheory.Set.not_mem_self ({b.fst, b.snd}:Set)
+        have : SetTheory.set_to_object {b.fst, b.snd} ∈ ({b.fst, b.snd}:Set) := by
+          rw [hne]
+          simp only [SetTheory.Set.mem_pair, true_or]
+        contradiction
+      simp [h4ne] at h4
+      rw [SetTheory.Set.ext_iff] at h4
+      have h4f := h4 b.snd
+      simp at h4f
+      have hsnd : a.snd = b.snd := by
+        by_contra! hne
+        simp [hne] at h3f
+        have hne' : b.snd ≠ a.snd := by
+          contrapose! hne
+          simp [hne]
+        simp [hne'] at h4f
+        rw [← h4f] at h3f
+        contradiction
+      exact hsnd
 
 /-- An alternate definition of a tuple, used in Exercise 3.5.2 -/
 structure SetTheory.Set.Tuple (n:ℕ) where

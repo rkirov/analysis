@@ -743,6 +743,8 @@ abbrev Function.inclusion {X Y:Set} (h: X ⊆ Y) :
     Function X Y := Function.mk_fn (fun x ↦ ⟨ x.val, h x.val x.property ⟩ )
 
 theorem Function.inclusion_eval (X Y: Set) (x: X) (h: X ⊆ Y) : ((inclusion h) x).val = x.val := by rw [eval_of]
+
+-- why does this work without one .val?
 theorem Function.inclusion_eval' (X Y: Set) (x: X) (h: X ⊆ Y) : ((inclusion h) x) = x.val := by rw [eval_of]
 
 abbrev Function.id (X:Set) : Function X X := Function.mk_fn (fun x ↦ x)

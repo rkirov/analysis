@@ -160,6 +160,80 @@ noncomputable abbrev SetTheory.Set.fst {X Y:Set} (z:X ×ˢ Y) : X :=
 noncomputable abbrev SetTheory.Set.snd {X Y:Set} (z:X ×ˢ Y) : Y :=
   (exists_comm.mp ((mem_cartesian _ _ _).mp z.property)).choose
 
+-- todo: find a shorter, more direct proof of this
+theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
+    fst (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    rw [mem_cartesian]
+    use x
+    use y
+  ⟩: X ×ˢ Y) = x := by
+  generalize_proofs a
+  rw [mem_cartesian] at a
+  have := a.choose_spec
+  obtain ⟨y', h⟩ := this
+  apply OrderedPair.toObject.inj' at h
+  simp only [OrderedPair.mk.injEq] at h
+  have := h.1
+  rw [coe_inj] at this
+  simp only [fst]
+  exact this.symm
+
+-- todo: find a shorter, more direct proof of this
+theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
+    snd (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    rw [SetTheory.Set.mem_cartesian]
+    use x
+    use y
+  ⟩: X ×ˢ Y) = y := by
+  generalize_proofs a
+  rw [mem_cartesian] at a
+  rw [exists_comm] at a -- key difference from fst
+  have := a.choose_spec
+  obtain ⟨y', h⟩ := this
+  apply OrderedPair.toObject.inj' at h
+  simp only [OrderedPair.mk.injEq] at h
+  have := h.2
+  rw [coe_inj] at this
+  simp only [snd]
+  exact this.symm
+
+-- todo: find a shorter, more direct proof of this
+theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
+    fst (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    rw [mem_cartesian]
+    use x
+    use y
+  ⟩: X ×ˢ Y) = x := by
+  generalize_proofs a
+  rw [mem_cartesian] at a
+  have := a.choose_spec
+  obtain ⟨y', h⟩ := this
+  apply OrderedPair.toObject.inj' at h
+  simp only [OrderedPair.mk.injEq] at h
+  have := h.1
+  rw [coe_inj] at this
+  simp only [fst]
+  exact this.symm
+
+-- todo: find a shorter, more direct proof of this
+theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
+    snd (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    rw [SetTheory.Set.mem_cartesian]
+    use x
+    use y
+  ⟩: X ×ˢ Y) = y := by
+  generalize_proofs a
+  rw [mem_cartesian] at a
+  rw [exists_comm] at a -- key difference from fst
+  have := a.choose_spec
+  obtain ⟨y', h⟩ := this
+  apply OrderedPair.toObject.inj' at h
+  simp only [OrderedPair.mk.injEq] at h
+  have := h.2
+  rw [coe_inj] at this
+  simp only [snd]
+  exact this.symm
+
 theorem SetTheory.Set.pair_eq_fst_snd {X Y:Set} (z:X ×ˢ Y) :
     z.val = (⟨ fst z, snd z ⟩:OrderedPair) := by
   have := (mem_cartesian _ _ _).mp z.property
@@ -189,6 +263,128 @@ theorem SetTheory.Set.snd_of_mk_cartesian {X Y:Set} (x:X) (y:Y) :
 theorem SetTheory.Set.mk_cartesian_fst_snd_eq {X Y: Set} (z: X ×ˢ Y) :
     (mk_cartesian (fst z) (snd z)) = z := by
   rw [mk_cartesian, Subtype.mk.injEq, pair_eq_fst_snd]
+
+noncomputable abbrev SetTheory.Set.uncurry {X Y Z:Set} (f: X → Y → Z) : X ×ˢ Y → Z :=
+  fun z ↦ f (fst z) (snd z)
+
+theorem SetTheory.Set.curry_uncurry {X Y Z:Set} (f: X → Y → Z) : curry (uncurry f) = f := by
+  unfold uncurry
+  unfold curry
+  simp only
+  ext x y
+  rw [fst_eval, snd_eval]
+
+theorem SetTheory.Set.uncurry_curry {X Y Z:Set} (f: X ×ˢ Y → Z) : uncurry (curry f) = f := by
+  unfold uncurry
+  unfold curry
+  ext z
+  have := z.property
+  rw [mem_cartesian] at this
+  obtain ⟨ x, y, h ⟩ := this
+  have hf: fst z = x := by convert fst_eval x y
+  have hs: snd z = y := by convert snd_eval x y
+  rw [hf, hs]
+  congr!
+  exact h.symm
+
+
+noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
+  toFun := fun z ↦ ⟨(⟨ snd z, fst z ⟩ : OrderedPair), by
+    rw [mem_cartesian]
+    use snd z
+    use fst z
+  ⟩
+  invFun := fun z ↦ ⟨(⟨ snd z, fst z ⟩ : OrderedPair), by
+    rw [mem_cartesian]
+    use snd z
+    use fst z
+  ⟩
+  left_inv := by
+    intro z
+    have zp := z.property
+    rw [mem_cartesian] at zp
+    obtain ⟨ x, y, h ⟩ := zp
+    simp only [h]
+    rw [fst_eval, snd_eval]
+    congr!
+    rw [h]
+    congr!
+    -- not quite sure why this works
+    convert fst_eval x y
+    convert snd_eval x y
+  right_inv := by
+    intro z
+    have zp := z.property
+    rw [mem_cartesian] at zp
+    obtain ⟨ x, y, h ⟩ := zp
+    simp only [h]
+    rw [fst_eval, snd_eval]
+    congr!
+    rw [h]
+    congr!
+    convert fst_eval x y
+    convert snd_eval x y
+
+noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ Z ≃ X ×ˢ (Y ×ˢ Z) where
+  toFun := fun z ↦
+    let yz : Y ×ˢ Z := ⟨(⟨ snd (fst z), snd z ⟩:OrderedPair), by
+      rw [mem_cartesian]
+      use snd (fst z)
+      use snd z⟩
+    ⟨(⟨fst (fst z), yz⟩ : OrderedPair), by
+      rw [mem_cartesian]
+      use fst (fst z)
+      use yz
+    ⟩
+  invFun := fun z ↦
+    let xy : X ×ˢ Y := ⟨(⟨ fst z, fst (snd z) ⟩:OrderedPair), by
+        rw [mem_cartesian]
+        use fst z
+        use fst (snd z)
+      ⟩
+    ⟨(⟨xy, snd (snd z)⟩: OrderedPair), by
+    rw [mem_cartesian]
+    use xy
+    use snd (snd z)
+  ⟩
+  left_inv := by
+    intro t
+    have zp := t.property
+    rw [mem_cartesian] at zp
+    obtain ⟨ xy, z, h ⟩ := zp
+    have xyp := xy.property
+    rw [mem_cartesian] at xyp
+    obtain ⟨ x, y, h' ⟩ := xyp
+    generalize_proofs a b c d
+    rw [h'] at h
+    simp only [coe_inj]
+    have hx : fst (fst t) = x := by sorry
+    have hy : snd (fst t) = y := by sorry
+    have hz : snd t = z := by sorry
+    simp only [hx, hy, hz]
+    ext
+    rw [h]
+    simp only
+    congr!
+    . rw [fst]
+      generalize_proofs a b
+      have h' := Classical.choose_spec b
+      have h'' := Classical.choose_spec h'
+      sorry
+    . sorry
+    . sorry
+    sorry
+
+  right_inv := by
+    intro t
+    have zp := t.property
+    rw [mem_cartesian] at zp
+    obtain ⟨ x, yz, h ⟩ := zp
+    have yzp := yz.property
+    rw [mem_cartesian] at yzp
+    obtain ⟨ y, z, h' ⟩ := yzp
+    -- goal state is too hard to read :(
+    sorry
 
 /--
   Connections with the Mathlib set product, which consists of Lean pairs like `(x, y)`
@@ -232,7 +428,16 @@ noncomputable abbrev SetTheory.Set.curry_equiv {X Y Z:Set} : (X → Y → Z) ≃
 abbrev SetTheory.Set.tuple {I:Set} {X: I → Set} (x: ∀ i, X i) : Object :=
   ((fun i ↦ ⟨ x i, by rw [mem_iUnion]; use i; exact (x i).property ⟩):I → iUnion I X)
 
-/-- Definition 3.5.6 -/
+theorem SetTheory.Set.object_of_inj {X Y:Set} (f g: X → Y): object_of f = object_of g ↔ f = g := by
+  constructor
+  . intro h
+    rw [object_of] at h
+    simp only [EmbeddingLike.apply_eq_iff_eq] at h
+    exact h
+  . intro h
+    rw [h]
+
+/-- Definition 3.5.7 -/
 abbrev SetTheory.Set.iProd {I: Set} (X: I → Set) : Set :=
   ((iUnion I X)^I).specify (fun t ↦ ∃ x : ∀ i, X i, t = tuple x)
 
@@ -250,7 +455,25 @@ theorem SetTheory.Set.tuple_mem_iProd {I: Set} {X: I → Set} (x: ∀ i, X i) :
 
 @[simp]
 theorem SetTheory.Set.tuple_inj {I:Set} {X: I → Set} (x y: ∀ i, X i) :
-    tuple x = tuple y ↔ x = y := by sorry
+    tuple x = tuple y ↔ x = y := by
+  constructor
+  . intro h
+    rw [tuple, tuple] at h
+    simp only [EmbeddingLike.apply_eq_iff_eq] at h
+    ext i
+    have h' := congr_fun h i
+    simp only at h'
+    rw [Subtype.mk.injEq] at h'
+    exact h'
+  . intro h
+    rw [h]
+
+
+lemma SetTheory.Set.iUnion_singleton (i:Object) (X:Set): X = ({i}:Set).iUnion fun _ ↦ X := by
+  apply ext
+  intro z
+  rw [mem_iUnion]
+  simp only [nonempty_subtype, mem_singleton, exists_eq, exists_const]
 
 /-- Example 3.5.8. There is a bijection between `(X ×ˢ Y) ×ˢ Z` and `X ×ˢ (Y ×ˢ Z)`. -/
 noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ Z ≃ X ×ˢ (Y ×ˢ Z) where
@@ -265,31 +488,163 @@ noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ
 -/
 noncomputable abbrev SetTheory.Set.singleton_iProd_equiv (i:Object) (X:Set) :
     iProd (fun _:({i}:Set) ↦ X) ≃ X where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun := fun x ↦
+    have h := (mem_iProd _).mp x.property
+    (Classical.choose h) ⟨i, by simp⟩
+  invFun := fun x ↦
+    ⟨ object_of (fun _ ↦ x), by
+      rw [mem_iProd]
+      use fun _:({i}:Set) ↦ x
+      rw [tuple]
+      congr!
+      exact iUnion_singleton i X
+    ⟩
+  left_inv := by
+    intro x
+    simp only
+    have h := (mem_iProd _).mp x.property
+    have hp := Classical.choose_spec h
+    apply Subtype.ext
+    generalize_proofs a b
+    simp only
+    symm
+    rw [tuple] at hp
+    simp only [hp]
+    congr! with x1 x2 x3 x4
+    . apply ext
+      intro z
+      rw [mem_iUnion]
+      constructor
+      . intro h
+        obtain ⟨ _, hz ⟩ := h
+        exact hz
+      . intro h
+        use ⟨i, a⟩
+    . subst x4
+      have := x2.property
+      rw [mem_singleton] at this
+      exact this
+  right_inv := by
+    intro h
+    simp only
+    generalize_proofs a b
+    have := Classical.choose_spec a
+    simp only at this
+    rw [tuple] at this
+    have hI : (({i}:Set).iUnion fun x ↦ X) = X := by
+      apply ext
+      intro z
+      constructor
+      . intro h
+        rw [mem_iUnion] at h
+        obtain ⟨ _, hz ⟩ := h
+        exact hz
+      . intro h
+        rw [mem_iUnion]
+        use ⟨i, b⟩
+    -- somehow use `hI` to change the inferred types in `object_of`
+    change @object_of _ ({i}:Set) X _ = @object_of _ ({i}:Set) X _ at this
+
+
+def emptyFun (X : Set) : (x : (∅:Set)) → X := fun x ↦
+  have hf : False := by
+    have := x.property
+    have := SetTheory.Set.not_mem_empty x.val
+    contradiction
+  False.elim hf
+
 
 /-- Example 3.5.10 -/
 abbrev SetTheory.Set.empty_iProd_equiv (X: (∅:Set) → Set) : iProd X ≃ Unit where
-  toFun := sorry
-  invFun := sorry
+  toFun := fun _ ↦ ()
+  invFun := fun _ ↦ ⟨ object_of (
+    (fun i ↦
+    have hf : False := by
+      have := i.property
+      have := SetTheory.Set.not_mem_empty i.val
+      contradiction
+    False.elim hf) : ((i: (∅:Set)) → iUnion (∅:Set) X)), by
+    rw [mem_iProd]
+    -- todo: avoid copy/paste
+    use (fun i ↦
+    have hf : False := by
+      have := i.property
+      have := SetTheory.Set.not_mem_empty i.val
+      contradiction
+    False.elim hf)
+    rw [tuple]
+    rw [object_of_inj]
+    funext z
+    exfalso
+    have zp := z.property
+    have := SetTheory.Set.not_mem_empty z.val
+    contradiction
+  ⟩
   left_inv := sorry
   right_inv := sorry
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
-    iProd (fun _:I ↦ X) ≃ (I → X) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
+    iProd (fun i:I ↦ X) ≃ (I → X) where
+  toFun := fun x ↦ fun i ↦
+    have h := (mem_iProd _).mp x.property
+    (Classical.choose h) i
+  invFun := fun f ↦ ⟨ object_of (fun i ↦ f i), by
+    by_cases hI : I = ∅
+    .
+      subst hI
+      have h : f = emptyFun X := by
+        ext x
+        exfalso
+        exact False.elim ((SetTheory.Set.not_mem_empty x) x.property)
+      rw [h]
+      simp [mem_iProd]
+      use emptyFun X
+      rw [tuple]
+      sorry
+
+    rw [mem_iProd]
+    use f
+    simp [tuple]
+    congr!
+    apply ext
+    intro x
+    rw [mem_iUnion]
+    constructor
+    . intro h
+      have := SetTheory.Set.nonempty_def hI
+      obtain ⟨ i, hi ⟩ := this
+      use ⟨i, hi⟩
+    . intro h
+      obtain ⟨ i, hi ⟩ := h
+      exact hi
+  ⟩
+  left_inv := by
+    intro x
+    simp only
+    have h := (mem_iProd _).mp x.property
+    have hp' := Classical.choose_spec h
+    congr!
+    sorry
+
   right_inv := sorry
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) where
-  toFun := sorry
-  invFun := sorry
+  toFun := fun x ↦ ⟨
+    have h := (mem_iProd _).mp x.property
+    (⟨ (Classical.choose h) ⟨0, by simp⟩ , (Classical.choose h) ⟨1, by simp⟩⟩ : OrderedPair), by
+    extract_lets hl
+    rw [mem_cartesian]
+    use (Classical.choose hl) ⟨0, by simp⟩
+    use (Classical.choose hl) ⟨1, by simp⟩
+  ⟩
+  invFun := fun z ↦ ⟨ object_of ((fun i ↦
+    -- failed to synthesize decidable
+    if i.val = 0 then z.val.1 else z.val.2): (i:({0,1}:Set)) → X i), by
+    sorry
+  ⟩
   left_inv := sorry
   right_inv := sorry
 
@@ -312,7 +667,6 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_pi (I:Set) (X: I → Set) :
     ext; dsimp
     generalize_proofs _ h
     rw [←(tuple_inj _ _).mp h.choose_spec]
-
 
 /-
 remark: there are also additional relations between these equivalences, but this begins to drift

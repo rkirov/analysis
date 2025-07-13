@@ -816,7 +816,6 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
       ) (by intro x y y' a; simp_all only)))
     constructor
     . rw [union_axiom]
-      -- use choose (b ⟨Y', hypow⟩ ) ^ choose (a ⟨X', hxpow⟩)
       use Y' ^ X'
       constructor
       . rw [power_set_axiom]

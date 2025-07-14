@@ -492,12 +492,9 @@ noncomputable abbrev SetTheory.Set.singleton_iProd_equiv (i:Object) (X:Set) :
     have h := (mem_iProd _).mp x.property
     (Classical.choose h) ⟨i, by simp⟩
   invFun := fun x ↦
-    ⟨ object_of (fun _ ↦ x), by
+    ⟨ tuple (fun _ ↦ x), by
       rw [mem_iProd]
       use fun _:({i}:Set) ↦ x
-      rw [tuple]
-      congr!
-      exact iUnion_singleton i X
     ⟩
   left_inv := by
     intro x
@@ -506,24 +503,13 @@ noncomputable abbrev SetTheory.Set.singleton_iProd_equiv (i:Object) (X:Set) :
     have hp := Classical.choose_spec h
     apply Subtype.ext
     generalize_proofs a b
-    simp only
     symm
     rw [tuple] at hp
     simp only [hp]
-    congr! with x1 x2 x3 x4
-    . apply ext
-      intro z
-      rw [mem_iUnion]
-      constructor
-      . intro h
-        obtain ⟨ _, hz ⟩ := h
-        exact hz
-      . intro h
-        use ⟨i, a⟩
-    . subst x4
-      have := x2.property
-      rw [mem_singleton] at this
-      exact this
+    congr! with x1 x2
+    have := x2.property
+    rw [mem_singleton] at this
+    exact this
   right_inv := by
     intro h
     simp only
@@ -557,31 +543,33 @@ def emptyFun (X : Set) : (x : (∅:Set)) → X := fun x ↦
 /-- Example 3.5.10 -/
 abbrev SetTheory.Set.empty_iProd_equiv (X: (∅:Set) → Set) : iProd X ≃ Unit where
   toFun := fun _ ↦ ()
-  invFun := fun _ ↦ ⟨ object_of (
-    (fun i ↦
+  invFun := fun _ ↦
+  let e: (i: (∅:Set)) → X i := fun i ↦
     have hf : False := by
       have := i.property
       have := SetTheory.Set.not_mem_empty i.val
       contradiction
-    False.elim hf) : ((i: (∅:Set)) → iUnion (∅:Set) X)), by
+    False.elim hf
+  ⟨ tuple e, by
     rw [mem_iProd]
-    -- todo: avoid copy/paste
-    use (fun i ↦
-    have hf : False := by
-      have := i.property
-      have := SetTheory.Set.not_mem_empty i.val
-      contradiction
-    False.elim hf)
-    rw [tuple]
-    rw [object_of_inj]
-    funext z
-    exfalso
-    have zp := z.property
-    have := SetTheory.Set.not_mem_empty z.val
-    contradiction
+    use e
   ⟩
-  left_inv := sorry
-  right_inv := sorry
+  left_inv := by
+    intro x
+    simp only
+    ext
+    have := x.property
+    rw [mem_iProd] at this
+    obtain ⟨ e, he ⟩ := this
+    rw [he]
+    congr! with x1
+    exfalso
+    have := x1.property
+    have nempty := SetTheory.Set.not_mem_empty x1.val
+    contradiction
+  right_inv := by
+    intro x
+    simp only
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
@@ -589,35 +577,9 @@ noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
   toFun := fun x ↦ fun i ↦
     have h := (mem_iProd _).mp x.property
     (Classical.choose h) i
-  invFun := fun f ↦ ⟨ object_of (fun i ↦ f i), by
-    by_cases hI : I = ∅
-    .
-      subst hI
-      have h : f = emptyFun X := by
-        ext x
-        exfalso
-        exact False.elim ((SetTheory.Set.not_mem_empty x) x.property)
-      rw [h]
-      simp [mem_iProd]
-      use emptyFun X
-      rw [tuple]
-      sorry
-
+  invFun := fun f ↦ ⟨ tuple (fun i ↦ f i), by
     rw [mem_iProd]
     use f
-    simp [tuple]
-    congr!
-    apply ext
-    intro x
-    rw [mem_iUnion]
-    constructor
-    . intro h
-      have := SetTheory.Set.nonempty_def hI
-      obtain ⟨ i, hi ⟩ := this
-      use ⟨i, hi⟩
-    . intro h
-      obtain ⟨ i, hi ⟩ := h
-      exact hi
   ⟩
   left_inv := by
     intro x
@@ -625,9 +587,18 @@ noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
     have h := (mem_iProd _).mp x.property
     have hp' := Classical.choose_spec h
     congr!
-    sorry
+    exact hp'.symm
 
-  right_inv := sorry
+  right_inv := by
+    intro x
+    simp only
+    generalize_proofs a
+    ext i
+    have := Classical.choose_spec a
+    simp [tuple] at this
+    have h := congr_fun this i
+    rw [Subtype.mk.injEq] at h
+    exact h.symm
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
@@ -869,15 +840,143 @@ lemma SetTheory.Set.Tuple.ext {n:ℕ} {t t':Tuple n}
   have ⟨_, _, _⟩ := t; have ⟨_, _, _⟩ := t'; subst hX; congr; ext; grind
 
 /-- Exercise 3.5.2 -/
-theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n) :
-    t = t' ↔ ∀ n : Fin n, ((t.x n):Object) = ((t'.x n):Object) := by sorry
+theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
+    t = t' ↔ ∀ n : Fin n, ((t.x n):Object) = ((t'.x n):Object) := by
+  constructor
+  . intro h
+    intro i
+    rw [h]
+  . intro h
+    cases t with | mk tX tx surj
+    cases t' with | mk tX' tx' surj'
+    simp only at h
+    let S : Set := iUnion (Fin n) (fun i ↦ ({(tx i).val}:Set))
+    have h1 : tX = S := by
+      apply ext
+      intro y
+      constructor
+      . intro h2
+        unfold S
+        rw [mem_iUnion]
+        have hs := surj ⟨y, h2⟩
+        obtain ⟨ i, hi ⟩ := hs
+        use i
+        rw [hi]
+        rw [mem_singleton]
+      . intro h2
+        unfold S at h2
+        rw [mem_iUnion] at h2
+        obtain ⟨ i, hi ⟩ := h2
+        rw [mem_singleton] at hi
+        rw [hi]
+        exact (tx i).property
+    let S' : Set := iUnion (Fin n) (fun i ↦ ({(tx' i).val}:Set))
+    have hS : S = S' := by
+      apply ext
+      intro y
+      unfold S S'
+      constructor
+      . intro h2
+        rw [mem_iUnion] at h2
+        obtain ⟨ i, hi ⟩ := h2
+        rw [mem_singleton] at hi
+        specialize h i
+        rw [h] at hi
+        rw [hi]
+        rw [mem_iUnion]
+        use i
+        rw [mem_singleton]
+      . intro h2
+        rw [mem_iUnion] at h2
+        obtain ⟨ i, hi ⟩ := h2
+        rw [mem_singleton] at hi
+        specialize h i
+        rw [← h] at hi
+        rw [hi]
+        rw [mem_iUnion]
+        use i
+        rw [mem_singleton]
+    -- repeat for tX', there must be a way to do with wlog?
+    have h1' : tX' = S' := by
+      apply ext
+      intro y
+      constructor
+      . intro h2
+        unfold S'
+        rw [mem_iUnion]
+        have hs := surj' ⟨y, h2⟩
+        obtain ⟨ i, hi ⟩ := hs
+        use i
+        rw [hi]
+        rw [mem_singleton]
+      . intro h2
+        unfold S at h2
+        rw [mem_iUnion] at h2
+        obtain ⟨ i, hi ⟩ := h2
+        rw [mem_singleton] at hi
+        rw [hi]
+        exact (tx' i).property
+    have htX : tX = tX' := by
+      rw [h1, hS, h1']
+    subst htX
+    have : tx = tx' := by
+      funext i
+      have := h i
+      rw [Subtype.mk.injEq]
+      exact this
+    subst this
+    rfl
 
 noncomputable abbrev SetTheory.Set.iProd_equiv_tuples (n:ℕ) (X: Fin n → Set) :
     iProd X ≃ { t:Tuple n // ∀ i, (t.x i:Object) ∈ X i } where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun := fun x ↦
+    let h := (mem_iProd _).mp x.property
+    let t := (Classical.choose h)
+    have ht := Classical.choose_spec h
+    ⟨{
+      X := iUnion (Fin n) (fun i ↦ ({(t i).val}:Set)),
+      x := fun i ↦ ⟨(t i).val, by
+        rw [mem_iUnion]
+        use i
+        rw [mem_singleton]
+      ⟩,
+      surj := by
+        intro x
+        have h2 := x.property
+        rw [mem_iUnion] at h2
+        obtain ⟨ i, hi ⟩ := h2
+        rw [mem_singleton] at hi
+        use i
+        simp only
+        rw [Subtype.mk.injEq]
+        exact hi.symm
+    }, by
+      intro i
+      simp only
+      exact (t i).property
+    ⟩
+  invFun := fun t ↦ ⟨
+    tuple (X:=X) fun i ↦ ⟨t.val.x i, by exact t.property i⟩
+  , by
+    rw [mem_iProd]
+    use fun i ↦ ⟨t.val.x i, by
+      exact t.property i
+    ⟩
+  ⟩
+  left_inv := by
+    intro x
+    simp only
+    generalize_proofs a b c
+    have := Classical.choose_spec a
+    rw [Subtype.mk.injEq]
+    -- why forward direction doesn't work but opposite does
+    rw [← this]
+  right_inv := by
+    intro t
+    simp only
+    generalize_proofs a b c d e
+    have := Classical.choose_spec b
+    sorry
 
 /--
   Exercise 3.5.3. The spirit here is to avoid direct rewrites (which make all of these claims

@@ -600,6 +600,8 @@ noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
     rw [Subtype.mk.injEq] at h
     exact h.symm
 
+-- need to use if statements with non-decidable equality
+open Classical
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) where
@@ -611,12 +613,42 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     use (Classical.choose hl) ⟨0, by simp⟩
     use (Classical.choose hl) ⟨1, by simp⟩
   ⟩
-  invFun := fun z ↦ ⟨ object_of ((fun i ↦
-    -- failed to synthesize decidable
-    if i = ⟨0, by simp⟩  then z.val.1 else z.val.2): (i:({0,1}:Set)) → X i), by
+  invFun := fun z ↦
+    let f : (i : ({0,1}:Set)) → X i := fun i ↦
+      have hi := i.property
+      have hz := z.property
+      have h := (mem_cartesian _ _ _).mp hz
+      let x := Classical.choose h
+      let h' := Classical.choose_spec h
+      let y := Classical.choose h'
+      if h: i = ⟨ 0, by simp⟩ then ⟨x, by
+        rw [h]
+        exact x.property
+      ⟩ else ⟨y, by
+        rw [mem_pair] at hi
+        cases' hi with hi hi
+        . exfalso
+          have : ↑i = ⟨0, by simp⟩ := by
+            rw [Subtype.mk.injEq]
+            exact hi
+          contradiction
+        . have : ↑i = ⟨1, by simp⟩ := by
+            rw [Subtype.mk.injEq]
+            exact hi
+          rw [this]
+          exact y.property
+      ⟩
+    ⟨ tuple f, by rw [mem_iProd]; use f ⟩
+  left_inv := by
+    intro h
+    simp only
+    generalize_proofs a b c d e f g h'
+    have hsc := Classical.choose_spec c
+    have hsd := Classical.choose_spec d
+    have hsf := Classical.choose_spec f
+    rw [Subtype.mk.injEq]
+    simp [hsc, hsd, hsf]
     sorry
-  ⟩
-  left_inv := sorry
   right_inv := sorry
 
 /-- Example 3.5.10 -/

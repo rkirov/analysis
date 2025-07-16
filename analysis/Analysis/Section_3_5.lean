@@ -124,6 +124,12 @@ def OrderedPair.toObject : OrderedPair ↪ Object where
 instance OrderedPair.inst_coeObject : Coe OrderedPair Object where
   coe := toObject
 
+theorem OrderedPair.toObject_eq (x y x' y' : Object) :
+    (⟨ x, y ⟩ : OrderedPair).toObject = (⟨ x', y' ⟩ : OrderedPair).toObject ↔ x = x' ∧ y = y' := by
+  rw [EmbeddingLike.apply_eq_iff_eq]
+  rw [OrderedPair.eq]
+
+
 /--
   A technical operation, turning a object `x` and a set `Y` to a set `{x} × Y`, needed to define
   the full Cartesian product
@@ -199,11 +205,11 @@ theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
 
 -- todo: find a shorter, more direct proof of this
 theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
-    fst (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    fst ⟨OrderedPair.toObject { fst := x, snd := y }, by
     rw [mem_cartesian]
     use x
     use y
-  ⟩: X ×ˢ Y) = x := by
+  ⟩ = x := by
   generalize_proofs a
   rw [mem_cartesian] at a
   have := a.choose_spec
@@ -215,13 +221,65 @@ theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
   simp only [fst]
   exact this.symm
 
+/--
+  Extra eval theorems needed for when one of the components of the ordered pair is not
+  an Object directly, but an OrderedPair that is cast to an Object using toObject.
+-/
+theorem SetTheory.Set.fst_eval_fst_op {X Y: Set} (p: OrderedPair) (h: p.toObject ∈ X) (y: Y) :
+  fst ⟨OrderedPair.toObject { fst := p.toObject, snd := y }, by
+    rw [mem_cartesian]
+    use ⟨ p.toObject, h⟩
+    use y
+  ⟩ = ⟨p.toObject, h⟩ := by
+  simp [fst]
+  generalize_proofs a
+  have := a.choose_spec
+  rw [Subtype.mk.injEq]
+  exact this.symm
+
+theorem SetTheory.Set.fst_eval_snd_op {X Y: Set} (x: X) (p: OrderedPair) (h: p.toObject ∈ Y) :
+  fst ⟨OrderedPair.toObject { fst := x, snd := p.toObject }, by
+    rw [mem_cartesian]
+    use x
+    use ⟨ p.toObject, h ⟩
+  ⟩ = x := by
+  simp [fst]
+  generalize_proofs a
+  have := a.choose_spec
+  rw [Subtype.mk.injEq]
+  exact this.1.symm
+
+theorem SetTheory.Set.snd_eval_fst_op {X Y: Set} (p: OrderedPair) (h: p.toObject ∈ X) (y: Y) :
+  snd ⟨OrderedPair.toObject { fst := p.toObject, snd := y }, by
+    rw [mem_cartesian]
+    use ⟨ p.toObject, h⟩
+    use y
+  ⟩ = y := by
+  simp [snd]
+  generalize_proofs a
+  have := a.choose_spec
+  rw [Subtype.mk.injEq]
+  exact this.2.symm
+
+theorem SetTheory.Set.snd_eval_snd_op {X Y: Set} (x: X) (p: OrderedPair) (h: p.toObject ∈ Y) :
+  snd ⟨OrderedPair.toObject { fst := x, snd := p.toObject }, by
+    rw [mem_cartesian]
+    use x
+    use ⟨ p.toObject, h ⟩
+  ⟩ = ⟨p.toObject, h⟩ := by
+  simp [snd]
+  generalize_proofs a
+  have := a.choose_spec
+  rw [Subtype.mk.injEq]
+  exact this.symm
+
 -- todo: find a shorter, more direct proof of this
 theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
-    snd (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    snd ⟨OrderedPair.toObject { fst := x, snd := y }, by
     rw [SetTheory.Set.mem_cartesian]
     use x
     use y
-  ⟩: X ×ˢ Y) = y := by
+  ⟩ = y := by
   generalize_proofs a
   rw [mem_cartesian] at a
   rw [exists_comm] at a -- key difference from fst
@@ -233,6 +291,16 @@ theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
   rw [coe_inj] at this
   simp only [snd]
   exact this.symm
+
+theorem SetTheory.Set.set_eq_ordered_pair {X Y : Set} {x:X} {y:Y} {t : X ×ˢ Y} : t.val = (OrderedPair.toObject { fst := x, snd := y }) →
+  t = (⟨OrderedPair.toObject { fst := x, snd := y }, by
+    rw [SetTheory.Set.mem_cartesian]
+    use x
+    use y
+  ⟩ :X ×ˢ Y) := by
+  intro h
+  ext
+  rw [h]
 
 theorem SetTheory.Set.pair_eq_fst_snd {X Y:Set} (z:X ×ˢ Y) :
     z.val = (⟨ fst z, snd z ⟩:OrderedPair) := by
@@ -346,34 +414,47 @@ noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ
     rw [mem_cartesian]
     use xy
     use snd (snd z)
-  ⟩
+    ⟩
+
   left_inv := by
     intro t
-    have zp := t.property
-    rw [mem_cartesian] at zp
-    obtain ⟨ xy, z, h ⟩ := zp
-    have xyp := xy.property
-    rw [mem_cartesian] at xyp
-    obtain ⟨ x, y, h' ⟩ := xyp
-    generalize_proofs a b c d
-    rw [h'] at h
-    simp only [coe_inj]
-    have hx : fst (fst t) = x := by sorry
-    have hy : snd (fst t) = y := by sorry
-    have hz : snd t = z := by sorry
-    simp only [hx, hy, hz]
-    ext
+    have tp := t.property -- can't synthesize a placeholder?
+    rw [mem_cartesian] at tp
+    obtain ⟨ xy, z, h ⟩ := tp
+    rw [Subtype.mk.injEq]
     rw [h]
     simp only
-    congr!
-    . rw [fst]
-      generalize_proofs a b
-      have h' := Classical.choose_spec b
-      have h'' := Classical.choose_spec h'
-      sorry
-    . sorry
-    . sorry
-    sorry
+    rw [OrderedPair.toObject_eq]
+    constructor
+    . set xyp := xy.property
+      rw [mem_cartesian] at xyp
+      obtain ⟨ x, y, h' ⟩ := xyp
+      rw [h']
+      rw [OrderedPair.toObject_eq]
+      constructor
+      . rw [fst_eval_snd_op]
+        . apply SetTheory.Set.set_eq_ordered_pair at h
+          subst t
+          rw [fst_eval]
+          apply SetTheory.Set.set_eq_ordered_pair at h'
+          subst xy
+          rw [fst_eval]
+        . rw [mem_cartesian]
+          use (snd (fst t))
+          use snd t
+      . rw [snd_eval_snd_op]
+        . apply SetTheory.Set.set_eq_ordered_pair at h
+          subst t
+          rw [fst_eval]
+          rw [fst_eval]
+          apply SetTheory.Set.set_eq_ordered_pair at h'
+          subst xy
+          rw [snd_eval]
+    . rw [snd_eval_snd_op]
+      apply SetTheory.Set.set_eq_ordered_pair at h
+      subst t
+      rw [snd_eval]
+      rw [snd_eval]
 
   right_inv := by
     intro t
@@ -383,8 +464,38 @@ noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ
     have yzp := yz.property
     rw [mem_cartesian] at yzp
     obtain ⟨ y, z, h' ⟩ := yzp
-    -- goal state is too hard to read :(
-    sorry
+    rw [Subtype.mk.injEq]
+    rw [h]
+    rw [OrderedPair.toObject_eq]
+    constructor
+    . simp only
+      rw [fst_eval_fst_op]
+      rw [fst_eval]
+      apply SetTheory.Set.set_eq_ordered_pair at h
+      subst t
+      rw [fst_eval]
+    . simp only
+      rw [h']
+      rw [OrderedPair.toObject_eq]
+      constructor
+      . rw [fst_eval_fst_op]
+        rw [snd_eval]
+        apply SetTheory.Set.set_eq_ordered_pair at h
+        subst t
+        rw [snd_eval]
+        apply SetTheory.Set.set_eq_ordered_pair at h'
+        subst yz
+        rw [fst_eval]
+      . rw [snd_eval_fst_op]
+        . apply SetTheory.Set.set_eq_ordered_pair at h
+          subst t
+          rw [snd_eval]
+          apply SetTheory.Set.set_eq_ordered_pair at h'
+          subst yz
+          rw [snd_eval]
+        . rw [mem_cartesian]
+          use fst t
+          use (fst (snd t))
 
 /--
   Connections with the Mathlib set product, which consists of Lean pairs like `(x, y)`
@@ -573,7 +684,7 @@ abbrev SetTheory.Set.empty_iProd_equiv (X: (∅:Set) → Set) : iProd X ≃ Unit
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
-    iProd (fun i:I ↦ X) ≃ (I → X) where
+    iProd (fun _:I ↦ X) ≃ (I → X) where
   toFun := fun x ↦ fun i ↦
     have h := (mem_iProd _).mp x.property
     (Classical.choose h) i
@@ -647,9 +758,24 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     have hsd := Classical.choose_spec d
     have hsf := Classical.choose_spec f
     rw [Subtype.mk.injEq]
-    simp [hsc, hsd, hsf]
+    simp only [OrderedPair.mk.injEq, Object.natCast_inj] at hsc hsd hsf
+    have hp := h.property
+    rw [mem_iProd] at hp
+    obtain ⟨ hl, hsc' ⟩ := hp
+    rw [hsc']
     sorry
-  right_inv := sorry
+
+  right_inv := by
+    intro x
+    simp only
+    generalize_proofs a b c d e f g h i
+    have hsc := Classical.choose_spec c
+    have hsc' := Classical.choose_spec hsc
+    have hse := Classical.choose_spec e
+    have hsg := Classical.choose_spec g
+    rw [← hse]
+    sorry
+
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod_triple (X: ({0,1,2}:Set) → Set) :
@@ -964,7 +1090,6 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_tuples (n:ℕ) (X: Fin n → Set)
   toFun := fun x ↦
     let h := (mem_iProd _).mp x.property
     let t := (Classical.choose h)
-    have ht := Classical.choose_spec h
     ⟨{
       X := iUnion (Fin n) (fun i ↦ ({(t i).val}:Set)),
       x := fun i ↦ ⟨(t i).val, by
@@ -1007,43 +1132,252 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_tuples (n:ℕ) (X: Fin n → Set)
     intro t
     simp only
     generalize_proofs a b c d e
-    have := Classical.choose_spec b
+    cases t with | mk tuple ht
+    cases tuple with | mk tX tx surj
+    have : (Fin n).iUnion (fun i ↦ {↑(choose b i)}) = tX := by
+      apply ext
+      intro y
+      rw [mem_iUnion]
+      constructor
+      . intro h
+        obtain ⟨ i, hi ⟩ := h
+        rw [mem_singleton] at hi
+        have := Classical.choose_spec b
+        rw [hi]
+        rw [EmbeddingLike.apply_eq_iff_eq] at this
+        have hi' := congr_fun this i
+        simp only [Subtype.mk.injEq] at hi'
+        rw [← hi']
+        exact (tx i).property
+      . intro h
+        have hx := surj ⟨y, h⟩
+        obtain ⟨ i, hi ⟩ := hx
+        use i
+        rw [mem_singleton]
+        have := Classical.choose_spec b
+        rw [EmbeddingLike.apply_eq_iff_eq] at this
+        have hi' := congr_fun this i
+        simp at hi'
+        rw [← hi']
+        rw [hi]
+    -- doesn't work
+    -- subst tX
     sorry
 
 /--
   Exercise 3.5.3. The spirit here is to avoid direct rewrites (which make all of these claims
   trivial), and instead use `OrderedPair.eq` or `SetTheory.Set.tuple_inj`
 -/
-theorem OrderedPair.refl (p: OrderedPair) : p = p := by sorry
+theorem OrderedPair.refl (p: OrderedPair) : p = p := by
+  cases p with | mk fst snd
+  rw [OrderedPair.eq]
+  tauto
 
-theorem OrderedPair.symm (p q: OrderedPair) : p = q ↔ q = p := by sorry
+theorem OrderedPair.symm (p q: OrderedPair) : p = q ↔ q = p := by
+  cases p with | mk pfst psnd
+  cases q with | mk qfst qsnd
+  rw [OrderedPair.eq, OrderedPair.eq]
+  tauto
 
-theorem OrderedPair.trans {p q r: OrderedPair} (hpq: p=q) (hqr: q=r) : p=r := by sorry
+theorem OrderedPair.trans {p q r: OrderedPair} (hpq: p=q) (hqr: q=r) : p=r := by
+  cases p with | mk pfst psnd
+  cases q with | mk qfst qsnd
+  cases r with | mk rfst rsnd
+  rw [OrderedPair.eq] at hpq hqr
+  rw [OrderedPair.eq]
+  -- why tauto doesn't close
+  simp_all only [and_self]
 
 theorem SetTheory.Set.tuple_refl {I:Set} {X: I → Set} (a: ∀ i, X i) :
-    tuple a = tuple a := by sorry
+    tuple a = tuple a := by
+  rw [SetTheory.Set.tuple_inj]
 
 theorem SetTheory.Set.tuple_symm {I:Set} {X: I → Set} (a b: ∀ i, X i) :
-    tuple a = tuple b ↔ tuple b = tuple a := by sorry
+    tuple a = tuple b ↔ tuple b = tuple a := by
+  repeat rw [SetTheory.Set.tuple_inj]
+  tauto
 
 theorem SetTheory.Set.tuple_trans {I:Set} {X: I → Set} {a b c: ∀ i, X i}
   (hab: tuple a = tuple b) (hbc : tuple b = tuple c) :
-    tuple a = tuple c := by sorry
+    tuple a = tuple c := by
+  repeat rw [SetTheory.Set.tuple_inj] at hab hbc ⊢
+  trans b
+  . exact hab
+  . exact hbc
 
 /-- Exercise 3.5.4 -/
-theorem SetTheory.Set.prod_union (A B C:Set) : A ×ˢ (B ∪ C) = (A ×ˢ B) ∪ (A ×ˢ C) := by sorry
+theorem SetTheory.Set.prod_union (A B C:Set) : A ×ˢ (B ∪ C) = (A ×ˢ B) ∪ (A ×ˢ C) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have hb := b.property
+    rw [mem_union] at hb ⊢
+    rcases hb with h | h
+    . left
+      rw [mem_cartesian]
+      use a
+      use ⟨b , h⟩
+    . right
+      rw [mem_cartesian]
+      use a
+      use ⟨b , h⟩
+  . intro h
+    rw [mem_union] at h
+    rcases h with h | h
+    . rw [mem_cartesian] at h ⊢
+      obtain ⟨ a, b, ha, hb ⟩ := h
+      use a
+      use ⟨b, by rw [mem_union]; left; exact b.property⟩
+    . rw [mem_cartesian] at h ⊢
+      obtain ⟨ a, b, ha, hb ⟩ := h
+      use a
+      use ⟨b, by rw [mem_union]; right; exact b.property⟩
 
 /-- Exercise 3.5.4 -/
-theorem SetTheory.Set.prod_inter (A B C:Set) : A ×ˢ (B ∩ C) = (A ×ˢ B) ∩ (A ×ˢ C) := by sorry
+theorem SetTheory.Set.prod_inter (A B C:Set) : A ×ˢ (B ∩ C) = (A ×ˢ B) ∩ (A ×ˢ C) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have hb := b.property
+    rw [mem_inter] at hb ⊢
+    rcases hb with ⟨ h1, h2 ⟩
+    repeat rw [mem_cartesian]
+    constructor
+    . use a
+      use ⟨b, h1⟩
+    . use a
+      use ⟨b, h2⟩
+  . intro h
+    rw [mem_inter] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    rw [mem_cartesian] at h1 h2 ⊢
+    obtain ⟨ a1, b1, ha1, hb1 ⟩ := h1
+    obtain ⟨ a2, b2, ha2 ⟩ := h2
+    use a1
+    rw [EmbeddingLike.apply_eq_iff_eq] at ha2
+    simp at ha2
+    use ⟨b1.val, by
+      rw [mem_inter]
+      constructor
+      . exact b1.property
+      . rw [ha2.2]; exact b2.property
+    ⟩
 
 /-- Exercise 3.5.4 -/
-theorem SetTheory.Set.prod_diff (A B C:Set) : A ×ˢ (B \ C) = (A ×ˢ B) \ (A ×ˢ C) := by sorry
+theorem SetTheory.Set.prod_diff (A B C:Set) : A ×ˢ (B \ C) = (A ×ˢ B) \ (A ×ˢ C) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have hb := b.property
+    rw [mem_sdiff] at ⊢
+    constructor
+    . rw [mem_cartesian]
+      use a
+      use ⟨b, by
+        rw [mem_sdiff] at hb
+        exact hb.1
+      ⟩
+    . intro h2
+      rw [mem_cartesian] at h2
+      obtain ⟨ a2, b2, ha2 ⟩ := h2
+      rw [mem_sdiff] at hb
+      rw [EmbeddingLike.apply_eq_iff_eq] at ha2
+      rw [OrderedPair.mk.injEq] at ha2
+      rw [ha2.2] at hb
+      exact hb.2 b2.property
+  . intro h
+    rw [mem_sdiff] at h
+    rw [mem_cartesian] at h ⊢
+    obtain ⟨ h1, h2 ⟩ := h
+    obtain ⟨ a, b, ha, hb ⟩ := h1
+    use a
+    use ⟨ b, by
+      rw [mem_sdiff]
+      constructor
+      . exact b.property
+      . contrapose! h2
+        rw [mem_cartesian]
+        use a
+        use ⟨ b, h2 ⟩
+    ⟩
 
 /-- Exercise 3.5.4 -/
-theorem SetTheory.Set.union_prod (A B C:Set) : (A ∪ B) ×ˢ C = (A ×ˢ C) ∪ (B ×ˢ C) := by sorry
+-- same as prod_union, can it be proved by using prod_union?
+-- going through commutativity, we lose equality and only have equivalence
+theorem SetTheory.Set.union_prod (A B C:Set) : (A ∪ B) ×ˢ C = (A ×ˢ C) ∪ (B ×ˢ C) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have hb := b.property
+    rw [mem_union]
+    have ha := a.property
+    rw [mem_union] at ha
+    rcases ha with h | h
+    . left
+      rw [mem_cartesian]
+      use ⟨ a, h ⟩
+      use b
+    . right
+      rw [mem_cartesian]
+      use ⟨ a, h ⟩
+      use b
+  . intro h
+    rw [mem_union] at h
+    rcases h with h | h
+    . rw [mem_cartesian] at h ⊢
+      obtain ⟨ a, b, ha, hb ⟩ := h
+      use ⟨a, by rw [mem_union]; left; exact a.property⟩
+      use b
+    . rw [mem_cartesian] at h ⊢
+      obtain ⟨ a, b, ha, hb ⟩ := h
+      use ⟨a, by rw [mem_union]; right; exact a.property⟩
+      use b
+
 
 /-- Exercise 3.5.4 -/
-theorem SetTheory.Set.inter_prod (A B C:Set) : (A ∩ B) ×ˢ C = (A ×ˢ C) ∩ (B ×ˢ C) := by sorry
+theorem SetTheory.Set.inter_prod (A B C:Set) : (A ∩ B) ×ˢ C = (A ×ˢ C) ∩ (B ×ˢ C) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have ha := a.property
+    rw [mem_inter] at ha ⊢
+    constructor
+    . rw [mem_cartesian]
+      use ⟨ a , ha.1 ⟩
+      use b
+    . rw [mem_cartesian]
+      use ⟨ a , ha.2 ⟩
+      use b
+  . intro h
+    rw [mem_inter] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    rw [mem_cartesian] at h1 h2 ⊢
+    obtain ⟨ a1, b1, ha1, hb1 ⟩ := h1
+    obtain ⟨ a2, b2, ha2 ⟩ := h2
+    rw [EmbeddingLike.apply_eq_iff_eq] at ha2
+    rw [OrderedPair.mk.injEq] at ha2
+    use ⟨ a1, by
+      rw [mem_inter]
+      constructor
+      . exact a1.property
+      . rw [ha2.1]; exact a2.property
+    ⟩
+    use b1
 
 /-- Exercise 3.5.4 -/
 theorem SetTheory.Set.diff_prod (A B C:Set) : (A \ B) ×ˢ C = (A ×ˢ C) \ (B ×ˢ C) := by sorry

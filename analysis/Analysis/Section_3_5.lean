@@ -498,40 +498,54 @@ noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ
 -/
 noncomputable abbrev SetTheory.Set.prod_equiv_prod (X Y:Set) :
     ((X ×ˢ Y):_root_.Set Object) ≃ (X:_root_.Set Object) ×ˢ (Y:_root_.Set Object) where
-  toFun := fun z ↦ ⟨(fst z, snd z), by simp⟩
-  invFun := fun z ↦ mk_cartesian ⟨z.val.1, z.prop.1⟩ ⟨z.val.2, z.prop.2⟩
-  left_inv := by intro; simp
-  right_inv := by intro; simp
+  toFun := fun z ↦ ⟨(fst z, snd z), by simp only [Set.mem_prod, Subtype.coe_prop, and_self]⟩
+  invFun := fun z ↦
+    ⟨(⟨ z.val.1, z.val.2 ⟩ : OrderedPair).toObject, by
+      have h := z.property
+      rw [Set.mem_prod] at h
+      simp only [Set.mem_setOf_eq]
+      rw [SetTheory.Set.mem_cartesian]
+      use ⟨ z.val.1, h.1 ⟩
+      use ⟨ z.val.2, h.2 ⟩
+    ⟩
+  left_inv := by
+    intro z
+    have hz := z.property
+    have h := (mem_cartesian _ _ _).mp hz
+    obtain ⟨ x, y, h' ⟩ := h
+    simp only
+    congr!
+    rw [SetTheory.Set.pair_eq_fst_snd]
+  right_inv := by
+    intro z
+    have hz := z.property
+    rw [Set.mem_prod] at hz
+    simp only [Set.mem_setOf_eq] at hz
+    obtain ⟨ hx, hy ⟩ := hz
+    simp only
+    rw [fst_eval ⟨z.val.1, hx⟩ ⟨ z.val.2, hy⟩]
+    rw [snd_eval ⟨z.val.1, hx⟩ ⟨ z.val.2, hy⟩]
 
-/-- Example 3.5.5 -/
-example : ({1, 2}: Set) ×ˢ ({3, 4, 5}: Set) = ({
-  ((mk_cartesian (1: Nat) (3: Nat)): Object),
-  ((mk_cartesian (1: Nat) (4: Nat)): Object),
-  ((mk_cartesian (1: Nat) (5: Nat)): Object),
-  ((mk_cartesian (2: Nat) (3: Nat)): Object),
-  ((mk_cartesian (2: Nat) (4: Nat)): Object),
-  ((mk_cartesian (2: Nat) (5: Nat)): Object)
-}: Set) := by ext; aesop
-
-/-- Example 3.5.5 / Exercise 3.6.5. There is a bijection between `X ×ˢ Y` and `Y ×ˢ X`. -/
-noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
-
-/-- Example 3.5.5. A function of two variables can be thought of as a function of a pair. -/
-noncomputable abbrev SetTheory.Set.curry_equiv {X Y Z:Set} : (X → Y → Z) ≃ (X ×ˢ Y → Z) where
-  toFun f z := f (fst z) (snd z)
-  invFun f x y := f ⟨ (⟨ x, y ⟩:OrderedPair), by simp ⟩
-  left_inv _ := by simp
-  right_inv _ := by simp [←pair_eq_fst_snd]
+theorem SetTheory.Set.cartesian_of_empty (X:Set) :
+    (∅:Set) ×ˢ X = ∅ := by
+  apply ext
+  intro z
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ x, y, h' ⟩ := h
+    have := SetTheory.Set.not_mem_empty x.val
+    have := x.property
+    contradiction
+  . intro h
+    exfalso
+    exact (SetTheory.Set.not_mem_empty z) h
 
 /-- Definition 3.5.6.  The indexing set `I` plays the role of `{ i : 1 ≤ i ≤ n }` in the text.
     See Exercise 3.5.10 below for some connections betweeen this concept and the preceding notion
     of Cartesian product and ordered pair.  -/
-abbrev SetTheory.Set.tuple {I:Set} {X: I → Set} (x: ∀ i, X i) : Object :=
-  ((fun i ↦ ⟨ x i, by rw [mem_iUnion]; use i; exact (x i).property ⟩):I → iUnion I X)
+abbrev SetTheory.Set.tuple {I:Set} {X: I → Set} (a: ∀ i, X i) : Object :=
+  ((fun i ↦ ⟨ a i, by rw [mem_iUnion]; use i; exact (a i).property ⟩):I → iUnion I X)
 
 theorem SetTheory.Set.object_of_inj {X Y:Set} (f g: X → Y): object_of f = object_of g ↔ f = g := by
   constructor
@@ -1512,16 +1526,116 @@ def SetTheory.Set.diff_of_prod :
 -/
 theorem SetTheory.Set.prod_subset_prod {A B C D:Set}
   (hA: A ≠ ∅) (hB: B ≠ ∅) (hC: C ≠ ∅) (hD: D ≠ ∅) :
-    A ×ˢ B ⊆ C ×ˢ D ↔ A ⊆ C ∧ B ⊆ D := by sorry
+    A ×ˢ B ⊆ C ×ˢ D ↔ A ⊆ C ∧ B ⊆ D := by
+  constructor
+  . intro h
+    constructor
+    . intro a ha
+      have hbn := nonempty_def hB
+      obtain ⟨ b, hb ⟩ := hbn
+      have hp : OrderedPair.toObject { fst := a, snd := b } ∈ A ×ˢ B := by
+        rw [mem_cartesian]
+        use ⟨a, ha⟩
+        use ⟨b, hb⟩
+      have h' := h _ hp
+      rw [mem_cartesian] at h'
+      simp at h'
+      exact h'.1
+    . intro b hb
+      have han := nonempty_def hA
+      obtain ⟨ a, ha ⟩ := han
+      have hp : OrderedPair.toObject { fst := a, snd := b } ∈ A ×ˢ B := by
+        rw [mem_cartesian]
+        use ⟨a, ha⟩
+        use ⟨b, hb⟩
+      have h' := h _ hp
+      rw [mem_cartesian] at h'
+      simp at h'
+      exact h'.2
+  . intro h
+    obtain ⟨ hA', hB' ⟩ := h
+    intro x hx
+    rw [mem_cartesian] at hx ⊢
+    obtain ⟨ a, b, ha, hb ⟩ := hx
+    simp only [EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq, exists_and_left, Subtype.exists,
+      exists_prop, exists_eq_right', exists_and_right]
+    constructor
+    . exact hA' _ a.property
+    . exact hB' _ b.property
 
+/--
+  Answer to the question which hypothesis can be removed.
+  Lean immediately shows that in original proof we can drop C and D non-zero.
+  This shows we can't drop A and by symmetry we know we can't drop B either.
+-/
 def SetTheory.Set.prod_subset_prod' :
   Decidable (∀ (A B C D:Set), A ×ˢ B ⊆ C ×ˢ D ↔ A ⊆ C ∧ B ⊆ D) := by
-  -- the first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use ∅
+  use {0}
+  use {0}
+  use ∅
+  left
+  constructor
+  . rw [cartesian_of_empty]
+    intro x hx
+    exfalso
+    exact not_mem_empty x hx
+  . intro x hx
+    have : 0 ∈ ({0}:Set) := by
+      rw [mem_singleton]
+    have := hx _ this
+    exact not_mem_empty _ this
 
 /-- Exercise 3.5.7 -/
 theorem SetTheory.Set.direct_sum {X Y Z:Set} (f: Z → X) (g: Z → Y) :
-    ∃! h: Z → X ×ˢ Y, fst ∘ h = f ∧ snd ∘ h = g := by sorry
+    ∃! h: Z → X ×ˢ Y, fst ∘ h = f ∧ snd ∘ h = g := by
+  apply existsUnique_of_exists_of_unique
+  . use fun z ↦ ⟨(⟨f z, g z⟩: OrderedPair), by
+      rw [mem_cartesian]
+      use f z
+      use g z
+    ⟩
+    constructor
+    . ext z
+      simp only [Function.comp_apply]
+      rw [fst_eval]
+    . ext z
+      simp only [Function.comp_apply]
+      rw [snd_eval]
+  . intro h1 h2 h
+    obtain ⟨ h1', h2' ⟩ := h
+    subst f
+    subst g
+    intro h'
+    obtain ⟨ h1', h2' ⟩ := h'
+    ext z
+    have h1c := congr_fun h1' z
+    have h2c := congr_fun h2' z
+    repeat rw [Function.comp_apply] at h1c h2c
+    have h1z := (h1 z).property
+    have h2z := (h2 z).property
+    rw [mem_cartesian] at h1z h2z
+    obtain ⟨ a1, b1, ha1⟩ := h1z
+    obtain ⟨ a2, b2, ha2⟩ := h2z
+    repeat rw [ha1, ha2] at ⊢
+    simp only [EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq]
+    have p1 := (h1 z).property
+    rw [← Subtype.mk.injEq _ p1] at ha1
+    simp at ha1
+    have p2 := (h2 z).property
+    rw [← Subtype.mk.injEq _ p2] at ha2
+    simp at ha2
+    rw [ha1] at h1c h2c
+    conv_lhs at h1c => rw [ha2]
+    conv_lhs at h2c => rw [ha2]
+    repeat rw [fst_eval] at h1c
+    repeat rw [snd_eval] at h2c
+    rw [Subtype.mk.injEq] at h1c h2c
+    constructor
+    . exact h1c.symm
+    . exact h2c.symm
 
 /-- Exercise 3.5.8 -/
 @[simp]

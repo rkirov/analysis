@@ -753,17 +753,45 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
   left_inv := by
     intro h
     simp only
-    generalize_proofs a b c d e f g h'
-    have hsc := Classical.choose_spec c
-    have hsd := Classical.choose_spec d
-    have hsf := Classical.choose_spec f
     rw [Subtype.mk.injEq]
-    simp only [OrderedPair.mk.injEq, Object.natCast_inj] at hsc hsd hsf
     have hp := h.property
     rw [mem_iProd] at hp
-    obtain ⟨ hl, hsc' ⟩ := hp
-    rw [hsc']
-    sorry
+    obtain ⟨ t, ht ⟩ := hp
+    conv_rhs => rw [ht]
+    rw [SetTheory.Set.tuple_inj]
+    ext i
+    congr!
+    have hi := i.property
+    rw [mem_pair] at hi
+    cases' hi with hi hi
+    . have : i = ⟨ 0, by simp⟩ := by
+        rw [Subtype.mk.injEq]
+        exact hi
+      rw [this]
+      simp
+      generalize_proofs a b c
+      have hsb := Classical.choose_spec b
+      have hsc := Classical.choose_spec c
+      rw [Subtype.mk.injEq]
+      rw [← hsc]
+      conv_lhs at hsb => rw [ht]
+      rw [tuple_inj] at hsb
+      simp only [hsb]
+    . have : i ≠ ⟨ 0, by simp⟩ := by
+        by_contra! he
+        rw [Subtype.mk.injEq] at he
+        simp_all
+      simp [this]
+      generalize_proofs a b c d e f
+      have hsc := Classical.choose_spec c
+      have hse := Classical.choose_spec e
+      rw [Subtype.mk.injEq]
+      rw [← hse.2]
+      conv_lhs at hsc => rw [ht]
+      rw [tuple_inj] at hsc
+      rw [hsc]
+      have :⟨1, a⟩ = i := by rw [Subtype.mk.injEq]; exact hi.symm
+      rw [this]
 
   right_inv := by
     intro x
@@ -773,9 +801,25 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     have hsc' := Classical.choose_spec hsc
     have hse := Classical.choose_spec e
     have hsg := Classical.choose_spec g
-    rw [← hse]
-    sorry
-
+    rw [SetTheory.Set.tuple_inj] at hsg
+    rw [Subtype.mk.injEq]
+    conv_rhs => rw [hse]
+    congr!
+    . rw [← hsg]
+      rw [Subtype.mk.injEq]
+      have : ⟨0, a⟩ = (⟨0, a⟩: { x // x ∈ ({0, 1}:Set) }) := by
+        rw [Subtype.mk.injEq]
+      rw [dif_pos]
+      exact this
+    . rw [← hsg]
+      rw [Subtype.mk.injEq]
+      have : ⟨1, b⟩ ≠ (⟨0, a⟩: { x // x ∈ ({0, 1}:Set) }) := by
+        by_contra! this
+        rw [Subtype.mk.injEq] at this
+        rw [ofNat_inj'] at this
+        contradiction
+      rw [dif_neg]
+      exact this
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod_triple (X: ({0,1,2}:Set) → Set) :
@@ -1126,43 +1170,26 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_tuples (n:ℕ) (X: Fin n → Set)
     generalize_proofs a b c
     have := Classical.choose_spec a
     rw [Subtype.mk.injEq]
-    -- why forward direction doesn't work but opposite does
     rw [← this]
+
   right_inv := by
     intro t
     simp only
     generalize_proofs a b c d e
     cases t with | mk tuple ht
     cases tuple with | mk tX tx surj
-    have : (Fin n).iUnion (fun i ↦ {↑(choose b i)}) = tX := by
-      apply ext
-      intro y
-      rw [mem_iUnion]
-      constructor
-      . intro h
-        obtain ⟨ i, hi ⟩ := h
-        rw [mem_singleton] at hi
-        have := Classical.choose_spec b
-        rw [hi]
-        rw [EmbeddingLike.apply_eq_iff_eq] at this
-        have hi' := congr_fun this i
-        simp only [Subtype.mk.injEq] at hi'
-        rw [← hi']
-        exact (tx i).property
-      . intro h
-        have hx := surj ⟨y, h⟩
-        obtain ⟨ i, hi ⟩ := hx
-        use i
-        rw [mem_singleton]
-        have := Classical.choose_spec b
-        rw [EmbeddingLike.apply_eq_iff_eq] at this
-        have hi' := congr_fun this i
-        simp at hi'
-        rw [← hi']
-        rw [hi]
-    -- doesn't work
-    -- subst tX
-    sorry
+    rw [Subtype.mk.injEq]
+    rw [Tuple.eq]
+    intro i
+    simp only
+    have := Classical.choose_spec b
+    simp only [EmbeddingLike.apply_eq_iff_eq] at this
+    have := congr_fun this i
+    rw [Subtype.mk.injEq] at this
+    rw [this]
+    congr! with x
+    simp only [EmbeddingLike.apply_eq_iff_eq]
+
 
 /--
   Exercise 3.5.3. The spirit here is to avoid direct rewrites (which make all of these claims
@@ -1380,7 +1407,42 @@ theorem SetTheory.Set.inter_prod (A B C:Set) : (A ∩ B) ×ˢ C = (A ×ˢ C) ∩
     use b1
 
 /-- Exercise 3.5.4 -/
-theorem SetTheory.Set.diff_prod (A B C:Set) : (A \ B) ×ˢ C = (A ×ˢ C) \ (B ×ˢ C) := by sorry
+theorem SetTheory.Set.diff_prod (A B C:Set) : (A \ B) ×ˢ C = (A ×ˢ C) \ (B ×ˢ C) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have hb := b.property
+    rw [mem_sdiff] at ⊢
+    repeat rw [mem_cartesian]
+    have ha := a.property
+    rw [mem_sdiff] at ha
+    obtain ⟨ h1, h2 ⟩ := ha
+    constructor
+    . use ⟨ a, h1⟩
+      use b
+    . contrapose! h2
+      obtain ⟨ a2, b2, ha2 ⟩ := h2
+      simp only [EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq] at ha2
+      rw [ha2.1]
+      exact a2.property
+  . intro h
+    rw [mem_sdiff] at h
+    rw [mem_cartesian] at h ⊢
+    obtain ⟨ h1, h2 ⟩ := h
+    obtain ⟨ a, b, ha, hb ⟩ := h1
+    use ⟨a, by
+      rw [mem_sdiff]
+      constructor
+      . exact a.property
+      . contrapose! h2
+        rw [mem_cartesian]
+        simp [OrderedPair.mk.injEq]
+        exact h2
+    ⟩
+    use b
 
 /-- Exercise 3.5.5 -/
 theorem SetTheory.Set.inter_of_prod (A B C D:Set) :

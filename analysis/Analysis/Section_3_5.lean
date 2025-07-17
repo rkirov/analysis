@@ -1446,7 +1446,35 @@ theorem SetTheory.Set.diff_prod (A B C:Set) : (A \ B) ×ˢ C = (A ×ˢ C) \ (B �
 
 /-- Exercise 3.5.5 -/
 theorem SetTheory.Set.inter_of_prod (A B C D:Set) :
-    (A ×ˢ B) ∩ (C ×ˢ D) = (A ∩ C) ×ˢ (B ∩ D) := by sorry
+    (A ×ˢ B) ∩ (C ×ˢ D) = (A ∩ C) ×ˢ (B ∩ D) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_inter] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    rw [mem_cartesian] at h1 h2 ⊢
+    obtain ⟨ a1, b1, ha1 ⟩ := h1
+    obtain ⟨ a2, b2, ha2 ⟩ := h2
+    rw [ha1] at ha2
+    simp only [EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq] at ha2
+    obtain ⟨ ha1a2, ha1b2 ⟩ := ha2
+    use ⟨ a1, by rw [mem_inter]; constructor; exact a1.property; rw [ha1a2]; exact a2.property ⟩
+    use ⟨ b1, by rw [mem_inter]; constructor; exact b1.property; rw [ha1b2]; exact b2.property ⟩
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ a, b, ha, hb ⟩ := h
+    have ha := a.property
+    have hb := b.property
+    rw [mem_inter] at ha hb
+    rw [mem_inter] at ⊢
+    constructor
+    . rw [mem_cartesian]
+      use ⟨a, ha.1⟩
+      use ⟨b, hb.1⟩
+    . rw [mem_cartesian]
+      use ⟨a, ha.2⟩
+      use ⟨b, hb.2⟩
 
 /- Exercise 3.5.5 -/
 def SetTheory.Set.union_of_prod :
@@ -1454,12 +1482,63 @@ def SetTheory.Set.union_of_prod :
   -- the first line of this construction should be `apply isTrue` or `apply isFalse`.
   sorry
 
+
 /- Exercise 3.5.5 -/
 def SetTheory.Set.diff_of_prod :
   Decidable (∀ (A B C D:Set), (A ×ˢ B) \ (C ×ˢ D) = (A \ C) ×ˢ (B \ D)) := by
-  -- the first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
-
+  apply isFalse
+  push_neg
+  use {0, 1}
+  use {0, 1}
+  use {0}
+  use {0}
+  by_contra! h
+  rw [ext_iff] at h
+  specialize h (⟨0, 1⟩: OrderedPair).toObject
+  have : {0, 1} \ {0} = ({1}:Set) := by
+    rw [SetTheory.Set.ext_iff]
+    intro x
+    constructor
+    . intro hx
+      rw [mem_sdiff] at hx
+      repeat rw [mem_pair] at hx
+      rw [mem_singleton] at hx ⊢
+      tauto
+    . intro hx
+      rw [mem_singleton] at hx
+      rw [hx]
+      rw [mem_sdiff]
+      rw [mem_pair]
+      rw [mem_singleton]
+      constructor
+      . right; rfl
+      . rw [ofNat_inj']
+        simp only [one_ne_zero, not_false_eq_true]
+  rw [this] at h
+  have : OrderedPair.toObject { fst := 0, snd := 1 } ∈ ({0, 1}:Set) ×ˢ ({0, 1}:Set) \ ({0}:Set) ×ˢ ({0}:Set) := by
+    rw [mem_sdiff]
+    constructor
+    . rw [mem_cartesian]
+      use ⟨0, by rw [mem_pair]; left; rfl⟩
+      use ⟨1, by rw [mem_pair]; right; rfl⟩
+    . by_contra! h2
+      rw [mem_cartesian] at h2
+      obtain ⟨ a, b, ha ⟩ := h2
+      simp only [EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq] at ha
+      have hb := b.property
+      rw [mem_singleton] at hb
+      rw [← ha.2] at hb
+      repeat rw [ofNat_inj'] at hb
+      contradiction
+  have := h.mp this
+  rw [mem_cartesian] at this
+  obtain ⟨ a, b, ha ⟩ := this
+  simp at ha
+  have ha' := a.property
+  rw [mem_singleton] at ha'
+  rw [← ha.1] at ha'
+  repeat rw [ofNat_inj'] at ha'
+  contradiction
 /--
   Exercise 3.5.6.
 -/

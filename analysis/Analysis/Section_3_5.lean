@@ -1658,7 +1658,28 @@ theorem SetTheory.Set.direct_sum {X Y Z:Set} (f: Z → X) (g: Z → Y) :
 /-- Exercise 3.5.8 -/
 @[simp]
 theorem SetTheory.Set.iProd_empty_iff {n:ℕ} {X: Fin n → Set} :
-    iProd X = ∅ ↔ ∃ i, X i = ∅ := by sorry
+    iProd X = ∅ ↔ ∃ i, X i = ∅ := by
+  constructor
+  . intro h
+    contrapose! h
+    apply nonempty_of_inhabited
+    rw [mem_iProd]
+    use fun i ↦
+      have := h i
+      have h2 := nonempty_def this
+      let x := Classical.choose h2
+      ⟨x, by
+        exact Classical.choose_spec h2
+      ⟩
+  . intro h
+    obtain ⟨ i, hi ⟩ := h
+    contrapose! hi
+    apply nonempty_def at hi
+    obtain ⟨ x, hx ⟩ := hi
+    rw [mem_iProd] at hx
+    obtain ⟨ f, hf ⟩ := hx
+    apply nonempty_of_inhabited
+    exact (f i).property
 
 /-- Exercise 3.5.9-/
 theorem SetTheory.Set.iUnion_inter_iUnion {I J: Set} (A: I → Set) (B: J → Set) :

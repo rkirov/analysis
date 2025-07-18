@@ -1683,29 +1683,314 @@ theorem SetTheory.Set.iProd_empty_iff {n:ℕ} {X: Fin n → Set} :
 
 /-- Exercise 3.5.9-/
 theorem SetTheory.Set.iUnion_inter_iUnion {I J: Set} (A: I → Set) (B: J → Set) :
-    (iUnion I A) ∩ (iUnion J B) = iUnion (I ×ˢ J) (fun p ↦ (A (fst p)) ∩ (B (snd p))) := by sorry
+    (iUnion I A) ∩ (iUnion J B) = iUnion (I ×ˢ J) (fun p ↦ (A (fst p)) ∩ (B (snd p))) := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_inter] at h
+    obtain ⟨ h1, h2 ⟩ := h
+    rw [mem_iUnion] at h1 h2
+    obtain ⟨ i, hi1 ⟩ := h1
+    obtain ⟨ j, hj2 ⟩ := h2
+    rw [mem_iUnion]
+    let p : I ×ˢ J := ⟨(⟨i, j⟩:OrderedPair), by
+      rw [mem_cartesian]
+      use i
+      use j
+    ⟩
+    use p
+    rw [mem_inter]
+    constructor
+    . simp [p]
+      rw [fst_eval]
+      exact hi1
+    . simp [p]
+      rw [snd_eval]
+      exact hj2
+  . intro h
+    rw [mem_iUnion] at h
+    obtain ⟨ p, hp ⟩ := h
+    rw [mem_inter] at hp
+    obtain ⟨ hi, hj ⟩ := hp
+    have := p.property
+    rw [mem_cartesian] at this
+    obtain ⟨ i, j, hij⟩ := this
+    have hfst : fst p = i := by
+      -- curiously subst fails until I break down p
+      obtain ⟨val, property⟩ := p
+      subst hij
+      rw [fst_eval]
+    have hsnd : snd p = j := by
+      obtain ⟨val, property⟩ := p
+      subst hij
+      rw [snd_eval]
+    rw [mem_inter]
+    constructor
+    . rw [mem_iUnion]
+      use i
+      rw [← hfst]
+      exact hi
+    . rw [mem_iUnion]
+      use j
+      rw [← hsnd]
+      exact hj
 
 abbrev SetTheory.Set.graph {X Y:Set} (f: X → Y) : Set :=
   (X ×ˢ Y).specify (fun p ↦ (f (fst p) = snd p))
 
 /-- Exercise 3.5.10 -/
 theorem SetTheory.Set.graph_inj {X Y:Set} (f f': X → Y) :
-    graph f = graph f' ↔ f = f' := by sorry
+    graph f = graph f' ↔ f = f' := by
+  constructor
+  . intro h
+    repeat rw [graph] at h
+    ext x
+    rw [ext_iff] at h
+    specialize h (⟨( ⟨x, f x⟩:OrderedPair), by
+      rw [mem_cartesian]
+      use x
+      use (f x)
+    ⟩ : X ×ˢ Y)
+    repeat rw [specification_axiom'] at h
+    simp [fst_eval, snd_eval] at h
+    rw [h]
+  . intro h
+    rw [h]
 
 theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
   (hvert: ∀ x:X, ∃! y:Y, ((⟨x,y⟩:OrderedPair):Object) ∈ G) :
-    ∃! f: X → Y, G = graph f := by sorry
+    ∃! f: X → Y, G = graph f := by
+  apply existsUnique_of_exists_of_unique
+  . use fun x ↦
+      let h := hvert x
+      let y := Classical.choose h.exists
+      y
+    apply ext
+    intro x
+    constructor
+    . intro hx
+      have h := hG _ hx
+      rw [graph]
+      rw [specification_axiom'']
+      use h
+      simp only
+      generalize_proofs a
+      have := Classical.choose_spec a
+      have hq := (hvert (fst ⟨x, h⟩))
+      have h2 : OrderedPair.toObject { fst := ↑(fst ⟨x, h⟩), snd := snd ⟨x, h⟩ } ∈ G := by
+        suffices hg : OrderedPair.toObject { fst := ↑(fst ⟨x, h⟩), snd := ↑(snd ⟨x, h⟩) } = x by
+          rw [hg]
+          exact hx
+        have := (mem_cartesian x _ _).mp h
+        obtain ⟨ x', y', h'⟩ := this
+        conv_rhs => rw [h']
+        rw [OrderedPair.toObject_eq]
+        constructor
+        . simp [h']
+          rw [fst_eval]
+        . simp [h']
+          rw [snd_eval]
+      exact hq.unique this h2
+    . intro h
+      simp only at h
+      rw [graph] at h
+      rw [specification_axiom''] at h
+      obtain ⟨ h1, h2 ⟩ := h
+      rw [mem_cartesian] at h1
+      obtain ⟨ x', y, h'⟩ := h1
+      specialize hvert x'
+      rw [h']
+      generalize_proofs a at h2
+      have := Classical.choose_spec a
+      rw [h2] at this
+      suffices h: OrderedPair.toObject { fst := ↑(fst ⟨x, h1⟩), snd := ↑(snd ⟨x, h1⟩) } =
+        OrderedPair.toObject { fst := ↑x', snd := ↑y } by
+        rw [← h]
+        exact this
+      rw [OrderedPair.toObject_eq]
+      simp [h']
+      rw [fst_eval, snd_eval]
+      tauto
+  . intro f f' h h'
+    rw [graph] at h h'
+    rw [ext_iff] at h h'
+    ext x
+    specialize hvert x
+    obtain ⟨ y, hp ⟩ := hvert.exists
+    let p : X ×ˢ Y := ⟨(⟨x, y⟩:OrderedPair), by
+      rw [mem_cartesian]
+      use x
+      use y
+    ⟩
+    specialize h p.val
+    specialize h' p.val
+    have : p.val ∈ G := by
+      apply hp
+    have hf := h.mp this
+    have hf' := h'.mp this
+    rw [specification_axiom''] at hf hf'
+    obtain ⟨ h1, h2 ⟩ := hf
+    obtain ⟨ h1', h2' ⟩ := hf'
+    simp at h2 h2'
+    simp [p] at h2 h2'
+    rw [fst_eval, snd_eval] at h2 h2'
+    rw [h2, h2']
 
 /--
   Exercise 3.5.11. This trivially follows from `SetTheory.Set.powerset_axiom`, but the
   exercise is to derive it from `SetTheory.Set.exists_powerset` instead.
 -/
 theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
-    ∃! S:Set, ∀(F:Object), F ∈ S ↔ ∃ f: Y → X, f = F := sorry
+    ∃! S:Set, ∀(F:Object), F ∈ S ↔ ∃ f: Y → X, f = F := by
+  apply existsUnique_of_exists_of_unique
+  . let g := (Y ×ˢ X).powerset.specify (fun T ↦
+      have p := (mem_powerset T).mp T.property
+      have S := choose p
+      ∀ y : Y, ∃! x : X, OrderedPair.toObject { fst := y, snd := x } ∈ S
+    )
+    use g.replace (P := fun T F ↦ ∃ f: Y → X, object_of f = F ∧ graph f = T.val) (by
+      intro T y y'
+      simp
+      intro f hf hG f' hf' hG'
+      rw [← hf, ← hf']
+      simp only [EmbeddingLike.apply_eq_iff_eq]
+      rw [← hG] at hG'
+      simp only [EmbeddingLike.apply_eq_iff_eq] at hG'
+      rw [SetTheory.Set.graph_inj] at hG'
+      exact hG'.symm
+    )
+    intro F
+    constructor
+    . intro h
+      rw [replacement_axiom] at h
+      obtain ⟨ T, hT, hF, hF' ⟩ := h
+      use hT
+    . intro h
+      obtain ⟨ T, hT ⟩ := h
+      rw [replacement_axiom]
+      have : set_to_object (graph T) ∈ g := by
+        simp [g]
+        rw [specification_axiom'']
+        constructor
+        . intro y hy
+          apply existsUnique_of_exists_of_unique
+          . use T ⟨y, hy⟩
+            generalize_proofs a
+            have := Classical.choose_spec a
+            obtain ⟨ h1, h2 ⟩ := this
+            rw [EmbeddingLike.apply_eq_iff_eq] at h1
+            rw [← h1]
+            rw [graph]
+            rw [specification_axiom'']
+            constructor
+            . let y': Y := ⟨ y , hy ⟩
+              have : y = y'.val := by rfl
+              simp [this]
+              rw [fst_eval, snd_eval]
+            . rw [mem_cartesian]
+              use ⟨y, hy⟩
+              use T ⟨y, hy⟩
+          . intro x x' hx hx'
+            generalize_proofs a at hx hx'
+            have := Classical.choose_spec a
+            rw [EmbeddingLike.apply_eq_iff_eq] at this
+            rw [← this.1] at hx hx'
+            rw [graph] at hx hx'
+            rw [specification_axiom''] at hx hx'
+            obtain ⟨ h1, h2 ⟩ := hx
+            obtain ⟨ h1', h2' ⟩ := hx'
+            let y': Y := ⟨ y , hy ⟩
+            have : y = y'.val := by rfl
+            simp [this] at h2 h2'
+            rw [fst_eval, snd_eval] at h2 h2'
+            rw [← h2, ← h2']
+            . rw [mem_powerset]
+              use graph T
+              simp only [true_and]
+              rw [graph]
+              apply specification_axiom
+      use ⟨ set_to_object (graph T), this⟩
+      use T
+  . intro S S' h h'
+    apply ext
+    intro x
+    specialize h x
+    specialize h' x
+    rw [h, h']
 
 /-- Exercise 3.5.12, with errata from web site incorporated -/
 theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
-    ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by sorry
+    ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by
+  apply existsUnique_of_exists_of_unique
+  . have h (N: ℕ): ∃! a: {n: Nat // (n:ℕ) ≤ N} → X, a ⟨0, by sorry⟩ = c ∧ ∀ n:ℕ, n < N → a ⟨(n + 1:ℕ), by sorry⟩  = f n (a ⟨n, by sorry⟩) := by
+      induction' N with N ih
+      . use fun _ ↦ c
+        simp
+        intro h h'
+        ext x
+        have hp := x.prop
+        have : x = ⟨0, by sorry⟩ := by sorry
+        rw [this]
+        rw [h']
+      . apply existsUnique_of_exists_of_unique
+        . let ap := choose ih
+          use fun n ↦ if n = N + 1 then f N (ap ⟨N, by sorry⟩) else ap ⟨n, by sorry⟩
+          constructor
+          have ap_spec := choose_spec ih
+          simp at ap_spec
+          . simp
+            have hN : nat_equiv.symm 0 ≠ N + 1 := by sorry
+            simp [hN]
+            exact ap_spec.1.1
+          . intro n hn
+            simp [hn]
+            generalize_proofs a b c d e f'
+            by_cases h: n = N
+            . simp [h]
+            . simp [h]
+              have hne : n ≠ N + 1 := by linarith
+              simp [hne]
+              sorry
+        . intro y y' hy hy'
+          have h1 := hy.1
+          have h2 := hy'.1
+          ext x
+          by_cases h: x = ⟨0, by sorry⟩
+          . simp [h]
+            rw [h1]
+            rw [h2]
+          .
+            obtain ⟨_, hy⟩ := hy
+            obtain ⟨_, hy'⟩ := hy'
+            -- exists z st z + 1 = x
+            -- should be z here
+            specialize hy x
+            specialize hy' x
+            have : nat_equiv.symm ↑x < N + 1 := by sorry
+            have hy1 := hy this
+            have hy1' := hy this
+            sorry
+    use fun n ↦ (h n).choose ⟨n, by sorry⟩
+    constructor
+    . generalize_proofs a b c d e f
+      have h := choose_spec d
+      have := h.1.1
+      simp [this]
+    . intro n
+      generalize_proofs a b c d e f g h i
+      simp
+      have h := choose_spec d
+      have := h.1.2
+      sorry
+  . intro y y' h h'
+    ext n
+    have n' := nat_equiv.symm n
+    cases n'
+    . have : n = 0 := by sorry
+      rw [this]
+      rw [h.1, h'.1]
+    . sorry
 
 /-- Exercise 3.5.13 -/
 theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')

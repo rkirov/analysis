@@ -1919,28 +1919,69 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
     specialize h' x
     rw [h, h']
 
+lemma nat_equiv_symm_zero : SetTheory.Set.nat_equiv.symm 0 = 0 := by
+  rw [Equiv.symm_apply_eq]
+  exact rfl
+
+  lemma nat_equiv_symm_x_zero (x: Nat): SetTheory.Set.nat_equiv.symm x = 0
+    ↔ x = 0 := by sorry
+
+lemma nat_equiv_zero : SetTheory.Set.nat_equiv 0 = 0 := by rfl
+
+lemma nat_equiv_cast (n: ℕ) : SetTheory.Set.nat_equiv.symm (n: Nat) = n := by
+  simp_all only [SetTheory.Set.nat_equiv_coe_of_coe]
+
+set_option pp.proofs true in
 /-- Exercise 3.5.12, with errata from web site incorporated -/
 theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
     ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by
   apply existsUnique_of_exists_of_unique
-  . have h (N: ℕ): ∃! a: {n: Nat // (n:ℕ) ≤ N} → X, a ⟨0, by sorry⟩ = c ∧ ∀ n:ℕ, n < N → a ⟨(n + 1:ℕ), by sorry⟩  = f n (a ⟨n, by sorry⟩) := by
+  . have h (N: ℕ): ∃! a: {n: Nat // (n:ℕ) ≤ N} → X,
+    a ⟨0, by
+      rw [nat_equiv_symm_zero]
+      exact zero_le N
+    ⟩ = c ∧ ∀ n, (h: n < N) → a ⟨(n + 1:ℕ), by
+      simp only [nat_equiv_coe_of_coe]
+      exact h
+    ⟩ = f n (a ⟨n, by
+      simp only [nat_equiv_coe_of_coe]
+      exact Nat.le_of_lt h
+    ⟩) := by
       induction' N with N ih
       . use fun _ ↦ c
         simp
         intro h h'
         ext x
         have hp := x.prop
-        have : x = ⟨0, by sorry⟩ := by sorry
+        have : x = ⟨0, by
+            simp only [nonpos_iff_eq_zero]
+            rw [Equiv.symm_apply_eq]
+            rfl
+        ⟩ := by
+          simp only [nonpos_iff_eq_zero] at hp
+          rw [Equiv.symm_apply_eq] at hp
+          rw [Subtype.mk.injEq]
+          rw [hp]
+          rfl
         rw [this]
         rw [h']
       . apply existsUnique_of_exists_of_unique
         . let ap := choose ih
-          use fun n ↦ if n = N + 1 then f N (ap ⟨N, by sorry⟩) else ap ⟨n, by sorry⟩
+          use fun n ↦ if h:(n = N + 1) then f N (ap ⟨N, by rw [nat_equiv_coe_of_coe]⟩)
+          else ap ⟨n, by
+            have := n.prop
+            rw [le_iff_lt_or_eq] at this
+            simp [h] at this
+            exact Nat.lt_succ_iff.mp this
+          ⟩
           constructor
           have ap_spec := choose_spec ih
           simp at ap_spec
           . simp
-            have hN : nat_equiv.symm 0 ≠ N + 1 := by sorry
+            have hN : nat_equiv.symm 0 ≠ N + 1 := by
+              rw [nat_equiv_symm_zero]
+              simp only [ne_eq, Nat.right_eq_add, Nat.add_eq_zero, one_ne_zero, and_false,
+                not_false_eq_true]
             simp [hN]
             exact ap_spec.1.1
           . intro n hn
@@ -1951,46 +1992,184 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
             . simp [h]
               have hne : n ≠ N + 1 := by linarith
               simp [hne]
-              sorry
+              -- why did we lose it from the state?
+              have ap_spec := choose_spec ih
+              simp at ap_spec
+              have ap_spec := ap_spec.1.2
+              cases' n with n'
+              . specialize ap_spec 0
+                have : 0 < N := by exact Nat.zero_lt_of_ne_zero fun a ↦ h (Eq.symm a)
+                specialize ap_spec this
+                exact ap_spec
+              . specialize ap_spec (n' + 1)
+                have : n' + 1 < N := by
+                  apply Nat.lt_of_le_of_ne
+                  exact Nat.le_of_lt_succ hn
+                  exact h
+                specialize ap_spec this
+                exact ap_spec
         . intro y y' hy hy'
           have h1 := hy.1
           have h2 := hy'.1
           ext x
-          by_cases h: x = ⟨0, by sorry⟩
-          . simp [h]
-            rw [h1]
-            rw [h2]
-          .
-            obtain ⟨_, hy⟩ := hy
+          induction' h: (nat_equiv.symm x) with x' hx generalizing x
+          . rw [Equiv.symm_apply_eq] at h
+            have : x = ⟨nat_equiv 0, by simp⟩ := by
+              exact Subtype.coe_eq_of_eq_mk h
+            rw [this]
+            simp only [nat_equiv_zero]
+            simp only [h1, h2]
+          . obtain ⟨_, hy⟩ := hy
             obtain ⟨_, hy'⟩ := hy'
-            -- exists z st z + 1 = x
-            -- should be z here
-            specialize hy x
-            specialize hy' x
-            have : nat_equiv.symm ↑x < N + 1 := by sorry
+            specialize hy x'
+            specialize hy' x'
+            have : x' < N + 1 := by
+              have := x.prop
+              rw [h] at this
+              exact this
             have hy1 := hy this
-            have hy1' := hy this
-            sorry
-    use fun n ↦ (h n).choose ⟨n, by sorry⟩
+            have hy1' := hy' this
+            rw [Equiv.symm_apply_eq] at h
+            have hxx': x = ⟨↑(x' + 1), by
+              simp [Equiv.symm_apply_apply]
+              exact Nat.le_of_lt_succ this
+            ⟩ := by exact Subtype.coe_eq_of_eq_mk h
+            rw [hxx']
+            rw [hy1, hy1']
+            specialize hx ⟨nat_equiv.symm x', by
+              simp
+              exact Nat.le_of_succ_le this
+            ⟩
+            simp only [nat_equiv_coe_of_coe, forall_const] at hx
+            congr! 2
+            rw [Subtype.mk.injEq]
+            exact hx
+    use fun n ↦ (h n).choose ⟨n, by
+      exact Nat.le_refl (nat_equiv.symm n)
+    ⟩
     constructor
     . generalize_proofs a b c d e f
       have h := choose_spec d
       have := h.1.1
       simp [this]
     . intro n
-      generalize_proofs a b c d e f g h i
-      simp
-      have h := choose_spec d
-      have := h.1.2
-      sorry
+      have := (h (n + 1)).choose_spec.1.2
+      simp at this
+      specialize this n (Nat.lt_succ_self n)
+      -- this is only swapping eq.symm (symm x) = x by because it
+      -- is captured in types I have to do a whole rebuilding this functions
+      have hw : Exists.choose (h (nat_equiv.symm ↑(n + 1))) ⟨↑(n + 1), Nat.le_refl (nat_equiv.symm ↑(n + 1))⟩ =
+          Exists.choose (h (n + 1)) ⟨↑(n + 1), Nat.le_of_eq (nat_equiv_cast (n + 1))⟩ := by
+        have eq : nat_equiv.symm ↑(n + 1) = n + 1 := nat_equiv_cast (n + 1)
+        -- sadly rw doesn't work here, even conv_lhs arg 1 doesn't.
+        -- so we will use uniqueness
+        let f : {m: Nat // (m:ℕ) ≤ n + 1} → X :=
+          fun m => Exists.choose (h (nat_equiv.symm ↑(n + 1))) ⟨m.val, by
+            simp [Equiv.symm_apply_apply]
+            exact m.property
+          ⟩
+        have : f = Exists.choose (h (n + 1)) := by
+          ext z
+          induction' hi: (nat_equiv.symm z) with z' ih generalizing z
+          . rw [Equiv.symm_apply_eq] at hi
+            have : z = ⟨0, by
+              rw [nat_equiv_symm_zero]
+              exact Nat.zero_le (n + 1)
+            ⟩ := by
+              exact Subtype.coe_eq_of_eq_mk hi
+            repeat rw [this]
+            dsimp [f]
+            rw [(h (n + 1)).choose_spec.1.1]
+            rw [(h (nat_equiv.symm ↑(n + 1))).choose_spec.1.1]
+          . rw [Equiv.symm_apply_eq] at hi
+            have hz := z.prop
+            rw [hi] at hz
+            rw [Equiv.symm_apply_apply] at hz
+            have : z = ⟨↑(z' + 1), by
+              simp [Equiv.symm_apply_apply]
+              exact Nat.le_of_lt_succ hz
+            ⟩ := by
+              exact Subtype.coe_eq_of_eq_mk hi
+            repeat rw [this]
+            dsimp [f]
+            rw [(h (n + 1)).choose_spec.1.2]
+            rw [(h (nat_equiv.symm ↑(n + 1))).choose_spec.1.2]
+            . congr!
+              have := ih ⟨z', by
+                rw [nat_equiv_cast]
+                exact Nat.le_of_succ_le hz
+              ⟩ (by exact nat_equiv_cast _)
+              dsimp [f] at this
+              rw [Subtype.mk.injEq]
+              rw [this]
+            . rw [nat_equiv_cast]
+              have zp := z.prop
+              rw [hi] at zp
+              simp at zp
+              exact Order.lt_add_one_iff.mpr zp
+            . have := z.prop
+              suffices h: z' < nat_equiv.symm ↑z by
+                exact Nat.lt_of_lt_of_le h this
+              rw [hi]
+              rw [Equiv.symm_apply_apply]
+              exact lt_add_one z'
+        rw [← this]
+      rw [hw]
+      rw [this]
+      congr!
+      let f_n := (h (nat_equiv.symm ↑n)).choose
+      let f_n1 := (h (n + 1)).choose
+      have agree : ∀ m : ℕ, (hm : m ≤ n) →
+        f_n ⟨m, by simp [Equiv.symm_apply_apply]; exact hm⟩ =
+        f_n1 ⟨m, by
+          simp [Equiv.symm_apply_apply]
+          exact Nat.le_add_right_of_le hm
+        ⟩ := by
+        intro m hm
+        induction' m with m ih
+        . -- why unfold + rw spec.1.1 doesn't work?
+          have : f_n ⟨↑(0: ℕ), by
+            rw [nat_equiv_cast]
+            exact Nat.zero_le _
+          ⟩ = c := (h (nat_equiv.symm ↑n)).choose_spec.1.1
+          simp [this]
+          have : f_n1 ⟨↑(0: ℕ), by
+            rw [nat_equiv_cast]
+            exact Nat.zero_le _
+          ⟩ = c := (h (n + 1)).choose_spec.1.1
+          simp [this]
+        . unfold f_n f_n1
+          rw [(h (nat_equiv.symm ↑n)).choose_spec.1.2]
+          rw [(h (n + 1)).choose_spec.1.2]
+          congr!
+          . exact ih (Nat.le_of_succ_le hm)
+          . exact Nat.lt_add_right 1 hm
+          . rw [nat_equiv_cast]
+            exact hm
+      change f_n1 ⟨↑n, _⟩ = f_n ⟨↑n, _⟩
+      rw [agree n (Nat.le_refl n)]
   . intro y y' h h'
     ext n
-    have n' := nat_equiv.symm n
-    cases n'
-    . have : n = 0 := by sorry
-      rw [this]
+    induction' hi: nat_equiv.symm n with n' ih generalizing n
+    . rw [Equiv.symm_apply_eq] at hi
+      rw [nat_equiv_zero] at hi
+      rw [hi]
       rw [h.1, h'.1]
-    . sorry
+    . rw [Equiv.symm_apply_eq] at hi
+      have h := h.2
+      have h' := h'.2
+      specialize h n'
+      specialize h' n'
+      change n = ↑(n' + 1) at hi
+      rw [← hi] at h h'
+      rw [h, h']
+      congr! 2
+      specialize ih n'
+      simp only [nat_equiv_coe_of_coe, forall_const] at ih
+      rw [Subtype.mk.injEq]
+      exact ih
+
+
 
 /-- Exercise 3.5.13 -/
 theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
@@ -1998,20 +2177,100 @@ theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
   (ind: ∀ P: nat' → Prop, P zero → (∀ n, P n → P (succ n)) → ∀ n, P n) :
     ∃! f : nat → nat', Function.Bijective f ∧ f 0 = zero
     ∧ ∀ (n:nat) (n':nat'), f n = n' ↔ f (n+1:ℕ) = succ n' := by
-  have nat_coe_eq {m:nat} {n} : (m:ℕ) = n → m = n := by aesop
-  have nat_coe_eq_zero {m:nat} : (m:ℕ) = 0 → m = 0 := nat_coe_eq
-  obtain ⟨f, hf⟩ := recursion nat' sorry sorry
+  have f := recursion nat' (fun n n' ↦ succ n') zero
   apply existsUnique_of_exists_of_unique
-  · use f
+  . use f.choose
+    have h := choose_spec f
+    obtain ⟨ ⟨ h1, h2 ⟩, h3⟩  := h
     constructor
-    · constructor
-      · intro x1 x2 heq
-        induction' hx1: (x1:ℕ) with i ih generalizing x1 x2
-        · sorry
-        sorry
-      sorry
-    sorry
-  sorry
-
-
+    . rw [Function.Bijective]
+      constructor
+      . intro x1 x2 h
+        induction' hi: nat_equiv.symm x1 with n1 ih generalizing x1
+        . rw [nat_equiv_symm_x_zero] at hi
+          subst x1
+          simp [h1] at h
+          -- could be cases
+          induction' hi2: nat_equiv.symm x2 with n2 ih2 generalizing x2
+          . rw [Equiv.symm_apply_eq] at hi2
+            exact hi2.symm
+          . specialize h2 n2
+            exfalso
+            suffices h: choose f ↑(n2 + 1) = zero by
+              exfalso
+              apply succ_ne
+              rw [h2.symm]
+              exact h
+            rw [← hi2]
+            simp [h]
+        . have h2' := h2 n1
+          rw [← hi] at h2'
+          simp at h2'
+          simp [h] at h2'
+          -- could be cases
+          specialize @ih (nat_equiv (n1 + 1))
+          rw [Equiv.symm_apply_eq] at hi
+          rw [hi]
+          apply ih
+          induction' hi2: nat_equiv.symm x2 with n2 ih2 generalizing x2
+          . rw [Equiv.symm_apply_eq] at hi2
+            change x2 = 0 at hi2
+            subst x2
+            simp [h1] at h2'
+            exfalso
+            exact succ_ne _ h2'.symm
+          . rw [Equiv.symm_apply_eq] at hi2
+            rw [hi2] at h2'
+            change Exists.choose f (↑(n2 + 1)) = succ (choose f ↑n1) at h2'
+            have h2'' := h2 n2
+            simp [h2''] at h2'
+            have := not_imp_not.mp (succ_of_ne (choose f n1) (choose f n2))
+            have h2's := h2'.symm
+            apply this at h2's
+            -- specialize @ih (nat_equiv (n1 + 1))
+            -- specialize @ih2 (nat_equiv n1)
+            -- have := ih2 h2's
+            sorry
+          . sorry
+      . intro y
+        apply ind fun y ↦ ∃ a, Exists.choose f a = y
+        . use (0:Nat)
+        . intro n' ih
+          obtain ⟨ a, ha ⟩ := ih
+          use nat_equiv ((nat_equiv.symm a) + 1)
+          specialize h2 (nat_equiv.symm a)
+          -- change from explicit nat_equiv to natCast
+          change Exists.choose f (↑(nat_equiv.symm a + 1)) = succ n'
+          simp [h2]
+          congr!
+    . constructor
+      . exact h1
+      . intro n n'
+        constructor
+        . intro h
+          specialize h2 (nat_equiv.symm n)
+          simp [h2, h]
+        . intro h
+          specialize h2 (nat_equiv.symm n)
+          simp [h2] at h
+          have := succ_of_ne (choose f n) n'
+          apply Mathlib.Tactic.Contrapose.mtr at this
+          exact this h
+  . intro g g' hg hg'
+    obtain ⟨a, ha, unique_a⟩ := f
+    have g_satisfies : g 0 = zero ∧ ∀ (n : ℕ), g ↑(n + 1) = succ (g ↑n) := by
+      constructor
+      . exact hg.2.1
+      . intro n
+        have := hg.2.2 n (g ↑n)
+        simp at this
+        rw [this]
+    have g_satisfies' : g' 0 = zero ∧ ∀ (n : ℕ), g' ↑(n + 1) = succ (g' ↑n) := by
+      constructor
+      . exact hg'.2.1
+      . intro n
+        have := hg'.2.2 n (g' ↑n)
+        simp at this
+        rw [this]
+    rw [unique_a g g_satisfies, unique_a g' g_satisfies']
 end Chapter3

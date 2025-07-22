@@ -355,147 +355,54 @@ theorem SetTheory.Set.uncurry_curry {X Y Z:Set} (f: X ×ˢ Y → Z) : uncurry (c
   congr!
   exact h.symm
 
+def SetTheory.Set.mk_cart {X Y: Set} (x: X) (y: Y) : X ×ˢ Y :=
+  ⟨(⟨ x, y ⟩:OrderedPair), by
+    rw [mem_cartesian]
+    use x
+    use y
+  ⟩
+
+@[simp]
+theorem SetTheory.Set.mk_cart_fst {X Y: Set} (x: X) (y: Y) :
+    fst (mk_cart x y) = x := by
+  rw [mk_cart]
+  rw [fst_eval]
+
+@[simp]
+theorem SetTheory.Set.mk_cart_snd {X Y: Set} (x: X) (y: Y) :
+    snd (mk_cart x y) = y := by
+  rw [mk_cart]
+  rw [snd_eval]
+
+@[simp]
+theorem SetTheory.Set.mk_cart_eq {X Y: Set} (z: X ×ˢ Y) :
+    (mk_cart (fst z) (snd z)) = z := by
+  rw [mk_cart]
+  rw [Subtype.mk.injEq]
+  rw [SetTheory.Set.pair_eq_fst_snd]
 
 noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
-  toFun := fun z ↦ ⟨(⟨ snd z, fst z ⟩ : OrderedPair), by
-    rw [mem_cartesian]
-    use snd z
-    use fst z
-  ⟩
-  invFun := fun z ↦ ⟨(⟨ snd z, fst z ⟩ : OrderedPair), by
-    rw [mem_cartesian]
-    use snd z
-    use fst z
-  ⟩
+  toFun := fun z ↦ mk_cart (snd z) (fst z)
+  invFun := fun z ↦ mk_cart (snd z) (fst z)
   left_inv := by
     intro z
-    have zp := z.property
-    rw [mem_cartesian] at zp
-    obtain ⟨ x, y, h ⟩ := zp
-    simp only [h]
-    rw [fst_eval, snd_eval]
-    congr!
-    rw [h]
-    congr!
-    -- not quite sure why this works
-    convert fst_eval x y
-    convert snd_eval x y
+    simp
+
   right_inv := by
     intro z
-    have zp := z.property
-    rw [mem_cartesian] at zp
-    obtain ⟨ x, y, h ⟩ := zp
-    simp only [h]
-    rw [fst_eval, snd_eval]
-    congr!
-    rw [h]
-    congr!
-    convert fst_eval x y
-    convert snd_eval x y
+    simp
 
 noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ Z ≃ X ×ˢ (Y ×ˢ Z) where
-  toFun := fun z ↦
-    let yz : Y ×ˢ Z := ⟨(⟨ snd (fst z), snd z ⟩:OrderedPair), by
-      rw [mem_cartesian]
-      use snd (fst z)
-      use snd z⟩
-    ⟨(⟨fst (fst z), yz⟩ : OrderedPair), by
-      rw [mem_cartesian]
-      use fst (fst z)
-      use yz
-    ⟩
-  invFun := fun z ↦
-    let xy : X ×ˢ Y := ⟨(⟨ fst z, fst (snd z) ⟩:OrderedPair), by
-        rw [mem_cartesian]
-        use fst z
-        use fst (snd z)
-      ⟩
-    ⟨(⟨xy, snd (snd z)⟩: OrderedPair), by
-    rw [mem_cartesian]
-    use xy
-    use snd (snd z)
-    ⟩
+  toFun := fun z ↦ mk_cart (fst (fst z)) (mk_cart (snd (fst z)) (snd z))
+  invFun := fun z ↦ mk_cart (mk_cart (fst z) (fst (snd z))) (snd (snd z))
 
   left_inv := by
     intro t
-    have tp := t.property -- can't synthesize a placeholder?
-    rw [mem_cartesian] at tp
-    obtain ⟨ xy, z, h ⟩ := tp
-    rw [Subtype.mk.injEq]
-    rw [h]
-    simp only
-    rw [OrderedPair.toObject_eq]
-    constructor
-    . set xyp := xy.property
-      rw [mem_cartesian] at xyp
-      obtain ⟨ x, y, h' ⟩ := xyp
-      rw [h']
-      rw [OrderedPair.toObject_eq]
-      constructor
-      . rw [fst_eval_snd_op]
-        . apply SetTheory.Set.set_eq_ordered_pair at h
-          subst t
-          rw [fst_eval]
-          apply SetTheory.Set.set_eq_ordered_pair at h'
-          subst xy
-          rw [fst_eval]
-        . rw [mem_cartesian]
-          use (snd (fst t))
-          use snd t
-      . rw [snd_eval_snd_op]
-        . apply SetTheory.Set.set_eq_ordered_pair at h
-          subst t
-          rw [fst_eval]
-          rw [fst_eval]
-          apply SetTheory.Set.set_eq_ordered_pair at h'
-          subst xy
-          rw [snd_eval]
-    . rw [snd_eval_snd_op]
-      apply SetTheory.Set.set_eq_ordered_pair at h
-      subst t
-      rw [snd_eval]
-      rw [snd_eval]
+    simp
 
   right_inv := by
     intro t
-    have zp := t.property
-    rw [mem_cartesian] at zp
-    obtain ⟨ x, yz, h ⟩ := zp
-    have yzp := yz.property
-    rw [mem_cartesian] at yzp
-    obtain ⟨ y, z, h' ⟩ := yzp
-    rw [Subtype.mk.injEq]
-    rw [h]
-    rw [OrderedPair.toObject_eq]
-    constructor
-    . simp only
-      rw [fst_eval_fst_op]
-      rw [fst_eval]
-      apply SetTheory.Set.set_eq_ordered_pair at h
-      subst t
-      rw [fst_eval]
-    . simp only
-      rw [h']
-      rw [OrderedPair.toObject_eq]
-      constructor
-      . rw [fst_eval_fst_op]
-        rw [snd_eval]
-        apply SetTheory.Set.set_eq_ordered_pair at h
-        subst t
-        rw [snd_eval]
-        apply SetTheory.Set.set_eq_ordered_pair at h'
-        subst yz
-        rw [fst_eval]
-      . rw [snd_eval_fst_op]
-        . apply SetTheory.Set.set_eq_ordered_pair at h
-          subst t
-          rw [snd_eval]
-          apply SetTheory.Set.set_eq_ordered_pair at h'
-          subst yz
-          rw [snd_eval]
-        . rw [mem_cartesian]
-          use fst t
-          use (fst (snd t))
+    simp
 
 /--
   Connections with the Mathlib set product, which consists of Lean pairs like `(x, y)`
@@ -1703,10 +1610,8 @@ theorem SetTheory.Set.iUnion_inter_iUnion {I J: Set} (A: I → Set) (B: J → Se
     rw [mem_inter]
     constructor
     . simp [p]
-      rw [fst_eval]
       exact hi1
     . simp [p]
-      rw [snd_eval]
       exact hj2
   . intro h
     rw [mem_iUnion] at h
@@ -1788,9 +1693,7 @@ theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
         rw [OrderedPair.toObject_eq]
         constructor
         . simp [h']
-          rw [fst_eval]
         . simp [h']
-          rw [snd_eval]
       exact hq.unique this h2
     . intro h
       simp only at h
@@ -1810,8 +1713,6 @@ theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
         exact this
       rw [OrderedPair.toObject_eq]
       simp [h']
-      rw [fst_eval, snd_eval]
-      tauto
   . intro f f' h h'
     rw [graph] at h h'
     rw [ext_iff] at h h'
@@ -1833,8 +1734,6 @@ theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
     obtain ⟨ h1, h2 ⟩ := hf
     obtain ⟨ h1', h2' ⟩ := hf'
     simp at h2 h2'
-    simp [p] at h2 h2'
-    rw [fst_eval, snd_eval] at h2 h2'
     rw [h2, h2']
 
 /--
@@ -1887,7 +1786,6 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
             . let y': Y := ⟨ y , hy ⟩
               have : y = y'.val := by rfl
               simp [this]
-              rw [fst_eval, snd_eval]
             . rw [mem_cartesian]
               use ⟨y, hy⟩
               use T ⟨y, hy⟩
@@ -1903,7 +1801,6 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
             let y': Y := ⟨ y , hy ⟩
             have : y = y'.val := by rfl
             simp [this] at h2 h2'
-            rw [fst_eval, snd_eval] at h2 h2'
             rw [← h2, ← h2']
             . rw [mem_powerset]
               use graph T
@@ -1919,12 +1816,21 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
     specialize h' x
     rw [h, h']
 
+/-- some helper lemmas to deal with zeros and literals -/
 lemma nat_equiv_symm_zero : SetTheory.Set.nat_equiv.symm 0 = 0 := by
   rw [Equiv.symm_apply_eq]
   exact rfl
 
   lemma nat_equiv_symm_x_zero (x: Nat): SetTheory.Set.nat_equiv.symm x = 0
-    ↔ x = 0 := by sorry
+    ↔ x = 0 := by
+  constructor
+  . intro h
+    rw [Equiv.symm_apply_eq] at h
+    rw [h]
+    exact rfl
+  . intro h
+    rw [h]
+    exact nat_equiv_symm_zero
 
 lemma nat_equiv_zero : SetTheory.Set.nat_equiv 0 = 0 := by rfl
 

@@ -221,6 +221,14 @@ theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
   simp only [fst]
   exact this.symm
 
+theorem SetTheory.Set.fst_eval' {X Y: Set} (z: X ×ˢ Y) (x: X) (y: Y) (h: z.val = OrderedPair.toObject { fst := x.val, snd := y.val }):
+    fst z = x := by
+  obtain ⟨val, property⟩ := z
+  subst h
+  rw [fst_eval]
+
+
+
 /--
   Extra eval theorems needed for when one of the components of the ordered pair is not
   an Object directly, but an OrderedPair that is cast to an Object using toObject.
@@ -291,6 +299,12 @@ theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
   rw [coe_inj] at this
   simp only [snd]
   exact this.symm
+
+theorem SetTheory.Set.snd_eval' {X Y: Set} (z: X ×ˢ Y) (x: X) (y: Y) (h: z.val = OrderedPair.toObject { fst := x.val, snd := y.val }):
+    snd z = y := by
+  obtain ⟨val, property⟩ := z
+  subst h
+  rw [snd_eval]
 
 theorem SetTheory.Set.set_eq_ordered_pair {X Y : Set} {x:X} {y:Y} {t : X ×ˢ Y} : t.val = (OrderedPair.toObject { fst := x, snd := y }) →
   t = (⟨OrderedPair.toObject { fst := x, snd := y }, by
@@ -623,92 +637,137 @@ open Classical
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) where
-  toFun := fun x ↦ ⟨
+  toFun := fun x ↦
     have h := (mem_iProd _).mp x.property
-    (⟨ (Classical.choose h) ⟨0, by simp⟩ , (Classical.choose h) ⟨1, by simp⟩⟩ : OrderedPair), by
-    extract_lets hl
-    rw [mem_cartesian]
-    use (Classical.choose hl) ⟨0, by simp⟩
-    use (Classical.choose hl) ⟨1, by simp⟩
-  ⟩
+    mk_cart ((Classical.choose h) ⟨0, by simp⟩) ((Classical.choose h) ⟨1, by simp⟩)
+
   invFun := fun z ↦
     let f : (i : ({0,1}:Set)) → X i := fun i ↦
       have hi := i.property
-      have hz := z.property
-      have h := (mem_cartesian _ _ _).mp hz
-      let x := Classical.choose h
-      let h' := Classical.choose_spec h
-      let y := Classical.choose h'
-      if h: i = ⟨ 0, by simp⟩ then ⟨x, by
+      if h: i = ⟨0, by simp⟩ then ⟨(fst z), by
         rw [h]
-        exact x.property
-      ⟩ else ⟨y, by
-        rw [mem_pair] at hi
-        cases' hi with hi hi
-        . exfalso
-          have : ↑i = ⟨0, by simp⟩ := by
-            rw [Subtype.mk.injEq]
-            exact hi
-          contradiction
-        . have : ↑i = ⟨1, by simp⟩ := by
-            rw [Subtype.mk.injEq]
-            exact hi
-          rw [this]
-          exact y.property
+        exact (fst z).property
+      ⟩ else ⟨(snd z), by
+        have h2 : i = ⟨1, by simp⟩ := by
+          have := i.property
+          rw [mem_pair] at this
+          rw [Subtype.mk.injEq] at h ⊢
+          tauto
+        rw [h2]
+        exact (snd z).property
       ⟩
     ⟨ tuple f, by rw [mem_iProd]; use f ⟩
+
   left_inv := by
     intro h
-    simp only
+    have hi := h.prop
+    rw [mem_iProd] at hi
+    have f := Classical.choose hi
+    have hf := Classical.choose_spec hi
     rw [Subtype.mk.injEq]
-    have hp := h.property
-    rw [mem_iProd] at hp
-    obtain ⟨ t, ht ⟩ := hp
-    conv_rhs => rw [ht]
-    rw [SetTheory.Set.tuple_inj]
-    ext i
-    congr!
-    have hi := i.property
-    rw [mem_pair] at hi
-    cases' hi with hi hi
-    . have : i = ⟨ 0, by simp⟩ := by
-        rw [Subtype.mk.injEq]
-        exact hi
-      rw [this]
+    rw [hf]
+    simp only [mk_cart_fst, mk_cart_snd, EmbeddingLike.apply_eq_iff_eq]
+    funext i
+    by_cases hi: i = ⟨ 0, by simp ⟩
+    . rw [hi]
       simp
-      generalize_proofs a b c
-      have hsb := Classical.choose_spec b
-      have hsc := Classical.choose_spec c
-      rw [Subtype.mk.injEq]
-      rw [← hsc]
-      conv_lhs at hsb => rw [ht]
-      rw [tuple_inj] at hsb
-      simp only [hsb]
-    . have : i ≠ ⟨ 0, by simp⟩ := by
-        by_contra! he
-        rw [Subtype.mk.injEq] at he
-        simp_all
-      simp [this]
-      generalize_proofs a b c d e f
-      have hsc := Classical.choose_spec c
-      have hse := Classical.choose_spec e
-      rw [Subtype.mk.injEq]
-      rw [← hse.2]
-      conv_lhs at hsc => rw [ht]
-      rw [tuple_inj] at hsc
-      rw [hsc]
-      have :⟨1, a⟩ = i := by rw [Subtype.mk.injEq]; exact hi.symm
-      rw [this]
+    . have hi1 : i = ⟨ 1, by simp ⟩ := by
+        have := i.prop
+        rw [mem_pair] at this
+        cases' this with h0 h1
+        . exfalso
+          rw [Subtype.mk.injEq] at hi
+          exact hi h0
+        . rw [Subtype.mk.injEq]
+          exact h1
+      rw [hi1]
+      simp
 
   right_inv := by
-    intro x
-    simp only
-    generalize_proofs a b c d e f g h i
-    have hsc := Classical.choose_spec c
-    have hsc' := Classical.choose_spec hsc
-    have hse := Classical.choose_spec e
-    have hsg := Classical.choose_spec g
-    rw [SetTheory.Set.tuple_inj] at hsg
+    intro h
+    have hi := h.property
+    rw [mem_cartesian] at hi
+    obtain ⟨ x0, x1, hx ⟩ := hi
+    rw [Subtype.mk.injEq]
+    rw [hx]
+    rw [mk_cart]
+    simp
+    constructor
+    . generalize_proofs a b c d e
+      have := Classical.choose_spec e
+      rw [tuple_inj] at this
+      rw [← this]
+      simp
+      rw [fst_eval' _ _ _ hx]
+    . generalize_proofs a b c d e
+      have := Classical.choose_spec e
+      rw [tuple_inj] at this
+      rw [← this]
+      simp
+      rw [snd_eval' _ _ _ hx]
+
+set_option maxHeartbeats 10000000 in
+/-- Example 3.5.10 -/
+noncomputable abbrev SetTheory.Set.iProd_equiv_prod_triple (X: ({0,1,2}:Set) → Set) :
+    iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) ×ˢ (X ⟨ 2, by simp ⟩) where
+  toFun := fun z ↦
+    have h := (mem_iProd _).mp z.property
+    mk_cart ((Classical.choose h) ⟨0, by simp⟩)
+      (mk_cart ((Classical.choose h) ⟨1, by simp⟩) ((Classical.choose h) ⟨2, by simp⟩))
+
+  invFun := fun z ↦
+    let f : (i : ({0,1,2}:Set)) → X i := fun i ↦
+      have hi := i.property
+      if h: i = ⟨0, by simp⟩ then ⟨(fst z), by
+        rw [h]
+        exact (fst z).property
+      ⟩ else if h': i = ⟨1, by simp⟩ then ⟨(fst (snd z)), by
+        rw [h']
+        exact (fst (snd z)).property
+      ⟩ else ⟨snd (snd z), by
+        have h2 : i = ⟨2, by simp⟩ := by
+          have := i.property
+          rw [mem_triple] at this
+          rw [Subtype.mk.injEq] at h h' ⊢
+          tauto
+        rw [h2]
+        exact (snd (snd z)).property
+      ⟩
+    ⟨ tuple f, by rw [mem_iProd]; use f ⟩
+
+  left_inv := by
+    intro h
+    simp
+    have hi := h.prop
+    rw [mem_iProd] at hi
+    have f := Classical.choose hi
+    have hf := Classical.choose_spec hi
+    rw [Subtype.mk.injEq]
+    conv_rhs => rw [hf]
+    rw [tuple_inj]
+    funext i
+    have hi := i.property
+    rw [mem_triple] at hi
+    cases' hi with h0 h12
+    . have : i = ⟨ 0, by simp ⟩ := by rw [Subtype.mk.injEq]; exact h0
+      rw [this]
+      simp
+    . cases' h12 with h1 h2
+      . have : i = ⟨ 1, by simp ⟩ := by rw [Subtype.mk.injEq]; exact h1
+        rw [this]
+        simp
+      . have : i = ⟨ 2, by simp ⟩ := by rw [Subtype.mk.injEq]; exact h2
+        rw [this]
+        simp
+
+  right_inv := by
+    intro z
+    have hi := z.property
+    rw [mem_cartesian] at hi
+    obtain ⟨ x0, x12, hx ⟩ := hi
+    have hi1 := x12.property
+    rw [mem_cartesian] at hi1
+    obtain ⟨ x1, x2, hx12 ⟩ := hi1
     rw [Subtype.mk.injEq]
     conv_rhs => rw [hse]
     congr!
@@ -727,14 +786,6 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
         contradiction
       rw [dif_neg]
       exact this
-
-/-- Example 3.5.10 -/
-noncomputable abbrev SetTheory.Set.iProd_equiv_prod_triple (X: ({0,1,2}:Set) → Set) :
-    iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) ×ˢ (X ⟨ 2, by simp ⟩) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
 
 /-- Connections with Mathlib's `Set.pi` -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_pi (I:Set) (X: I → Set) :

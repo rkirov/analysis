@@ -2169,8 +2169,6 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
       rw [Subtype.mk.injEq]
       exact ih
 
-
-
 /-- Exercise 3.5.13 -/
 theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
   (succ_ne: ∀ n:nat', succ n ≠ zero) (succ_of_ne: ∀ n m:nat', n ≠ m → succ n ≠ succ m)
@@ -2186,52 +2184,44 @@ theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
     . rw [Function.Bijective]
       constructor
       . intro x1 x2 h
-        induction' hi: nat_equiv.symm x1 with n1 ih generalizing x1
+        induction' hi: nat_equiv.symm x1 with n1 ih generalizing x1 x2
         . rw [nat_equiv_symm_x_zero] at hi
           subst x1
           simp [h1] at h
-          -- could be cases
-          induction' hi2: nat_equiv.symm x2 with n2 ih2 generalizing x2
-          . rw [Equiv.symm_apply_eq] at hi2
-            exact hi2.symm
+          cases' hx : nat_equiv.symm x2 with n2
+          . rw [nat_equiv_symm_x_zero] at hx
+            exact hx.symm
           . specialize h2 n2
             exfalso
-            suffices h: choose f ↑(n2 + 1) = zero by
-              exfalso
-              apply succ_ne
-              rw [h2.symm]
-              exact h
-            rw [← hi2]
-            simp [h]
-        . have h2' := h2 n1
-          rw [← hi] at h2'
-          simp at h2'
-          simp [h] at h2'
-          -- could be cases
-          specialize @ih (nat_equiv (n1 + 1))
-          rw [Equiv.symm_apply_eq] at hi
-          rw [hi]
-          apply ih
-          induction' hi2: nat_equiv.symm x2 with n2 ih2 generalizing x2
-          . rw [Equiv.symm_apply_eq] at hi2
-            change x2 = 0 at hi2
+            rw [← hx] at h2
+            simp only [nat_equiv_coe_of_coe'] at h2
+            simp only [← h] at h2
+            exact succ_ne _ h2.symm
+        . rw [Equiv.symm_apply_eq] at hi
+          subst x1
+          cases' hi2: nat_equiv.symm x2 with n2
+          have hsucc1 := h2 n1
+          . rw [nat_equiv_symm_x_zero] at hi2
             subst x2
-            simp [h1] at h2'
             exfalso
-            exact succ_ne _ h2'.symm
+            simp [h1] at h
+            change Exists.choose f (↑ (n1 + 1)) = zero at h
+            simp [hsucc1] at h
+            exact succ_ne _ h
           . rw [Equiv.symm_apply_eq] at hi2
-            rw [hi2] at h2'
-            change Exists.choose f (↑(n2 + 1)) = succ (choose f ↑n1) at h2'
-            have h2'' := h2 n2
-            simp [h2''] at h2'
-            have := not_imp_not.mp (succ_of_ne (choose f n1) (choose f n2))
-            have h2's := h2'.symm
-            apply this at h2's
-            -- specialize @ih (nat_equiv (n1 + 1))
-            -- specialize @ih2 (nat_equiv n1)
-            -- have := ih2 h2's
-            sorry
-          . sorry
+            subst x2
+            specialize @ih (nat_equiv n1) (nat_equiv n2)
+            simp at ih
+            -- why was it consumed in zero case?
+            have hsucc1 := h2 n1
+            have hsucc2 := h2 n2
+            change Exists.choose f (↑(n1 + 1)) = Exists.choose f (↑(n2 + 1)) at h
+            simp [hsucc1, hsucc2] at h
+            have := succ_of_ne (choose f n1) (choose f n2)
+            have hf := Mathlib.Tactic.Contrapose.mtr this
+            have hn12feq := hf h
+            have hn12eq := ih hn12feq
+            rw [hn12eq]
       . intro y
         apply ind fun y ↦ ∃ a, Exists.choose f a = y
         . use (0:Nat)

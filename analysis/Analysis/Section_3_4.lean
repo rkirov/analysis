@@ -137,6 +137,12 @@ theorem SetTheory.Set.preimage_eq {X Y:Set} (f:X → Y) (U: Set) :
 theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
     (preimage f U) ⊆ X := by intro _ _; aesop
 
+theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
+    (preimage f U) ⊆ X := by
+  intro x h
+  rw [preimage] at h
+  exact specification_axiom h
+
 /-- Example 3.4.6 -/
 theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by
   ext; simp only [mem_preimage', mem_triple, f_3_4_2]; constructor
@@ -169,7 +175,11 @@ example : (fun n:ℤ ↦ n^2) ⁻¹' {0,1,4} = {-2,-1,0,1,2} := by
   on_goal 3 => have : 2 ^ 2 = (4:ℤ) := (by norm_num); rw [←h, sq_eq_sq_iff_eq_or_eq_neg] at this
   all_goals aesop
 
-example : (fun n:ℤ ↦ n^2) ⁻¹' ((fun n:ℤ ↦ n^2) '' {-1,0,1,2}) ≠ {-1,0,1,2} := by sorry
+example : (fun n:ℤ ↦ n^2) ⁻¹' ((fun n:ℤ ↦ n^2) '' {-1,0,1,2}) ≠ {-1,0,1,2} := by
+  by_contra h
+  rw [Set.ext_iff] at h
+  specialize h (-2)
+  simp at h
 
 instance SetTheory.Set.inst_pow : Pow Set Set where
   pow := pow
@@ -221,14 +231,58 @@ theorem SetTheory.Set.example_3_4_9 (F:Object) :
 /-- Exercise 3.4.6 (i). One needs to provide a suitable definition of the power set here. -/
 def SetTheory.Set.powerset (X:Set) : Set :=
   (({0, 1}:Set) ^ X).replace (P :=
-    fun f x ↦ x = preimage (Classical.choose ((power_set_axiom f.val).mp f.property)) ({0} : Set))
+    fun f x ↦ x = preimage (Classical.choose ((powerset_axiom f.val).mp f.property)) ({0} : Set))
     (by intro x y y' a; simp_all only)
 
 open Classical in
 /-- Exercise 3.4.6 (i) -/
 @[simp]
 theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
-    x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by sorry
+    x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by
+  constructor
+  . intro h
+    rw [powerset] at h
+    rw [SetTheory.Set.replacement_axiom] at h
+    obtain ⟨f, hf, hf'⟩ := h
+    generalize_proofs a
+    use preimage a.choose {0}
+    constructor
+    . rfl
+    . apply preimage_in_domain a.choose ({0}:Set)
+  . intro h
+    obtain ⟨Y, rfl, hY⟩ := h
+    rw [replacement_axiom]
+    let f: X → ({0,1}:Set) := fun x ↦ if x.val ∈ Y then ⟨0, by simp⟩ else ⟨1, by simp⟩
+    use ⟨function_to_object X _ f, by
+      rw [powerset_axiom]
+      use f
+      rw [coe_of_fun]
+    ⟩
+    rw [EmbeddingLike.apply_eq_iff_eq]
+    generalize_proofs a b
+    have := Classical.choose_spec b
+    apply ext
+    change function_to_object _ _ (choose b) = function_to_object X {0, 1} f at this
+    rw [EmbeddingLike.apply_eq_iff_eq] at this
+    rw [this]
+    intro x
+    constructor
+    . intro hx
+      rw [mem_preimage']
+      use ⟨x, hY _ hx⟩
+      simp only [mem_singleton, true_and]
+      unfold f
+      simp [hx]
+    . intro h
+      rw [mem_preimage'] at h
+      obtain ⟨x', hx', hfx'⟩ := h
+      subst x
+      unfold f at hfx'
+      rw [mem_singleton] at hfx'
+      by_cases h : ↑x' ∈ Y
+      . exact h
+      . exfalso
+        simp [h] at hfx'
 
 /-- Lemma 3.4.10 -/
 theorem SetTheory.Set.exists_powerset (X:Set) :
@@ -320,7 +374,21 @@ theorem SetTheory.Set.iUnion_eq (I: Set) (A: I → Set) :
     (iUnion I A : _root_.Set Object) = ⋃ α, (A α: _root_.Set Object) := by
   ext; simp [mem_iUnion]
 
-theorem SetTheory.Set.iUnion_of_empty (A: (∅:Set) → Set) : iUnion (∅:Set) A = ∅ := by sorry
+theorem SetTheory.Set.iUnion_of_empty (A: (∅:Set) → Set) : iUnion (∅:Set) A = ∅ := by
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [mem_iUnion] at h
+    obtain ⟨ α, hx ⟩ := h
+    exfalso
+    have hx := α.property
+    have := SetTheory.Set.not_mem_empty α
+    contradiction
+  . intro h
+    exfalso
+    have := SetTheory.Set.not_mem_empty x
+    contradiction
 
 /-- Indexed intersection -/
 noncomputable abbrev SetTheory.Set.nonempty_choose {I:Set} (hI: I ≠ ∅) : I :=
@@ -491,6 +559,8 @@ theorem SetTheory.Set.image_of_union {X Y:Set} (f:X → Y) (A B: Set) :
         exact hx
       . exact hf
 
+-- how to do without Classical?
+open Classical in
 def SetTheory.Set.image_of_inter' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A B: Set, image f (A ∩ B) = (image f A) ∩ (image f B)) := by
   apply isFalse
   push_neg
@@ -516,6 +586,7 @@ def SetTheory.Set.image_of_inter' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A
     ↓reduceIte, and_false, mem_pair, exists_eq_or_imp, zero_ne_one, OfNat.zero_ne_ofNat, or_self,
     and_self, OfNat.ofNat_ne_zero, OfNat.ofNat_ne_one, iff_true] at h
 
+open Classical in
 def SetTheory.Set.image_of_diff' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A B: Set, image f (A \ B) = (image f A) \ (image f B)) := by
   apply isFalse
   push_neg
@@ -771,7 +842,7 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
     obtain ⟨ Y', hY' ⟩ := h
     simp only [EmbeddingLike.apply_eq_iff_eq] at hY'
     rw [hY'] at hS'
-    rw [power_set_axiom] at hS'
+    rw [powerset_axiom] at hS'
     obtain ⟨ f, hf ⟩ := hS'
     generalize_proofs a b at f
     use choose a
@@ -818,7 +889,7 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
     . rw [union_axiom]
       use Y' ^ X'
       constructor
-      . rw [power_set_axiom]
+      . rw [powerset_axiom]
         use f
         exact hf.symm
       . rw [replacement_axiom]

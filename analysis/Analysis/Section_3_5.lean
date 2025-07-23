@@ -460,10 +460,10 @@ noncomputable abbrev SetTheory.Set.curry_equiv {X Y Z:Set} : (X → Y → Z) ≃
 abbrev SetTheory.Set.tuple {I:Set} {X: I → Set} (a: ∀ i, X i) : Object :=
   ((fun i ↦ ⟨ a i, by rw [mem_iUnion]; use i; exact (a i).property ⟩):I → iUnion I X)
 
-theorem SetTheory.Set.object_of_inj {X Y:Set} (f g: X → Y): object_of f = object_of g ↔ f = g := by
+theorem SetTheory.Set.object_of_inj {X Y:Set} (f g: X → Y): function_to_object _ _ f = function_to_object _ _ g ↔ f = g := by
   constructor
   . intro h
-    rw [object_of] at h
+    rw [function_to_object] at h
     simp only [EmbeddingLike.apply_eq_iff_eq] at h
     exact h
   . intro h
@@ -491,8 +491,8 @@ theorem SetTheory.Set.tuple_inj {I:Set} {X: I → Set} (x y: ∀ i, X i) :
   constructor
   . intro h
     rw [tuple, tuple] at h
-    simp only [EmbeddingLike.apply_eq_iff_eq] at h
     ext i
+    simp only [coe_of_fun_inj] at h
     have h' := congr_fun h i
     simp only at h'
     rw [Subtype.mk.injEq] at h'
@@ -666,7 +666,7 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     have hf := Classical.choose_spec hi
     rw [Subtype.mk.injEq]
     rw [hf]
-    simp only [mk_cart_fst, mk_cart_snd, EmbeddingLike.apply_eq_iff_eq]
+    simp only [mk_cart_fst, mk_cart_snd, coe_of_fun_inj]
     funext i
     by_cases hi: i = ⟨ 0, by simp ⟩
     . rw [hi]
@@ -1141,12 +1141,12 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_tuples (n:ℕ) (X: Fin n → Set)
     intro i
     simp only
     have := Classical.choose_spec b
-    simp only [EmbeddingLike.apply_eq_iff_eq] at this
+    simp only [coe_of_fun_inj] at this
     have := congr_fun this i
     rw [Subtype.mk.injEq] at this
     rw [this]
     congr! with x
-    simp only [EmbeddingLike.apply_eq_iff_eq]
+    simp only [coe_of_fun_inj]
 
 
 /--
@@ -1799,7 +1799,7 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
       have S := choose p
       ∀ y : Y, ∃! x : X, OrderedPair.toObject { fst := y, snd := x } ∈ S
     )
-    use g.replace (P := fun T F ↦ ∃ f: Y → X, object_of f = F ∧ graph f = T.val) (by
+    use g.replace (P := fun T F ↦ ∃ f: Y → X, function_to_object _ _ f = F ∧ graph f = T.val) (by
       intro T y y'
       simp
       intro f hf hG f' hf' hG'
@@ -1811,14 +1811,15 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
       exact hG'.symm
     )
     intro F
+    rw [replacement_axiom]
     constructor
     . intro h
-      rw [replacement_axiom] at h
       obtain ⟨ T, hT, hF, hF' ⟩ := h
       use hT
+      rw [← hF]
+      exact rfl
     . intro h
       obtain ⟨ T, hT ⟩ := h
-      rw [replacement_axiom]
       have : set_to_object (graph T) ∈ g := by
         simp [g]
         rw [specification_axiom'']
@@ -1860,6 +1861,10 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
               apply specification_axiom
       use ⟨ set_to_object (graph T), this⟩
       use T
+      constructor
+      . rw [← hT]
+        rfl
+      . rfl
   . intro S S' h h'
     apply ext
     intro x
@@ -1939,7 +1944,6 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
               rw [nat_equiv_symm_zero]
               simp only [ne_eq, Nat.right_eq_add, Nat.add_eq_zero, one_ne_zero, and_false,
                 not_false_eq_true]
-            simp [hN]
             exact ap_spec.1.1
           . intro n hn
             simp [hn]

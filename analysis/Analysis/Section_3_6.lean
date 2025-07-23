@@ -142,7 +142,7 @@ theorem SetTheory.Set.Remark_3_6_6 (n:ℕ) :
       obtain ⟨ m, hm, hmn ⟩ := hx
       simp [hmn]
       change nat_equiv.symm ⟨↑m, _⟩ < n
-      suffices h: nat_equiv.symm ⟨↑m, ⋯⟩ = m by
+      suffices h: nat_equiv.symm ⟨↑m, _⟩ = m by
         rw [h]
         exact hm
       rw [Equiv.symm_apply_eq]

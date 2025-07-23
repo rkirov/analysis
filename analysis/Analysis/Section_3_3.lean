@@ -823,27 +823,68 @@ theorem Function.glue {X Y Z:Set} (hXY: Disjoint X Y) (f: Function X Z) (g: Func
       rw [comp_eval, inclusion]
       simp only [eval_of, F_at_x]
   . intro F G hF hG
-    ext x
-    have hx : x.val ∈ (X ∪ Y) := x.property
+    rw [eq_iff]
+    intro x
+    have hx := x.prop
     rw [SetTheory.Set.mem_union] at hx
+    rw [inclusion] at hF hG
     cases' hx with hX hY
-    . have he : ∃ x': X, (inclusion (SetTheory.Set.subset_union_left X Y)) x' = x := by
-        use ⟨x.val, hX⟩
-        rw [inclusion]
-        rw [eval_of]
-      obtain ⟨ x' , hx' ⟩ := he
-      rw [← hx']
-      repeat rw [← eval]
-      repeat rw [← comp_eval]
-      rw [hF.1, hG.1]
-    . have he : ∃ x': Y, (inclusion (SetTheory.Set.subset_union_right X Y)) x' = x := by
-        use ⟨x.val, hY⟩
-        rw [inclusion]
-        rw [eval_of]
-      obtain ⟨ x' , hx' ⟩ := he
-      rw [← hx']
-      repeat rw [← eval]
-      repeat rw [← comp_eval]
-      rw [hF.2, hG.2]
+    . have hF' := (Function.fn_ext).mpr hF.1 ⟨x.val, hX⟩
+      have hG' := (Function.fn_ext).mpr hG.1 ⟨x.val, hX⟩
+      simp only [eval_of] at hF' hG'
+      rw [hF', hG']
+    . have hF' := (Function.fn_ext).mpr hF.2 ⟨x.val, hY⟩
+      have hG' := (Function.fn_ext).mpr hG.2 ⟨x.val, hY⟩
+      simp only [eval_of] at hF' hG'
+      rw [hF', hG']
 
-end Chapter3
+
+
+open Classical in
+theorem Function.glue' {X Y Z:Set} (f: Function X Z) (g: Function Y Z)
+    (hfg : ∀ x : ((X ∩ Y): Set), f ⟨x.val, by aesop⟩ = g ⟨x.val, by aesop⟩)  :
+    ∃! h: Function (X ∪ Y) Z, (h ○ Function.inclusion (SetTheory.Set.subset_union_left X Y) = f)
+    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by
+  apply existsUnique_of_exists_of_unique
+  . let F : Function (X ∪ Y) Z := Function.mk_fn (fun z ↦
+      if h : (z.val ∈ X) then f ⟨z.val, h⟩
+        else g ⟨z.val, (by
+          have h2 := z.property
+          rw [SetTheory.Set.mem_union] at h2;
+          tauto
+      )⟩)
+    use F
+    constructor
+    . rw [eq_iff]
+      intro x
+      unfold F
+      simp only [eval_of]
+      simp [x.prop]
+    . rw [eq_iff]
+      intro x
+      simp only [eval_of]
+      unfold F
+      simp only [eval_of, Subtype.coe_eta, dite_eq_right_iff, x.prop]
+      intro hx
+      have hxy : x.val ∈ X ∩ Y := by
+        rw [SetTheory.Set.mem_inter]
+        constructor
+        . exact hx
+        . exact x.prop
+      specialize hfg ⟨x.val, hxy⟩
+      simp only [hfg]
+  . intro F G hF hG
+    rw [eq_iff]
+    intro x
+    have hx := x.prop
+    rw [SetTheory.Set.mem_union] at hx
+    rw [inclusion] at hF hG
+    cases' hx with hX hY
+    . have hF' := (Function.fn_ext).mpr hF.1 ⟨x.val, hX⟩
+      have hG' := (Function.fn_ext).mpr hG.1 ⟨x.val, hX⟩
+      simp only [eval_of] at hF' hG'
+      rw [hF', hG']
+    . have hF' := (Function.fn_ext).mpr hF.2 ⟨x.val, hY⟩
+      have hG' := (Function.fn_ext).mpr hG.2 ⟨x.val, hY⟩
+      simp only [eval_of] at hF' hG'
+      rw [hF', hG']

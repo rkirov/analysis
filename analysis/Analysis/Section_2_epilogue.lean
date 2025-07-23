@@ -96,7 +96,7 @@ abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n 
       rw [hk]
       rw [map_add]
       rw [le_add_iff_nonneg_right]
-      apply zero_le
+      simp only [_root_.zero_le]
 
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat

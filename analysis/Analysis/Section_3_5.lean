@@ -1877,7 +1877,7 @@ lemma nat_equiv_symm_zero : SetTheory.Set.nat_equiv.symm 0 = 0 := by
   rw [Equiv.symm_apply_eq]
   exact rfl
 
-  lemma nat_equiv_symm_x_zero (x: Nat): SetTheory.Set.nat_equiv.symm x = 0
+lemma nat_equiv_symm_x_zero (x: Nat): SetTheory.Set.nat_equiv.symm x = 0
     ↔ x = 0 := by
   constructor
   . intro h

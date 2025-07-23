@@ -389,7 +389,8 @@ theorem Nat.not_lt_of_gt (a b:Nat) : a < b ∧ a > b → False := by
 /-- This lemma was a `why?` statement from Proposition 2.2.13,
 but is more broadly useful, so is extracted here. -/
 theorem Nat.zero_le (a:Nat) : 0 ≤ a := by
-  sorry
+  use a
+  rw [zero_add]
 
 /-- Proposition 2.2.13 (Trichotomy of order for natural numbers) / Exercise 2.2.4
     Compare with Mathlib's `trichotomous`. -/

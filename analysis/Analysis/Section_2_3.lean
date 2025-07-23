@@ -93,7 +93,7 @@ theorem Nat.mul_one (m: Nat) : m * 1 = m := by
 lemma Nat.pos_mul_pos {n m: Nat} (h₁: n.IsPos) (h₂: m.IsPos) : (n * m).IsPos := by
   induction n with
   | zero =>
-    change (0 * m).isPos
+    change (0 * m).IsPos
     contradiction
   | succ n ih =>
     rw [Nat.succ_mul]
@@ -250,7 +250,7 @@ theorem Nat.exists_div_mod (n:Nat) {q: Nat} (hq: q.IsPos) :
       . constructor
         . use q
           rw [zero_add]
-        dsimp [isPos] at hq
+        dsimp [IsPos] at hq
         symm
         exact hq
       . rw [zero_mul]

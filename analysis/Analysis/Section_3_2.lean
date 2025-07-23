@@ -177,14 +177,23 @@ theorem SetTheory.Set.not_mem_mem (A B:Set) : (A:Object) ∉ B ∨ (B:Object) �
 /-- Exercise 3.2.3 -/
 theorem SetTheory.Set.univ_iff : axiom_of_universal_specification ↔
   ∃ (U:Set), ∀ x, x ∈ U := by
-  dsimp [axiom_of_universal_specification]
-  intro P
-  set P' : U → Prop := fun x => P x with hP
-  use specify U P'
-  intro x
-  rw [hP]
-  have xU : x ∈ U := hU x;
-  rw [specification_axiom' P' ⟨x, xU⟩]
+  constructor
+  . intro h
+    set P : Object → Prop := fun x ↦ True
+    obtain ⟨ U, hU ⟩ := h P
+    use U
+    simp only [iff_true, P] at hU
+    exact hU
+  . dsimp [axiom_of_universal_specification]
+    intro hU
+    obtain ⟨ U, hU ⟩ := hU
+    intro P
+    set P' : U → Prop := fun x => P x with hP
+    use specify U P'
+    intro x
+    rw [hP]
+    have xU : x ∈ U := hU x;
+    rw [specification_axiom' P' ⟨x, xU⟩]
 
 /-- Exercise 3.2.3 -/
 theorem SetTheory.Set.no_univ : ¬ ∃ (U:Set), ∀ (x:Object), x ∈ U := by

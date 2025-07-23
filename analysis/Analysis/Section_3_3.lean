@@ -94,9 +94,9 @@ theorem Function.eval_of {X Y: Set} (f: X → Y) (x:X) : (Function.mk_fn f) x = 
 theorem Function.to_fn_eq {X Y: Set} (f g: Function X Y): f.to_fn = g.to_fn ↔ f = g := by
   constructor
   . intro h
-    ext x y
-    repeat rw [← eval]
-    congr!
+    rw [← fn_ext]
+    intro x
+    rw [h]
   . intro h
     rw [h]
 
@@ -529,22 +529,6 @@ theorem Function.comp_cancel_left {X Y Z:Set} {f f': Function X Y} {g : Function
   change (g.to_fn ∘ f.to_fn) x = (g.to_fn ∘ f'.to_fn) x
   rw [heq]
 
-example : ∃ X Y Z:Set, ∃ f f': Function X Y, ∃ g : Function Y Z, g ○ f = g ○ f' ∧ f ≠ f' := by
-  use Nat
-  use Nat
-  use Nat
-  use Function.mk_fn (fun n ↦ n)
-  use Function.mk_fn (fun n ↦ 0)
-  use Function.mk_fn (fun n ↦ 0)
-  constructor
-  . simp
-  . simp
-    intro h
-    -- why can't congrFun h 1 1
-    have h1 := congrFun h 1
-    have h2 := congrFun h1 1
-    simp at h2
-
 theorem Function.comp_cancel_right {X Y Z:Set} {f: Function X Y} {g g': Function Y Z}
   (heq : g ○ f = g' ○ f) (hf: f.onto) : g = g' := by
   -- move problem to mathlib defs because it is easier to work there
@@ -565,30 +549,38 @@ theorem Function.comp_cancel_right {X Y Z:Set} {f: Function X Y} {g g': Function
   repeat rw [hy] at h
   exact h
 
-example : ∃ X Y Z:Set, ∃ f: Function X Y, ∃ g g': Function Y Z, g ○ f = g' ○ f ∧ g ≠ g' := by
+def Function.comp_cancel_left_without_hg : Decidable (∀ (X Y Z:Set) (f f': Function X Y) (g : Function Y Z) (heq : g ○ f = g ○ f'), f = f') := by
+  apply isFalse
+  push_neg
   use Nat
   use Nat
   use Nat
+  use Function.mk_fn (fun n ↦ n)
+  use Function.mk_fn (fun n ↦ 0)
+  use Function.mk_fn (fun n ↦ 0)
+  constructor
+  . simp
+  . simp
+    intro h
+    -- why can't congrFun h 1 1
+    have h1 := congrFun h 1
+    have h2 := congrFun h1 1
+    simp at h2
+
+def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g g': Function Y Z) (heq : g ○ f = g' ○ f), g = g') := by
+  apply isFalse
+  push_neg
+  use Nat, Nat, Nat
   use Function.mk_fn (fun n ↦ 0)
   use Function.mk_fn (fun n ↦ 0)
   use Function.mk_fn (fun n ↦ n)
   constructor
-  . ext x
-    repeat rw [← Function.eval]
+  . simp only [Function.mk.injEq, Function.eval_of]
   . intro h
     simp at h
     have h1 := congrFun h 1
     have h2 := congrFun h1 1
     simp at h2
-
-
-def Function.comp_cancel_left_without_hg : Decidable (∀ (X Y Z:Set) (f f': Function X Y) (g : Function Y Z) (heq : g ○ f = g ○ f'), f = f') := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
-def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g g': Function Y Z) (heq : g ○ f = g' ○ f), g = g') := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
 
 /--
   Exercise 3.3.5.
@@ -603,9 +595,22 @@ theorem Function.comp_injective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
   by_contra hn
   have := hinj hn
   rw [comp_eval] at this
-  simp_all only [Subtype.forall, ne_eq, not_false_eq_true, forall_eq, not_true_eq_false, imp_false]
+  simp_all only [ne_eq, not_false_eq_true, eval_of, not_true_eq_false, imp_false]
 
-example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).one_to_one ∧ ¬ g.one_to_one := by
+theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
+  (hinj : (g ○ f).onto) : g.onto := by
+  rw [onto] at hinj
+  rw [onto]
+  intro z
+  specialize hinj z
+  obtain ⟨ y, hy ⟩ := hinj
+  rw [comp_eval] at hy
+  use f y
+
+def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
+    (g ○ f).one_to_one), g.one_to_one) := by
+  apply isFalse
+  push_neg
   use {0}
   use Nat
   use {0}
@@ -624,17 +629,11 @@ example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).o
       have neO : (0:Object) ≠ 1 := by simp
       exact neO h
 
-theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
-  (hinj : (g ○ f).onto) : g.onto := by
-  rw [onto] at hinj
-  rw [onto]
-  intro z
-  specialize hinj z
-  obtain ⟨ y, hy ⟩ := hinj
-  rw [comp_eval] at hy
-  use f y
 
-example : ∃ X Y Z:Set, ∃ f : Function X Y, ∃ g : Function Y Z, (g ○ f).onto ∧ ¬ f.onto := by
+def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
+    (g ○ f).onto), f.onto) := by
+  apply isFalse
+  push_neg
   use Nat
   use Nat
   use {0}
@@ -663,20 +662,11 @@ def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g :
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
   sorry
 
-def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
-    (g ○ f).onto), f.onto) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
-def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
-    (g ○ f).one_to_one), g.one_to_one) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
 def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hsurj :
     (g ○ f).onto), f.onto) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
   sorry
+
 
 /-- Exercise 3.3.6 -/
 theorem Function.inverse_comp_self {X Y: Set} {f: Function X Y} (h: f.bijective) (x: X) :
@@ -766,7 +756,8 @@ theorem Function.inclusion_comp (X Y Z:Set) (hXY: X ⊆ Y) (hYZ: Y ⊆ Z) :
 theorem Function.comp_id {A B:Set} (f: Function A B) : f ○ Function.id A = f := by
   ext x
   repeat rw [← eval]
-  repeat rw [id_eval]
+  rw [comp_eval]
+  rw [id_eval]
 
 theorem Function.id_comp {A B:Set} (f: Function A B) : Function.id B ○ f = f := by
   ext x
@@ -813,10 +804,8 @@ theorem Function.glue {X Y Z:Set} (hXY: Disjoint X Y) (f: Function X Z) (g: Func
       have F_at_x : F ⟨x.val, hunion⟩ = f x := by
         rw [hF, Function.eval_of, dif_pos x.property]
       rw [comp_eval]
-      have inc_eval : (fun x ↦ choose ((inclusion (SetTheory.Set.subset_union_left X Y)).unique x)) x =
-         ⟨x, ((SetTheory.Set.subset_union_left X Y) x) x.property⟩  := by
-        rw [eval_of]
-      rw [inc_eval, F_at_x]
+      simp only [eval_of]
+      rw [F_at_x]
     . ext x
       repeat rw [← eval]
       have hsub := (SetTheory.Set.subset_union_right X Y)
@@ -831,11 +820,8 @@ theorem Function.glue {X Y Z:Set} (hXY: Disjoint X Y) (f: Function X Z) (g: Func
           have ne := SetTheory.Set.not_mem_empty x
           contradiction
         rw [hF, Function.eval_of, dif_neg hneqx]
-      rw [comp_eval]
-      have inc_eval : (fun x ↦ choose ((inclusion (SetTheory.Set.subset_union_right X Y)).unique x)) x =
-         ⟨x, ((SetTheory.Set.subset_union_right X Y) x) x.property⟩  := by
-        rw [eval_of]
-      rw [inc_eval, F_at_x]
+      rw [comp_eval, inclusion]
+      simp only [eval_of, F_at_x]
   . intro F G hF hG
     ext x
     have hx : x.val ∈ (X ∪ Y) := x.property

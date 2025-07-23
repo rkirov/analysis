@@ -30,23 +30,127 @@ variable [SetTheory]
 /-- Definition 3.6.1 (Equal cardinality) -/
 abbrev SetTheory.Set.EqualCard (X Y:Set) : Prop := ∃ f : X → Y, Function.Bijective f
 
+lemma nat_equiv_symm_lit {n: ℕ}: SetTheory.Set.nat_equiv.symm ofNat(n) = ofNat(n) := by
+  rw [Equiv.symm_apply_eq]
+  exact rfl
+
 /-- Example 3.6.2 -/
-theorem SetTheory.Set.Example_3_6_2 : EqualCard {0,1,2} {3,4,5} := by sorry
+theorem SetTheory.Set.Example_3_6_2 : EqualCard {0,1,2} {3,4,5} := by
+  rw [EqualCard]
+  have : ({0,1,2}:Set) ⊆ Nat := by
+    rw [subset_def]
+    intro x hx
+    rw [mem_triple] at hx
+    cases hx with
+    | inl h =>
+      rw [h]
+      exact (0: Nat).prop
+    | inr h_1 =>
+      cases h_1 with
+      | inl h =>
+        rw [h]
+        exact (1: Nat).prop
+      | inr h_2 =>
+        rw [h_2]
+        exact (2: Nat).prop
+  use fun x ↦ ⟨nat_equiv (((⟨x.val, this x.val x.prop⟩ : Nat) : ℕ) + 3), by
+    simp only [mem_triple, nat_coe_eq_iff', Equiv.symm_apply_apply, Nat.reduceEqDiff]
+    have := x.property
+    rw [mem_triple] at this
+    repeat rw [Equiv.symm_apply_eq]
+    aesop
+  ⟩
+  constructor
+  . intro x y hxy
+    simp at hxy
+    rw [Subtype.val_inj] at hxy
+    simp only [EmbeddingLike.apply_eq_iff_eq, Nat.add_right_cancel_iff, Subtype.mk.injEq] at hxy
+    rw [Subtype.val_inj] at hxy
+    exact hxy
+  . intro y
+    have := y.property
+    rw [mem_triple] at this
+    rcases this with h3 | h4 | h5
+    . use ⟨0, by rw [mem_triple]; tauto⟩
+      simp only
+      rw [← Subtype.val_inj]
+      rw [h3]
+      simp only [nat_coe_eq_iff', Equiv.symm_apply_apply, Nat.add_eq_right]
+      exact nat_equiv_symm_lit
+    . use ⟨1, by rw [mem_triple]; tauto⟩
+      simp only
+      rw [← Subtype.val_inj]
+      rw [h4]
+      simp only [nat_coe_eq_iff', Equiv.symm_apply_apply, Nat.add_eq_right]
+      change nat_equiv.symm ⟨1, _⟩ + 3 = 1 + 3
+      simp only [Nat.reduceAdd, Nat.reduceEqDiff]
+      exact nat_equiv_symm_lit
+    . use ⟨2, by rw [mem_triple]; tauto⟩
+      simp only
+      rw [← Subtype.val_inj]
+      rw [h5]
+      simp only [nat_coe_eq_iff', Equiv.symm_apply_apply, Nat.add_eq_right]
+      change nat_equiv.symm ⟨2, _⟩ + 3 = 2 + 3
+      simp only [Nat.reduceAdd, Nat.reduceEqDiff]
+      exact nat_equiv_symm_lit
 
 /-- Example 3.6.3 -/
-theorem SetTheory.Set.Example_3_6_3 : EqualCard nat (nat.specify (fun x ↦ Even (x:ℕ))) := by sorry
+theorem SetTheory.Set.Example_3_6_3 : EqualCard nat (nat.specify (fun x ↦ Even (x:ℕ))) := by
+  rw [EqualCard]
+  use fun x ↦ ⟨ nat_equiv (2 * (x: ℕ)), by
+    rw [specification_axiom'']
+    use (nat_equiv (2 * nat_equiv.symm x)).prop
+    simp only [Subtype.coe_eta, Equiv.symm_apply_apply, even_two, Even.mul_right]
+  ⟩
+  constructor
+  . intro x y hxy
+    simp only [Subtype.mk.injEq] at hxy
+    rw [Subtype.val_inj] at hxy
+    simp only [EmbeddingLike.apply_eq_iff_eq, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero,
+      or_false] at hxy
+    exact hxy
+  . intro y
+    have := y.property
+    rw [specification_axiom''] at this
+    obtain ⟨ m, hm, hmeven ⟩ := this
+    use hm
+    rw [← Nat.mul_two] at hmeven
+    simp only [nat_equiv_coe_of_coe]
+    rw [mul_comm] at hmeven
+    rw [Subtype.mk.injEq]
+    rw [Equiv.symm_apply_eq] at hmeven
+    rw [← hmeven]
 
 @[refl]
 theorem SetTheory.Set.EqualCard.refl (X:Set) : EqualCard X X := by
-  sorry
+  rw [EqualCard]
+  use id
+  constructor
+  . intro x y hxy
+    exact hxy
+  . intro x
+    use x
+    simp only [id_eq]
 
+-- using Equiv is kinda cheating.
 @[symm]
 theorem SetTheory.Set.EqualCard.symm {X Y:Set} (h: EqualCard X Y) : EqualCard Y X := by
-  sorry
-
+  rw [EqualCard] at h  ⊢
+  obtain ⟨ f, hf ⟩ := h
+  let e := Equiv.ofBijective f hf
+  use e.symm
+  exact Equiv.bijective e.symm
+  
 @[trans]
 theorem SetTheory.Set.EqualCard.trans {X Y Z:Set} (h1: EqualCard X Y) (h2: EqualCard Y Z) : EqualCard X Z := by
-  sorry
+  rw [EqualCard] at h1 h2 ⊢
+  obtain ⟨ f1, hf1 ⟩ := h1
+  obtain ⟨ f2, hf2 ⟩ := h2
+  let e1 := Equiv.ofBijective f1 hf1
+  let e2 := Equiv.ofBijective f2 hf2
+  let et := e1.trans e2
+  use et
+  exact Equiv.bijective et
 
 /-- Proposition 3.6.4 / Exercise 3.6.1 -/
 instance SetTheory.Set.EqualCard.inst_setoid : Setoid SetTheory.Set := ⟨ EqualCard, {refl, symm, trans} ⟩
@@ -54,12 +158,96 @@ instance SetTheory.Set.EqualCard.inst_setoid : Setoid SetTheory.Set := ⟨ Equal
 /-- Definition 3.6.5 -/
 abbrev SetTheory.Set.has_card (X:Set) (n:ℕ) : Prop := X ≈ Fin n
 
+theorem SetTheory.Set.Fin_sub_nat (n: ℕ) : Fin n ⊆ nat := by
+  rw [Fin]
+  rw [subset_def]
+  intro x h
+  have := specification_axiom h
+  exact this
+
+
 /-- Remark 3.6.6 -/
 theorem SetTheory.Set.Remark_3_6_6 (n:ℕ) :
-    (nat.specify (fun x ↦ 1 ≤ (x:ℕ) ∧ (x:ℕ) ≤ n)).has_card n := by sorry
+    (nat.specify (fun x ↦ 1 ≤ (x:ℕ) ∧ (x:ℕ) ≤ n)).has_card n := by
+  rw [has_card]
+  apply Setoid.symm
+  use fun x ↦ ⟨nat_equiv (((⟨x, (Fin_sub_nat _) _ x.prop⟩: Nat) : ℕ) + 1), by
+    rw [specification_axiom'']
+    use (nat_equiv (nat_equiv.symm ⟨↑x, _⟩ + 1)).prop
+    constructor
+    . simp_all only [Subtype.coe_eta, Equiv.symm_apply_apply, le_add_iff_nonneg_left, zero_le]
+    . have hx := x.property
+      rw [mem_Fin] at hx
+      obtain ⟨ m, hm, hmn ⟩ := hx
+      simp [hmn]
+      change nat_equiv.symm ⟨↑m, _⟩ < n
+      suffices h: nat_equiv.symm ⟨↑m, ⋯⟩ = m by
+        rw [h]
+        exact hm
+      rw [Equiv.symm_apply_eq]
+      rfl
+  ⟩
+  constructor
+  . intro x y hxy
+    simp at hxy
+    rw [Subtype.val_inj] at hxy
+    simp only [EmbeddingLike.apply_eq_iff_eq, Nat.add_right_cancel_iff, Subtype.mk.injEq] at hxy
+    rw [Subtype.val_inj] at hxy
+    exact hxy
+  . intro y
+    have := y.property
+    rw [specification_axiom''] at this
+    obtain ⟨ m, hm, hmn ⟩ := this
+    have hneq : nat_equiv.symm ⟨↑y, m⟩ ≠ 0 := by exact Nat.ne_zero_of_lt hm
+    have hm := Nat.exists_eq_succ_of_ne_zero hneq
+    obtain ⟨ n', hn' ⟩ := hm
+    use ⟨n', by
+      rw [mem_Fin]
+      use n'
+      simp only [and_true]
+      simp_all only [Nat.succ_eq_add_one, le_add_iff_nonneg_left, zero_le, ne_eq, Nat.add_eq_zero, one_ne_zero,
+        and_false, not_false_eq_true]
+      exact hmn
+    ⟩
+    simp
+    rw [Subtype.mk.injEq]
+    rw [Equiv.symm_apply_eq] at hn'
+    rw [Subtype.mk.injEq] at hn'
+    conv_rhs => rw [hn']
+    simp only [Nat.succ_eq_add_one]
+    rw [Subtype.val_inj]
+    congr!
+    rw [Equiv.symm_apply_eq]
+    rfl
 
 /-- Example 3.6.7 -/
-theorem SetTheory.Set.Example_3_6_7a (a:Object) : ({a}:Set).has_card 1 := by sorry
+theorem SetTheory.Set.Example_3_6_7a (a:Object) : ({a}:Set).has_card 1 := by
+  rw [has_card]
+  rw [Fin]
+  simp only [Nat.lt_one_iff]
+  use fun x ↦ ⟨0, by
+    rw [specification_axiom'']
+    use (0:Nat).prop
+    exact nat_equiv_symm_lit
+  ⟩
+  constructor
+  . intro x y hxy
+    have hx := x.property
+    have hy := y.property
+    rw [mem_singleton] at hx hy
+    conv_rhs at hy => rw [← hx]
+    rw [Subtype.val_inj] at hy
+    exact hy.symm
+  . intro y
+    use ⟨a, by rw [mem_singleton]⟩
+    simp only
+    have := y.property
+    rw [specification_axiom''] at this
+    obtain ⟨ m, hm⟩ := this
+    rw [Equiv.symm_apply_eq] at hm
+    rw [Subtype.mk.injEq] at hm ⊢
+    rw [hm]
+    rfl
 
 theorem SetTheory.Set.Example_3_6_7b {a b c d:Object} (hab: a ≠ b) (hac: a ≠ c) (had: a ≠ d)
   (hbc: b ≠ c) (hbd: b ≠ d) (hcd: c ≠ d) : ({a,b,c,d}:Set).has_card 4 := by sorry

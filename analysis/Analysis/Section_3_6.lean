@@ -249,8 +249,57 @@ theorem SetTheory.Set.Example_3_6_7a (a:Object) : ({a}:Set).has_card 1 := by
     rw [hm]
     rfl
 
+open Classical
+set_option maxHeartbeats 1000000 in
 theorem SetTheory.Set.Example_3_6_7b {a b c d:Object} (hab: a ≠ b) (hac: a ≠ c) (had: a ≠ d)
-  (hbc: b ≠ c) (hbd: b ≠ d) (hcd: c ≠ d) : ({a,b,c,d}:Set).has_card 4 := by sorry
+  (hbc: b ≠ c) (hbd: b ≠ d) (hcd: c ≠ d) : ({a,b,c,d}:Set).has_card 4 := by
+  simp [has_card, HasEquiv.Equiv, Setoid.r, EqualCard]
+  let f : ({a,b,c,d}:Set) → Fin 4 := fun x ↦
+    if x.val = a then ⟨0, by rw [mem_Fin]; aesop⟩
+    else if x.val = b then ⟨1, by rw [mem_Fin]; aesop⟩
+      else if x.val = c then ⟨2, by rw [mem_Fin]; aesop⟩
+        else (⟨3, by rw [mem_Fin]; aesop⟩: Fin 4)
+  use f
+  constructor
+  . intro x y hxy
+    have hx := x.property
+    have hy := y.property
+    rw [mem_quad] at hx hy
+    unfold f at hxy
+    rcases hx with xa | xb | xc | xd <;> aesop
+  . intro y
+    have hy := y.property
+    rw [mem_Fin] at hy
+    obtain ⟨ m, hm, hmn ⟩ := hy
+    match m, hm with
+    | 0, _ =>
+      use ⟨a, by simp⟩
+      simp [f]
+      simp_all only [Nat.ofNat_pos, f]
+      obtain ⟨val, property⟩ := y
+      subst hmn
+      simp_all only [Subtype.mk.injEq, f]
+      rfl
+    | 1, _ =>
+      use ⟨b, by simp⟩
+      simp [f]
+      -- aesop needs some help here
+      simp [hab.symm]
+      obtain ⟨val, property⟩ := y
+      rw [Subtype.mk.injEq]
+      exact hmn.symm
+    | 2, _ =>
+      use ⟨c, by simp⟩
+      simp [f]
+      aesop
+    | 3, _ =>
+      use ⟨d, by simp⟩
+      simp [f]
+      aesop
+    | n + 4, h =>
+      exfalso
+      have : ¬ n + 4 < 4 := by omega
+      contradiction
 
 theorem SetTheory.Set.has_card_iff (X:Set) (n:ℕ) :
     X.has_card n ↔ ∃ f: X → Fin n, Function.Bijective f := by
@@ -266,12 +315,61 @@ theorem SetTheory.Set.pos_card_nonempty {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_
     use 0, (by linarith); rfl
   rw [has_card_iff] at hX
   obtain ⟨ f, hf ⟩ := hX
-  sorry
-  -- obtain a contradiction from the fact that `f` is a bijection  from the empty set to a
-  -- non-empty set.
+  rw [this] at f
+  have ⟨_, bj⟩ := hf
+  have := nonempty_def hnon
+  obtain ⟨ x, hx ⟩ := this
+  have := bj ⟨ x , hx ⟩
+  obtain ⟨ m, hm ⟩ := this
+  rw [this] at m
+  have h1 := m.prop
+  have h2 := not_mem_empty m
+  contradiction
+
+theorem SetTheory.Set.Fin_zero_empty : Fin 0 = ∅ := by
+  rw [Fin]
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [specification_axiom''] at h
+    obtain ⟨ m, hm, hmn ⟩ := h
+  . intro h
+    exfalso
+    have := SetTheory.Set.nonempty_of_inhabited h
+    contradiction
 
 /-- Exercise 3.6.2a -/
-theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by sorry
+theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by
+  constructor
+  . intro h
+    rw [has_card_iff] at h
+    obtain ⟨ f, hf ⟩ := h
+    rw [Fin] at f
+    simp at f
+    rw [SetTheory.Set.eq_empty_iff_forall_notMem]
+    intro x
+    by_contra! hx
+    have := (f ⟨x, hx⟩).property
+    rw [specification_axiom''] at this
+    obtain ⟨ m, hm, hmn ⟩ := this
+  . intro h
+    rw [has_card_iff]
+    rw [Fin_zero_empty]
+    subst X
+    use fun x ↦ absurd x.property (by simp only [not_mem_empty, not_false_eq_true])
+    rw [Function.Bijective]
+    constructor
+    . intro x y hxy
+      exfalso
+      have h := x.property
+      have hneq := not_mem_empty x
+      contradiction
+    . intro y
+      exfalso
+      have h := y.property
+      have hneq := not_mem_empty y
+      contradiction
 
 /-- Lemma 3.6.9 -/
 theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n) (x:X) :
@@ -300,7 +398,26 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
         contrapose! hy2
         rwa [hy2,←hm₀f,Subtype.val_inj, hf.injective.eq_iff,←Subtype.val_inj] at hmm
       exact Fin_mk _ (m'-1) (by omega)
-  have hg : Function.Bijective g := by sorry
+
+  have Xsub : X' ⊆ X := by
+    rw [subset_def]
+    intro y hy
+    simp [X'] at hy
+    exact hy.1
+  have hg : Function.Bijective g := by
+    constructor
+    . intro y1 y2 h
+      simp [g] at h
+      sorry
+    . intro y
+      let e := Equiv.ofBijective f hf
+      sorry
+      -- by_cases h: y < m₀
+      -- . use e.symm ⟨y, by have := y.prop; rw [mem_Fin] at this; exact Xsub y _⟩
+      --   sorry
+      -- . use e.symm y + 1
+      --   sorry
+
   have : EqualCard X' (Fin (n-1)) := by use g
   exact this
 

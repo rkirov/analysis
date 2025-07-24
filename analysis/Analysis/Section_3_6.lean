@@ -96,7 +96,7 @@ theorem SetTheory.Set.EqualCard.refl (X:Set) : EqualCard X X := by
 -- using Equiv is kinda cheating.
 @[symm]
 theorem SetTheory.Set.EqualCard.symm {X Y:Set} (h: EqualCard X Y) : EqualCard Y X := by
-  rw [EqualCard] at h  ⊢
+  rw [EqualCard] at h ⊢
   obtain ⟨ f, hf ⟩ := h
   let e := Equiv.ofBijective f hf
   use e.symm
@@ -209,6 +209,16 @@ theorem SetTheory.Set.Example_3_6_7b {a b c d:Object} (hab: a ≠ b) (hac: a ≠
   · use ⟨b, by aesop⟩; aesop
   · use ⟨c, by aesop⟩; aesop
   · use ⟨d, by aesop⟩; aesop
+
+theorem SetTheory.Set.card_fin_eq (n:ℕ) : (Fin n).has_card n := by
+  rw [has_card_iff]
+  use id
+  exact Function.bijective_id
+
+theorem SetTheory.Set.card_fin_eq (n:ℕ) : (Fin n).has_card n := by
+  rw [has_card_iff]
+  use id
+  exact Function.bijective_id
 
 /-- Lemma 3.6.9 -/
 theorem SetTheory.Set.pos_card_nonempty {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n) : X ≠ ∅ := by
@@ -364,7 +374,27 @@ abbrev SetTheory.Set.finite (X:Set) : Prop := ∃ n:ℕ, X.has_card n
 abbrev SetTheory.Set.infinite (X:Set) : Prop := ¬ finite X
 
 /-- Exercise 3.6.3, phrased using Mathlib natural numbers -/
-theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ i, (f i:ℕ) ≤ M := by sorry
+theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ i, (f i:ℕ) ≤ M := by
+  let f' : _root_.Fin n → ℕ := (fun i ↦ nat_equiv.symm (f ⟨nat_equiv i, by rw [mem_Fin]; aesop⟩))
+  let S := Finset.image f' (Finset.univ : (Finset (_root_.Fin n)))
+  let M := Finset.max' S
+  by_cases h: S.Nonempty
+  . have M' := M h
+    use M'
+    simp only [Subtype.forall]
+    intro x x'
+    -- how to unfold all of the above.
+    sorry
+  . simp at h
+    simp [S] at h
+    simp_all
+    rw [← Finset.card_eq_zero, Finset.card_fin] at h
+    use 0
+    intro a b
+    rw [h] at b
+    rw [Fin_zero_empty] at b
+    have nb := not_mem_empty a
+    contradiction
 
 /-- Theorem 3.6.12 -/
 theorem SetTheory.Set.nat_infinite : infinite nat := by

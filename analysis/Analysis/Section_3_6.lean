@@ -218,12 +218,61 @@ theorem SetTheory.Set.pos_card_nonempty {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_
     apply nonempty_of_inhabited (x := 0); rw [mem_Fin]; use 0, (by omega); rfl
   rw [has_card_iff] at hX
   choose f hf using hX
-  sorry
-  -- obtain a contradiction from the fact that `f` is a bijection from the empty set to a
-  -- non-empty set.
+  rw [this] at f
+  have ⟨_, bj⟩ := hf
+  have := nonempty_def hnon
+  obtain ⟨ x, hx ⟩ := this
+  have := bj ⟨ x , hx ⟩
+  obtain ⟨ m, hm ⟩ := this
+  rw [this] at m
+  have h1 := m.prop
+  have h2 := not_mem_empty m
+  contradiction
+
+theorem SetTheory.Set.Fin_zero_empty : Fin 0 = ∅ := by
+  rw [Fin]
+  apply ext
+  intro x
+  constructor
+  . intro h
+    rw [specification_axiom''] at h
+    obtain ⟨ m, hm, hmn ⟩ := h
+  . intro h
+    exfalso
+    have := SetTheory.Set.nonempty_of_inhabited h
+    contradiction
 
 /-- Exercise 3.6.2a -/
-theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by sorry
+theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by
+  constructor
+  . intro h
+    rw [has_card_iff] at h
+    obtain ⟨ f, hf ⟩ := h
+    rw [Fin] at f
+    simp at f
+    rw [SetTheory.Set.eq_empty_iff_forall_notMem]
+    intro x
+    by_contra! hx
+    have := (f ⟨x, hx⟩).property
+    rw [specification_axiom''] at this
+    obtain ⟨ m, hm, hmn ⟩ := this
+  . intro h
+    rw [has_card_iff]
+    rw [Fin_zero_empty]
+    subst X
+    use fun x ↦ absurd x.property (by simp only [not_mem_empty, not_false_eq_true])
+    rw [Function.Bijective]
+    constructor
+    . intro x y hxy
+      exfalso
+      have h := x.property
+      have hneq := not_mem_empty x
+      contradiction
+    . intro y
+      exfalso
+      have h := y.property
+      have hneq := not_mem_empty y
+      contradiction
 
 /-- Lemma 3.6.9 -/
 theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n) (x:X) :
@@ -244,7 +293,26 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
     else Fin_mk _ (f (ι x') - 1) (by omega)
   have hg_def (x':X') : if (f (ι x'):ℕ) < m₀ then (g x':ℕ) = f (ι x') else (g x':ℕ) = f (ι x') - 1 := by
     split_ifs with h' <;> simp [g,h']
-  have hg : Function.Bijective g := by sorry
+
+  have Xsub : X' ⊆ X := by
+    rw [subset_def]
+    intro y hy
+    simp [X'] at hy
+    exact hy.1
+  have hg : Function.Bijective g := by
+    constructor
+    . intro y1 y2 h
+      simp [g] at h
+      sorry
+    . intro y
+      let e := Equiv.ofBijective f hf
+      sorry
+      -- by_cases h: y < m₀
+      -- . use e.symm ⟨y, by have := y.prop; rw [mem_Fin] at this; exact Xsub y _⟩
+      --   sorry
+      -- . use e.symm y + 1
+      --   sorry
+
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/

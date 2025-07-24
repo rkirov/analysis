@@ -133,7 +133,7 @@ theorem SetTheory.Set.EqualCard.refl (X:Set) : EqualCard X X := by
 
 -- using Equiv is kinda cheating.
 theorem SetTheory.Set.EqualCard.symm {X Y:Set} (h: EqualCard X Y) : EqualCard Y X := by
-  rw [EqualCard] at h  ⊢
+  rw [EqualCard] at h ⊢
   obtain ⟨ f, hf ⟩ := h
   let e := Equiv.ofBijective f hf
   use e.symm
@@ -305,6 +305,11 @@ theorem SetTheory.Set.has_card_iff (X:Set) (n:ℕ) :
     X.has_card n ↔ ∃ f: X → Fin n, Function.Bijective f := by
   simp [has_card, HasEquiv.Equiv, Setoid.r, EqualCard]
 
+theorem SetTheory.Set.card_fin_eq (n:ℕ) : (Fin n).has_card n := by
+  rw [has_card_iff]
+  use id
+  exact Function.bijective_id
+
 /-- Lemma 3.6.9 -/
 theorem SetTheory.Set.pos_card_nonempty {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n) : X ≠ ∅ := by
   -- This proof is written to follow the structure of the original text.
@@ -440,18 +445,112 @@ theorem SetTheory.Set.card_uniq {X:Set} {n m:ℕ} (h1: X.has_card n) (h2: X.has_
   simp at hc; specialize hn hc hc'
   omega
 
-example : ({0,1,2}:Set).has_card 3 := by sorry
+lemma ex1 : ({0,1,2}:Set).has_card 3 := by
+  rw [SetTheory.Set.has_card_iff]
+  have : SetTheory.Set.Fin 3 = {0,1,2} := by
+    apply SetTheory.Set.ext
+    intro x
+    rw [SetTheory.Set.mem_Fin]
+    rw [SetTheory.Set.mem_triple]
+    constructor
+    . intro h
+      obtain ⟨ m, hm, hmn ⟩ := h
+      match m, hm with
+      | 0, _ => left; exact hmn
+      | 1, _ => right; left; exact hmn
+      | 2, _ => right; right; exact hmn
+    . intro h
+      rcases h with h | h | h
+      . use 0
+        simp
+        rw [h]
+        rfl
+      . use 1
+        simp
+        rw [h]
+        rfl
+      . use 2
+        simp
+        rw [h]
+  rw [this]
+  use id
+  exact Function.bijective_id
 
-example : ({3,4}:Set).has_card 2 := by sorry
+lemma ex2: ({3,4}:Set).has_card 2 := by
+  rw [SetTheory.Set.has_card_iff]
+  have : SetTheory.Set.Fin 2 = {0,1} := by
+    apply SetTheory.Set.ext
+    intro x
+    rw [SetTheory.Set.mem_Fin]
+    rw [SetTheory.Set.mem_pair]
+    constructor
+    . intro h
+      obtain ⟨ m, hm, hmn ⟩ := h
+      match m, hm with
+      | 0, _ => left; exact hmn
+      | 1, _ => right; exact hmn
+    . intro h
+      rcases h with h | h
+      . use 0
+        simp
+        rw [h]
+        rfl
+      . use 1
+        simp
+        rw [h]
+        rfl
+  rw [this]
+  use fun x ↦
+    if x.val = 3 then ⟨0, by rw [SetTheory.Set.mem_pair]; aesop⟩
+    else ⟨1, by rw [SetTheory.Set.mem_pair]; aesop⟩
+  constructor
+  . intro x y hxy
+    have hx := x.property
+    have hy := y.property
+    rw [SetTheory.Set.mem_pair] at hx hy
+    cases' hx with h3 h4 <;> cases' hy with h3' h4' <;> aesop
+  . intro y
+    have hy := y.property
+    rw [SetTheory.Set.mem_pair] at hy
+    cases' hy with h3 h4 <;> aesop
 
-example : ¬ ({0,1,2}:Set) ≈ ({3,4}:Set) := by sorry
+example : ¬ ({0,1,2}:Set) ≈ ({3,4}:Set) := by
+  by_contra h
+  have h1: ({0,1,2}:Set) ≈ SetTheory.Set.Fin 3 := by exact ex1
+  have h2: ({3,4}:Set) ≈ SetTheory.Set.Fin 2 := by exact ex2
+  have hf : SetTheory.Set.Fin 3 ≈ SetTheory.Set.Fin 2 := h1.symm.trans (h.trans h2)
+  simp [HasEquiv.Equiv, Setoid.r, SetTheory.Set.EqualCard] at hf
+  rw [← SetTheory.Set.has_card_iff] at hf
+  have h1' := SetTheory.Set.card_fin_eq 3
+  have := SetTheory.Set.card_uniq h1' hf
+  contradiction
 
 abbrev SetTheory.Set.finite (X:Set) : Prop := ∃ n:ℕ, X.has_card n
 
 abbrev SetTheory.Set.infinite (X:Set) : Prop := ¬ finite X
 
 /-- Exercise 3.6.3, phrased using Mathlib natural numbers -/
-theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ i, (f i:ℕ) ≤ M := by sorry
+theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ i, (f i:ℕ) ≤ M := by
+  let f' : _root_.Fin n → ℕ := (fun i ↦ nat_equiv.symm (f ⟨nat_equiv i, by rw [mem_Fin]; aesop⟩))
+  let S := Finset.image f' (Finset.univ : (Finset (_root_.Fin n)))
+  let M := Finset.max' S
+  by_cases h: S.Nonempty
+  . have M' := M h
+    use M'
+    simp only [Subtype.forall]
+    intro x x'
+    -- how to unfold all of the above.
+    sorry
+  . simp at h
+    simp [S] at h
+    simp_all
+    rw [← Finset.card_eq_zero, Finset.card_fin] at h
+    use 0
+    intro a b
+    rw [h] at b
+    rw [Fin_zero_empty] at b
+    have nb := not_mem_empty a
+    contradiction
 
 /-- Theorem 3.6.12 -/
 theorem SetTheory.Set.nat_infinite : infinite nat := by

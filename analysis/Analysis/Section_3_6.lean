@@ -566,35 +566,26 @@ theorem SetTheory.Set.has_card_card {X:Set} (hX: X.finite) : X.has_card (SetTheo
   simp [card, hX, hX.choose_spec]
 
 theorem SetTheory.Set.has_card_to_card (X:Set) (n: ℕ): X.has_card n → X.card = n := by
-  intro h; have hf : X.finite := ⟨ n, h ⟩
-  simp [card, hf, card_uniq hf.choose_spec h]
+  intro h
+  rw [card]
+  have hf : X.finite := by rw [finite]; use n
+  simp [hf]
+  generalize_proofs a
+  have ha := a.choose_spec
+  exact card_uniq ha h
 
-theorem SetTheory.Set.card_to_has_card (X:Set) {n: ℕ} (hn: n ≠ 0): X.card = n → X.has_card n := by
-  rintro rfl; apply has_card_card
-  contrapose! hn; simp [card, hn]
-
-theorem SetTheory.Set.card_fin_eq (n:ℕ): (Fin n).has_card n := (has_card_iff _ _).mp ⟨ id, Function.bijective_id ⟩
-
-theorem SetTheory.Set.Fin_card {n:ℕ}: (Fin n).card = n := has_card_to_card _ _ (card_fin_eq n)
-
-theorem SetTheory.Set.Fin_finite {n:ℕ}: (Fin n).finite := ⟨n, card_fin_eq n⟩
-
-theorem SetTheory.Set.EquivCard_to_has_card_eq {X Y:Set} (n: ℕ) (h: X ≈ Y): X.has_card n ↔ Y.has_card n := by
-  obtain ⟨f, hf⟩ := h; let e := Equiv.ofBijective f hf
-  constructor
-  . intro hX; rw [has_card_iff] at hX ⊢; obtain ⟨g, hg⟩ := hX
-    use e.symm.trans (.ofBijective _ hg); apply Equiv.bijective
-  . intro hY; rw [has_card_iff] at hY ⊢; obtain ⟨g, hg⟩ := hY
-    use e.trans (.ofBijective _ hg); apply Equiv.bijective
-
-theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.card := by
-  by_cases hX: X.finite <;> by_cases hY: Y.finite <;> try rw [finite] at hX hY
-  . obtain ⟨nX, hXn⟩ := hX; obtain ⟨nY, hYn⟩ := hY
-    simp [has_card_to_card _ _ hXn, has_card_to_card _ _ hYn, EquivCard_to_has_card_eq _ h] at *
-    solve_by_elim [card_uniq]
-  . obtain ⟨nX, hXn⟩ := hX; rw [EquivCard_to_has_card_eq _ h] at hXn; tauto
-  . obtain ⟨nY, hYn⟩ := hY; rw [←EquivCard_to_has_card_eq _ h] at hYn; tauto
-  simp [card, hX, hY]
+theorem SetTheory.Set.card_to_has_card (X:Set) (n: ℕ) (hn: n ≠ 0): X.card = n → X.has_card n := by
+  intro h
+  rw [card] at h
+  have hf : X.finite := by
+    by_contra!
+    simp [this] at h
+    exact hn h.symm
+  simp_all
+  generalize_proofs a at h
+  have ha := a.choose_spec
+  rw [h] at ha
+  exact ha
 
 /-- Proposition 3.6.14 (a) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X) :

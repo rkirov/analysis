@@ -52,7 +52,18 @@ theorem OrderedPair.eq (x y x' y' : Object) :
 /-- Helper lemma for Exercise 3.5.1 -/
 lemma SetTheory.Set.pair_eq_singleton_iff {a b c: Object} : {a, b} = ({c}: Set) ↔
     a = c ∧ b = c := by
-  sorry
+  rw [Set.ext_iff]
+  simp only [mem_singleton, mem_pair]
+  constructor
+  . intro h
+    have ha := h a
+    have hb := h b
+    simp only [true_or, true_iff, or_true] at ha hb
+    exact ⟨ha, hb⟩
+  . intro ⟨ha, hb⟩ x
+    subst a
+    subst b
+    tauto
 
 /-- Exercise 3.5.1, first part -/
 def OrderedPair.toObject : OrderedPair ↪ Object where
@@ -82,7 +93,7 @@ def OrderedPair.toObject : OrderedPair ↪ Object where
           | inr h' =>
             simp_all only [SetTheory.Set.mem_singleton, SetTheory.Set.mem_pair, iff_or_self,
               forall_eq]
-    simp_all [fst_eq]
+    simp_all
     have h3 := h (SetTheory.set_to_object {b.fst, a.snd})
     have h4 := h (SetTheory.set_to_object {b.fst, b.snd})
     simp only [EmbeddingLike.apply_eq_iff_eq, or_true, true_iff] at h3
@@ -203,31 +214,11 @@ theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
   simp only [snd]
   exact this.symm
 
--- todo: find a shorter, more direct proof of this
-theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
-    fst ⟨OrderedPair.toObject { fst := x, snd := y }, by
-    rw [mem_cartesian]
-    use x
-    use y
-  ⟩ = x := by
-  generalize_proofs a
-  rw [mem_cartesian] at a
-  have := a.choose_spec
-  obtain ⟨y', h⟩ := this
-  apply OrderedPair.toObject.inj' at h
-  simp only [OrderedPair.mk.injEq] at h
-  have := h.1
-  rw [coe_inj] at this
-  simp only [fst]
-  exact this.symm
-
 theorem SetTheory.Set.fst_eval' {X Y: Set} (z: X ×ˢ Y) (x: X) (y: Y) (h: z.val = OrderedPair.toObject { fst := x.val, snd := y.val }):
     fst z = x := by
   obtain ⟨val, property⟩ := z
   subst h
   rw [fst_eval]
-
-
 
 /--
   Extra eval theorems needed for when one of the components of the ordered pair is not
@@ -281,25 +272,6 @@ theorem SetTheory.Set.snd_eval_snd_op {X Y: Set} (x: X) (p: OrderedPair) (h: p.t
   rw [Subtype.mk.injEq]
   exact this.symm
 
--- todo: find a shorter, more direct proof of this
-theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
-    snd ⟨OrderedPair.toObject { fst := x, snd := y }, by
-    rw [SetTheory.Set.mem_cartesian]
-    use x
-    use y
-  ⟩ = y := by
-  generalize_proofs a
-  rw [mem_cartesian] at a
-  rw [exists_comm] at a -- key difference from fst
-  have := a.choose_spec
-  obtain ⟨y', h⟩ := this
-  apply OrderedPair.toObject.inj' at h
-  simp only [OrderedPair.mk.injEq] at h
-  have := h.2
-  rw [coe_inj] at this
-  simp only [snd]
-  exact this.symm
-
 theorem SetTheory.Set.snd_eval' {X Y: Set} (z: X ×ˢ Y) (x: X) (y: Y) (h: z.val = OrderedPair.toObject { fst := x.val, snd := y.val }):
     snd z = y := by
   obtain ⟨val, property⟩ := z
@@ -348,26 +320,6 @@ theorem SetTheory.Set.mk_cartesian_fst_snd_eq {X Y: Set} (z: X ×ˢ Y) :
 
 noncomputable abbrev SetTheory.Set.uncurry {X Y Z:Set} (f: X → Y → Z) : X ×ˢ Y → Z :=
   fun z ↦ f (fst z) (snd z)
-
-theorem SetTheory.Set.curry_uncurry {X Y Z:Set} (f: X → Y → Z) : curry (uncurry f) = f := by
-  unfold uncurry
-  unfold curry
-  simp only
-  ext x y
-  rw [fst_eval, snd_eval]
-
-theorem SetTheory.Set.uncurry_curry {X Y Z:Set} (f: X ×ˢ Y → Z) : uncurry (curry f) = f := by
-  unfold uncurry
-  unfold curry
-  ext z
-  have := z.property
-  rw [mem_cartesian] at this
-  obtain ⟨ x, y, h ⟩ := this
-  have hf: fst z = x := by convert fst_eval x y
-  have hs: snd z = y := by convert snd_eval x y
-  rw [hf, hs]
-  congr!
-  exact h.symm
 
 def SetTheory.Set.mk_cart {X Y: Set} (x: X) (y: Y) : X ×ˢ Y :=
   ⟨(⟨ x, y ⟩:OrderedPair), by
@@ -440,13 +392,6 @@ example : ({1, 2}: Set) ×ˢ ({3, 4, 5}: Set) = ({
   ((mk_cartesian (2: Nat) (5: Nat)): Object)
 }: Set) := by ext; aesop
 
-/-- Example 3.5.5 / Exercise 3.6.5. There is a bijection between `X ×ˢ Y` and `Y ×ˢ X`. -/
-noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
-
 /-- Example 3.5.5. A function of two variables can be thought of as a function of a pair. -/
 noncomputable abbrev SetTheory.Set.curry_equiv {X Y Z:Set} : (X → Y → Z) ≃ (X ×ˢ Y → Z) where
   toFun f z := f (fst z) (snd z)
@@ -507,13 +452,6 @@ lemma SetTheory.Set.iUnion_singleton (i:Object) (X:Set): X = ({i}:Set).iUnion fu
   rw [mem_iUnion]
   simp only [nonempty_subtype, mem_singleton, exists_eq, exists_const]
 
-/-- Example 3.5.8. There is a bijection between `(X ×ˢ Y) ×ˢ Z` and `X ×ˢ (Y ×ˢ Z)`. -/
-noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ Z ≃ X ×ˢ (Y ×ˢ Z) where
-  toFun p := mk_cartesian (fst (fst p)) (mk_cartesian (snd (fst p)) (snd p))
-  invFun p := mk_cartesian (mk_cartesian (fst p) (fst (snd p))) (snd (snd p))
-  left_inv _ := by simp
-  right_inv _ := by simp
-
 /--
   Example 3.5.10. I suspect most of the equivalences will require classical reasoning and only be
   defined non-computably, but would be happy to learn of counterexamples.
@@ -547,22 +485,8 @@ noncomputable abbrev SetTheory.Set.singleton_iProd_equiv (i:Object) (X:Set) :
     simp only
     generalize_proofs a b
     have := Classical.choose_spec a
-    simp only at this
-    rw [tuple] at this
-    have hI : (({i}:Set).iUnion fun x ↦ X) = X := by
-      apply ext
-      intro z
-      constructor
-      . intro h
-        rw [mem_iUnion] at h
-        obtain ⟨ _, hz ⟩ := h
-        exact hz
-      . intro h
-        rw [mem_iUnion]
-        use ⟨i, b⟩
-    -- somehow use `hI` to change the inferred types in `object_of`
-    change @object_of _ ({i}:Set) X _ = @object_of _ ({i}:Set) X _ at this
-
+    rw [tuple_inj] at this
+    rw [← this]
 
 def emptyFun (X : Set) : (x : (∅:Set)) → X := fun x ↦
   have hf : False := by
@@ -570,7 +494,6 @@ def emptyFun (X : Set) : (x : (∅:Set)) → X := fun x ↦
     have := SetTheory.Set.not_mem_empty x.val
     contradiction
   False.elim hf
-
 
 /-- Example 3.5.10 -/
 abbrev SetTheory.Set.empty_iProd_equiv (X: (∅:Set) → Set) : iProd X ≃ Unit where
@@ -762,30 +685,11 @@ noncomputable abbrev SetTheory.Set.iProd_equiv_prod_triple (X: ({0,1,2}:Set) →
 
   right_inv := by
     intro z
-    have hi := z.property
-    rw [mem_cartesian] at hi
-    obtain ⟨ x0, x12, hx ⟩ := hi
-    have hi1 := x12.property
-    rw [mem_cartesian] at hi1
-    obtain ⟨ x1, x2, hx12 ⟩ := hi1
-    rw [Subtype.mk.injEq]
-    conv_rhs => rw [hse]
-    congr!
-    . rw [← hsg]
-      rw [Subtype.mk.injEq]
-      have : ⟨0, a⟩ = (⟨0, a⟩: { x // x ∈ ({0, 1}:Set) }) := by
-        rw [Subtype.mk.injEq]
-      rw [dif_pos]
-      exact this
-    . rw [← hsg]
-      rw [Subtype.mk.injEq]
-      have : ⟨1, b⟩ ≠ (⟨0, a⟩: { x // x ∈ ({0, 1}:Set) }) := by
-        by_contra! this
-        rw [Subtype.mk.injEq] at this
-        rw [ofNat_inj'] at this
-        contradiction
-      rw [dif_neg]
-      exact this
+    simp only
+    generalize_proofs _ _ _ _ _ _ h
+    have hi := h.choose_spec
+    rw [tuple_inj] at hi
+    simp [← hi]
 
 /-- Connections with Mathlib's `Set.pi` -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_pi (I:Set) (X: I → Set) :
@@ -1012,7 +916,7 @@ theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
     simp only at h
     let S : Set := iUnion (Fin n) (fun i ↦ ({(tx i).val}:Set))
     have h1 : tX = S := by
-      apply ext
+      apply Set.ext
       intro y
       constructor
       . intro h2
@@ -1032,7 +936,7 @@ theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
         exact (tx i).property
     let S' : Set := iUnion (Fin n) (fun i ↦ ({(tx' i).val}:Set))
     have hS : S = S' := by
-      apply ext
+      apply Set.ext
       intro y
       unfold S S'
       constructor
@@ -1058,7 +962,7 @@ theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
         rw [mem_singleton]
     -- repeat for tX', there must be a way to do with wlog?
     have h1' : tX' = S' := by
-      apply ext
+      apply Set.ext
       intro y
       constructor
       . intro h2
@@ -1438,8 +1342,18 @@ theorem SetTheory.Set.inter_of_prod (A B C D:Set) :
 def SetTheory.Set.union_of_prod :
   Decidable (∀ (A B C D:Set), (A ×ˢ B) ∪ (C ×ˢ D) = (A ∪ C) ×ˢ (B ∪ D)) := by
   -- the first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
-
+  apply isFalse
+  push_neg
+  use {0, 1}
+  use {0, 1}
+  use {1, 2}
+  use {1, 2}
+  rw [ne_eq]
+  rw [Set.ext_iff]
+  push_neg
+  use (⟨0, 2⟩: OrderedPair).toObject
+  right
+  aesop
 
 /- Exercise 3.5.5 -/
 def SetTheory.Set.diff_of_prod :
@@ -1451,7 +1365,7 @@ def SetTheory.Set.diff_of_prod :
   use {0}
   use {0}
   by_contra! h
-  rw [ext_iff] at h
+  rw [Set.ext_iff] at h
   specialize h (⟨0, 1⟩: OrderedPair).toObject
   have : {0, 1} \ {0} = ({1}:Set) := by
     rw [SetTheory.Set.ext_iff]
@@ -1539,6 +1453,21 @@ theorem SetTheory.Set.prod_subset_prod {A B C D:Set}
     . exact hA' _ a.property
     . exact hB' _ b.property
 
+theorem SetTheory.Set.cartesian_of_empty (X:Set) :
+    (∅:Set) ×ˢ X = ∅ := by
+  apply ext
+  intro z
+  constructor
+  . intro h
+    rw [mem_cartesian] at h
+    obtain ⟨ x, y, h' ⟩ := h
+    have := SetTheory.Set.not_mem_empty x.val
+    have := x.property
+    contradiction
+  . intro h
+    exfalso
+    exact (SetTheory.Set.not_mem_empty z) h
+
 /--
   Answer to the question which hypothesis can be removed.
   Lean immediately shows that in original proof we can drop C and D non-zero.
@@ -1554,7 +1483,7 @@ def SetTheory.Set.prod_subset_prod' :
   use ∅
   left
   constructor
-  . rw [cartesian_of_empty]
+  . rw [Set.cartesian_of_empty]
     intro x hx
     exfalso
     exact not_mem_empty x hx
@@ -1702,14 +1631,14 @@ theorem SetTheory.Set.graph_inj {X Y:Set} (f f': X → Y) :
   . intro h
     repeat rw [graph] at h
     ext x
-    rw [ext_iff] at h
+    rw [Set.ext_iff] at h
     specialize h (⟨( ⟨x, f x⟩:OrderedPair), by
       rw [mem_cartesian]
       use x
       use (f x)
     ⟩ : X ×ˢ Y)
     repeat rw [specification_axiom'] at h
-    simp [fst_eval, snd_eval] at h
+    simp only [fst_of_mk_cartesian, snd_of_mk_cartesian, true_iff] at h
     rw [h]
   . intro h
     rw [h]
@@ -1766,7 +1695,7 @@ theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
       simp [h']
   . intro f f' h h'
     rw [graph] at h h'
-    rw [ext_iff] at h h'
+    rw [Set.ext_iff] at h h'
     ext x
     specialize hvert x
     obtain ⟨ y, hp ⟩ := hvert.exists
@@ -1821,12 +1750,12 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
     . intro h
       obtain ⟨ T, hT ⟩ := h
       have : set_to_object (graph T) ∈ g := by
-        simp [g]
+        simp only [g]
         rw [specification_axiom'']
         constructor
-        . intro y hy
+        . intro y
           apply existsUnique_of_exists_of_unique
-          . use T ⟨y, hy⟩
+          . use T y
             generalize_proofs a
             have := Classical.choose_spec a
             obtain ⟨ h1, h2 ⟩ := this
@@ -1834,13 +1763,7 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
             rw [← h1]
             rw [graph]
             rw [specification_axiom'']
-            constructor
-            . let y': Y := ⟨ y , hy ⟩
-              have : y = y'.val := by rfl
-              simp [this]
-            . rw [mem_cartesian]
-              use ⟨y, hy⟩
-              use T ⟨y, hy⟩
+            simp
           . intro x x' hx hx'
             generalize_proofs a at hx hx'
             have := Classical.choose_spec a
@@ -1850,9 +1773,7 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
             rw [specification_axiom''] at hx hx'
             obtain ⟨ h1, h2 ⟩ := hx
             obtain ⟨ h1', h2' ⟩ := hx'
-            let y': Y := ⟨ y , hy ⟩
-            have : y = y'.val := by rfl
-            simp [this] at h2 h2'
+            simp at h2 h2'
             rw [← h2, ← h2']
             . rw [mem_powerset]
               use graph T
@@ -1946,7 +1867,6 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
                 not_false_eq_true]
             exact ap_spec.1.1
           . intro n hn
-            simp [hn]
             generalize_proofs a b c d e f'
             by_cases h: n = N
             . simp [h]
@@ -1991,10 +1911,7 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
             have hy1 := hy this
             have hy1' := hy' this
             rw [Equiv.symm_apply_eq] at h
-            have hxx': x = ⟨↑(x' + 1), by
-              simp [Equiv.symm_apply_apply]
-              exact Nat.le_of_lt_succ this
-            ⟩ := by exact Subtype.coe_eq_of_eq_mk h
+            have hxx': x = ⟨↑(x' + 1), by aesop⟩ := by exact Subtype.coe_eq_of_eq_mk h
             rw [hxx']
             rw [hy1, hy1']
             specialize hx ⟨nat_equiv.symm x', by
@@ -2025,10 +1942,7 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
         -- sadly rw doesn't work here, even conv_lhs arg 1 doesn't.
         -- so we will use uniqueness
         let f : {m: Nat // (m:ℕ) ≤ n + 1} → X :=
-          fun m => Exists.choose (h (nat_equiv.symm ↑(n + 1))) ⟨m.val, by
-            simp [Equiv.symm_apply_apply]
-            exact m.property
-          ⟩
+          fun m => Exists.choose (h (nat_equiv.symm ↑(n + 1))) ⟨m.val, by aesop⟩
         have : f = Exists.choose (h (n + 1)) := by
           ext z
           induction' hi: (nat_equiv.symm z) with z' ih generalizing z
@@ -2046,10 +1960,7 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
             have hz := z.prop
             rw [hi] at hz
             rw [Equiv.symm_apply_apply] at hz
-            have : z = ⟨↑(z' + 1), by
-              simp [Equiv.symm_apply_apply]
-              exact Nat.le_of_lt_succ hz
-            ⟩ := by
+            have : z = ⟨↑(z' + 1), by aesop⟩ := by
               exact Subtype.coe_eq_of_eq_mk hi
             repeat rw [this]
             dsimp [f]
@@ -2081,11 +1992,8 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
       let f_n := (h (nat_equiv.symm ↑n)).choose
       let f_n1 := (h (n + 1)).choose
       have agree : ∀ m : ℕ, (hm : m ≤ n) →
-        f_n ⟨m, by simp [Equiv.symm_apply_apply]; exact hm⟩ =
-        f_n1 ⟨m, by
-          simp [Equiv.symm_apply_apply]
-          exact Nat.le_add_right_of_le hm
-        ⟩ := by
+        f_n ⟨m, by simp only [nat_equiv_coe_of_coe]; exact hm⟩ =
+        f_n1 ⟨m, by simp only [nat_equiv_coe_of_coe]; exact Nat.le_add_right_of_le hm⟩ := by
         intro m hm
         induction' m with m ih
         . -- why unfold + rw spec.1.1 doesn't work?

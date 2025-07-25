@@ -140,7 +140,7 @@ theorem SetTheory.Set.coe_eq_iff (X Y:Set) : (X: Object) = (Y: Object) ↔  X = 
 theorem SetTheory.Set.ext {X Y:Set} (h: ∀ x, x ∈ X ↔ x ∈ Y) : X = Y := extensionality _ _ h
 
 /- Axiom 3.2 (Equality of sets)-/
-#check SetTheory.Set.ext_iff
+#check SetTheory.Set.ext
 
 instance SetTheory.Set.instEmpty : EmptyCollection Set where
   emptyCollection := emptyset
@@ -310,8 +310,7 @@ theorem SetTheory.Set.pair_self (a:Object) : ({a,a}:Set) = {a} := by
 /-- Exercise 3.1.1 -/
 theorem SetTheory.Set.pair_eq_pair {a b c d:Object} (h: ({a,b}:Set) = {c,d}) :
     a = c ∧ b = d ∨ a = d ∧ b = c := by
-  rw [ext_iff] at h
-  simp [mem_pair] at h
+  rw [Set.ext_iff] at h
   have h1 := h a
   have h2 := h b
   have h3 := h c
@@ -348,7 +347,7 @@ abbrev SetTheory.Set.pair_empty : Set := {(empty: Object), (singleton_empty: Obj
 /-- Exercise 3.1.2 -/
 theorem SetTheory.Set.emptyset_neq_singleton : empty ≠ singleton_empty := by
   dsimp [empty, singleton_empty]
-  rw [ext_iff]
+  rw [Set.ext_iff]
   intro h
   have h1 := h empty
   simp at h1
@@ -356,7 +355,7 @@ theorem SetTheory.Set.emptyset_neq_singleton : empty ≠ singleton_empty := by
 /-- Exercise 3.1.2 -/
 theorem SetTheory.Set.emptyset_neq_pair : empty ≠ pair_empty := by
   dsimp [empty, pair_empty]
-  rw [ext_iff]
+  rw [Set.ext_iff]
   intro h
   have h1 := h empty
   simp at h1
@@ -364,7 +363,7 @@ theorem SetTheory.Set.emptyset_neq_pair : empty ≠ pair_empty := by
 /-- Exercise 3.1.2 -/
 theorem SetTheory.Set.singleton_empty_neq_pair : singleton_empty ≠ pair_empty := by
   dsimp [singleton_empty, pair_empty]
-  rw [ext_iff]
+  rw [Set.ext_iff]
   intro h
   have h1 := h singleton_empty
   simp at h1
@@ -1271,7 +1270,6 @@ theorem SetTheory.Set.pairwise_disjoint (A B:Set) :
 
 /-- Exercise 3.1.10 -/
 theorem SetTheory.Set.union_eq_partition (A B:Set) : A ∪ B = (A \ B) ∪ (A ∩ B) ∪ (B \ A) := by
-
   apply ext
   intro x
   constructor
@@ -1281,7 +1279,7 @@ theorem SetTheory.Set.union_eq_partition (A B:Set) : A ∪ B = (A \ B) ∪ (A �
     tauto
   . intro h
     simp [mem_union, mem_inter, mem_sdiff] at h
-    simp [mem_union, mem_inter, mem_sdiff]
+    simp [mem_union]
     tauto
 
 /--
@@ -1300,20 +1298,19 @@ theorem SetTheory.Set.specification_from_replacement {A:Set} {P: A → Prop} :
     )
     -- how to not have to copy/paste this?
     have h := replacement_axiom (P:= fun x y => x.val = y ∧ P x) (by
-    intro x y y' h
-    obtain ⟨h1, h2⟩ := h
-    obtain ⟨h1', _⟩ := h1
-    obtain ⟨h2', _⟩ := h2
-    rw [← h1', ← h2']
+      intro x y y' h
+      obtain ⟨h1, h2⟩ := h
+      obtain ⟨h1', _⟩ := h1
+      obtain ⟨h2', _⟩ := h2
+      rw [← h1', ← h2']
     )
-    simp at h
     use B
     constructor
     . intro x
       rw [h]
       intro h1
-      obtain ⟨x1, h1'⟩ := h1
-      exact x1
+      obtain ⟨x1, rfl, h1'⟩ := h1
+      exact x1.prop
     . intro x
       rw [h]
       simp

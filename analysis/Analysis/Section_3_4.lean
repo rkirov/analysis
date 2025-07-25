@@ -137,12 +137,6 @@ theorem SetTheory.Set.preimage_eq {X Y:Set} (f:X → Y) (U: Set) :
 theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
     (preimage f U) ⊆ X := by intro _ _; aesop
 
-theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
-    (preimage f U) ⊆ X := by
-  intro x h
-  rw [preimage] at h
-  exact specification_axiom h
-
 /-- Example 3.4.6 -/
 theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by
   ext; simp only [mem_preimage', mem_triple, f_3_4_2]; constructor
@@ -251,6 +245,7 @@ theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
     . apply preimage_in_domain a.choose ({0}:Set)
   . intro h
     obtain ⟨Y, rfl, hY⟩ := h
+    dsimp [powerset]
     rw [replacement_axiom]
     let f: X → ({0,1}:Set) := fun x ↦ if x.val ∈ Y then ⟨0, by simp⟩ else ⟨1, by simp⟩
     use ⟨function_to_object X _ f, by
@@ -577,7 +572,7 @@ def SetTheory.Set.image_of_inter' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A
     aesop
   rw [this]
   by_contra h
-  rw [ext_iff] at h
+  rw [Set.ext_iff] at h
   specialize h 0
   rw [mem_inter] at h
   repeat rw [mem_image] at h
@@ -603,7 +598,7 @@ def SetTheory.Set.image_of_diff' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A 
     aesop
   rw [this]
   by_contra h
-  rw [ext_iff] at h
+  rw [Set.ext_iff] at h
   specialize h 0
   rw [mem_sdiff] at h
   repeat rw [mem_image] at h
@@ -738,7 +733,7 @@ theorem SetTheory.Set.image_preimage_of_surj {X Y:Set} (f:X → Y) :
       rw [hx]
       exact hy
     have h2 := h this
-    rw [ext_iff] at h2
+    rw [Set.ext_iff] at h2
     specialize h2 y
     rw [mem_singleton] at h2
     simp only [iff_true] at h2
@@ -845,8 +840,8 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
     rw [powerset_axiom] at hS'
     obtain ⟨ f, hf ⟩ := hS'
     generalize_proofs a b at f
-    use choose a
-    use choose b
+    use Classical.choose a
+    use Classical.choose b
     constructor
     . exact (Classical.choose_spec a).2
     . constructor
@@ -866,16 +861,16 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
       . rfl
       . exact hY'
     ⟩
-    have hxchoose : choose ((mem_powerset X').mp hxpow) = X' := by
+    have hxchoose : Classical.choose ((mem_powerset X').mp hxpow) = X' := by
       let prf := (mem_powerset (set_to_object X')).mp hxpow
-      suffices choose prf = X' by exact this
-      have h := choose_spec prf
+      suffices Classical.choose prf = X' by exact this
+      have h := Classical.choose_spec prf
       exact set_to_object.injective h.1.symm
 
-    have hychoose : choose ((mem_powerset Y').mp hypow) = Y' := by
+    have hychoose : Classical.choose ((mem_powerset Y').mp hypow) = Y' := by
       let prf := (mem_powerset (set_to_object Y')).mp hypow
-      suffices choose prf = Y' by exact this
-      have h := choose_spec prf
+      suffices Classical.choose prf = Y' by exact this
+      have h := Classical.choose_spec prf
       exact set_to_object.injective h.1.symm
 
     -- find out a way to do without copy/paste from defintion

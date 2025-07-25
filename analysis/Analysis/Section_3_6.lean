@@ -566,18 +566,13 @@ theorem SetTheory.Set.has_card_card {X:Set} (hX: X.finite) : X.has_card (SetTheo
   simp [card, hX, hX.choose_spec]
 
 theorem SetTheory.Set.has_card_to_card (X:Set) (n: ℕ): X.has_card n → X.card = n := by
-  intro h; have hf : X.finite := ⟨ n, h ⟩
-  simp [card, hf, card_uniq hf.choose_spec h]
-
-theorem SetTheory.Set.card_to_has_card (X:Set) {n: ℕ} (hn: n ≠ 0): X.card = n → X.has_card n := by
-  rintro rfl; apply has_card_card
-  contrapose! hn; simp [card, hn]
-
-theorem SetTheory.Set.card_fin_eq (n:ℕ): (Fin n).has_card n := (has_card_iff _ _).mp ⟨ id, Function.bijective_id ⟩
-
-theorem SetTheory.Set.Fin_card {n:ℕ}: (Fin n).card = n := has_card_to_card _ _ (card_fin_eq n)
-
-theorem SetTheory.Set.Fin_finite {n:ℕ}: (Fin n).finite := ⟨n, card_fin_eq n⟩
+  intro h
+  rw [card]
+  have hf : X.finite := by rw [finite]; use n
+  simp [hf]
+  generalize_proofs a
+  have ha := a.choose_spec
+  exact card_uniq ha h
 
 theorem SetTheory.Set.EquivCard_to_has_card_eq {X Y:Set} (n: ℕ) (h: X ≈ Y): X.has_card n ↔ Y.has_card n := by
   choose f hf using h; let e := Equiv.ofBijective f hf

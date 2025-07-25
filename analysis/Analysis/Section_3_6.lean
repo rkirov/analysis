@@ -379,12 +379,20 @@ theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ 
   let S := Finset.image f' (Finset.univ : (Finset (_root_.Fin n)))
   let M := Finset.max' S
   by_cases h: S.Nonempty
-  . have M' := M h
+  . let M' := M h
     use M'
     simp only [Subtype.forall]
     intro x x'
-    -- how to unfold all of the above.
-    sorry
+    dsimp [M', M, S, f']
+    apply Finset.le_max'
+    simp only [Finset.mem_image, Finset.mem_univ, EmbeddingLike.apply_eq_iff_eq, true_and, S, M',
+      f', M]
+    rw [mem_Fin] at x'
+    obtain ⟨ m, hm, hmn ⟩ := x'
+    use ⟨m, hm⟩
+    congr!
+    subst hmn
+    rfl
   . simp at h
     simp [S] at h
     simp_all
@@ -467,7 +475,113 @@ lemma SetTheory.Set.empty_card_eq_zero : (∅: Set).card = 0 := card_eq_zero_of_
 
 /-- Proposition 3.6.14 (a) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X) :
-    (X ∪ {x}).finite ∧ (X ∪ {x}).card = X.card + 1 := by sorry
+    (X ∪ {x}).finite ∧ (X ∪ {x}).card = X.card + 1 := by
+  obtain ⟨n, Xn⟩ := hX
+  obtain ⟨f, hf⟩ := Xn
+  let f': ((X ∪ {x}):Set) → Fin (n + 1) := fun z ↦ if h: z = x
+    then ⟨nat_equiv n, by
+      rw [mem_Fin]
+      use n
+      simp only [lt_add_iff_pos_right, Nat.lt_one_iff, pos_of_gt, true_and]
+      rfl
+    ⟩ else ⟨f ⟨z, by
+      have := z.prop
+      rw [mem_union] at this
+      simp only [mem_singleton, h, or_false] at this
+      exact this
+    ⟩, by
+      have := (f ⟨z, by aesop⟩).prop
+      rw [mem_Fin] at this
+      obtain ⟨ m, hm, hmn ⟩ := this
+      rw [mem_Fin]
+      use m
+      constructor
+      . omega
+      . exact hmn
+    ⟩
+  have hf' : Function.Bijective f' := by
+    constructor
+    . intro z1 z2 h
+      by_cases hz1: z1 = x
+      . simp [f', hz1] at h
+        by_cases hz2: z2 = x
+        . simp [f', hz2] at h
+          rw [← Subtype.val_inj]
+          rw [hz1, hz2]
+        . simp [f', hz2] at h
+          exfalso
+          generalize_proofs a at h
+          have := (f ⟨z2, a⟩).prop
+          rw [mem_Fin] at this
+          rw [← h] at this
+          obtain ⟨ m, hm, hmn ⟩ := this
+          have : n = m := by exact (ofNat_inj' n m).mp hmn
+          linarith
+      . simp [f', hz1] at h
+        by_cases hz2: z2 = x
+        . simp [f', hz2] at h
+          exfalso
+          generalize_proofs a at h
+          have := (f ⟨z1, a⟩).prop
+          rw [mem_Fin] at this
+          rw [h] at this
+          obtain ⟨ m, hm, hmn ⟩ := this
+          have : n = m := by exact (ofNat_inj' n m).mp hmn
+          linarith
+        . simp [f', hz2] at h
+          rw [Subtype.val_inj] at h
+          have := hf.injective h
+          obtain ⟨z1', hz1'⟩ := z1
+          obtain ⟨z2', hz2'⟩ := z2
+          simp only at this
+          rw [Subtype.mk.injEq] at this ⊢
+          exact this
+    . intro z
+      by_cases hz: z = ⟨n, by rw [mem_Fin]; use n; simp⟩
+      . use ⟨x, by rw [mem_union]; right; rw [mem_singleton]⟩
+        simp [f', hz]
+        rfl
+      . have := hf.surjective ⟨z, by
+          have := z.property
+          rw [mem_Fin] at this ⊢
+          obtain ⟨ m, hm, hmn ⟩ := this
+          have : m ≠ n := by
+            contrapose! hz
+            subst m
+            rw [Subtype.mk.injEq]
+            exact hmn
+          use m
+          constructor
+          . omega
+          . exact hmn
+        ⟩
+        obtain ⟨z', hz'⟩ := this
+        use ⟨z', by rw [mem_union]; left; exact z'.prop⟩
+        simp [f']
+        have hzneqx : z'.val ≠ x := by
+          intro h
+          rw [← h] at hx
+          have hc := z'.property
+          contradiction
+        simp only [hzneqx, ↓reduceDIte, f']
+        simp only [hz', Subtype.coe_eta, f']
+  have : (X ∪ {x}) ≈  (Fin (n + 1)) := by use f'
+  have fin : (X ∪ {x}).finite := by
+    rw [finite]
+    use n + 1
+  constructor
+  . exact fin
+  . have : (X ∪ {x}).has_card (n + 1) := by
+      rw [has_card]
+      exact this
+    apply has_card_to_card at this
+    rw [this]
+    simp only [Nat.add_right_cancel_iff]
+    symm
+    apply has_card_to_card
+    rw [has_card]
+    use f
+
 
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :

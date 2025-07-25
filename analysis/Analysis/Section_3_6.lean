@@ -588,23 +588,20 @@ theorem SetTheory.Set.has_card_to_card (X:Set) (n: ℕ): X.has_card n → X.card
   intro h
   rw [card]
   have hf : X.finite := by rw [finite]; use n
-  simp [hf]
+  simp only [hf, ↓reduceDIte]
   generalize_proofs a
   have ha := a.choose_spec
   exact card_uniq ha h
 
 theorem SetTheory.Set.card_to_has_card (X:Set) (n: ℕ) (hn: n ≠ 0): X.card = n → X.has_card n := by
   intro h
-  rw [card] at h
-  have hf : X.finite := by
-    by_contra!
-    simp [this] at h
-    exact hn h.symm
-  simp_all
-  generalize_proofs a at h
-  have ha := a.choose_spec
-  rw [h] at ha
-  exact ha
+  rw [← h]
+  exact has_card_card (by
+    by_contra! h0
+    simp only [card, h0, ↓reduceDIte] at h
+    have := h.symm
+    contradiction
+  )
 
 /-- Proposition 3.6.14 (a) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X) :

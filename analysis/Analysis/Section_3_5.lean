@@ -347,6 +347,17 @@ theorem SetTheory.Set.mk_cart_eq {X Y: Set} (z: X ×ˢ Y) :
   rw [Subtype.mk.injEq]
   rw [SetTheory.Set.pair_eq_fst_snd]
 
+theorem SetTheory.Set.mk_cart_inj {X Y: Set} (z z': X ×ˢ Y) :
+    (mk_cart (fst z) (snd z)) = (mk_cart (fst z') (snd z')) ↔ fst z = fst z' ∧ snd z = snd z' := by
+  constructor
+  . intro h
+    repeat rw [mk_cart] at h
+    simp only [Subtype.mk.injEq, EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq] at h
+    repeat rw [Subtype.val_inj] at h
+    exact h
+  . intro ⟨ h1, h2 ⟩
+    rw [h1, h2]
+
 noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
   toFun := fun z ↦ mk_cart (snd z) (fst z)
   invFun := fun z ↦ mk_cart (snd z) (fst z)

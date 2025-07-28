@@ -1475,7 +1475,7 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
             exact Nat.mod_lt k hnz
           . rfl
         ⟩
-        obtain ⟨y', hy'⟩ := hgY.surjective ⟨ys, by
+        obtain ⟨fy', hfy'⟩ := hgY.surjective ⟨ys, by
           rw [mem_Fin]
           use ys
           constructor
@@ -1485,9 +1485,9 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
             exact Nat.div_lt_of_lt_mul hk
           . rfl
         ⟩
-        have y'p := y'.property
-        rw [powerset_axiom] at y'p
-        obtain ⟨g', hg'⟩ := y'p
+        have fy'p := fy'.property
+        rw [powerset_axiom] at fy'p
+        obtain ⟨g', hg'⟩ := fy'p
         let fs := (fun y'' ↦
           if hy: y'' = y then x' else g' ⟨y''.val, by
             dsimp [Y']
@@ -1507,14 +1507,42 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
         use ⟨Fs, hF⟩
         simp only [Fs, fs, f]
         generalize_proofs a b c d e f' g
-        have hb := Classical.choose_spec b
-        have he := (Classical.choose_spec e).2
-        have hf' := (Classical.choose_spec f').2
         rw [← Subtype.val_inj]
         rw [hkm]
         simp only [Object.natCast_inj, Fs, fs, f]
-        have he1 : choose e = ys := by sorry
-        have hf'1 : choose f' = xs := by sorry
+        have hb := Classical.choose_spec b
+        rw [coe_of_fun] at hb
+        rw [object_of_inj] at hb
+        have he1 : choose e = ys := by
+          have he := (Classical.choose_spec e).2
+          rw [← Object.natCast_inj]
+          rw [← he]
+          simp [hb]
+          rw [← Subtype.val_inj] at hfy'
+          simp at hfy'
+          rw [← hfy']
+          congr!
+          rw [← hg']
+          rw [coe_of_fun]
+          rw [object_of_inj]
+          ext yt
+          have hyt := yt.property
+          dsimp [Y'] at hyt
+          rw [mem_sdiff] at hyt
+          have := hyt.2
+          rw [mem_singleton] at this
+          rw [if_neg]
+          contrapose! this
+          rw [← Subtype.val_inj] at this
+          simp at this
+          exact this
+        have hf'1 : choose f' = xs := by
+          have hf' := (Classical.choose_spec f').2
+          rw [← Object.natCast_inj]
+          rw [← hf']
+          rw [hb]
+          simp only [↓reduceDIte, ys, xs, Y', fs, f, Fs]
+          rw [hx']
         rw [he1, hf'1]
         simp [xs, ys]
         exact Nat.div_add_mod' k n

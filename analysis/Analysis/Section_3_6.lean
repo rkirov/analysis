@@ -1322,6 +1322,12 @@ lemma SetTheory.Set.empty_fn_unique {X: Set} (f g: (∅:Set) → X) :
   have ne := not_mem_empty x
   contradiction
 
+lemma le_lemma {a b m n: ℕ} (ha: a < m) (hb: b < n) :
+    a * n + b < m * n := by
+  calc a * n + b < a * n + n := by apply Nat.add_lt_add_left hb _
+    _ = (a + 1) * n := by rw [Nat.succ_mul]
+    _ ≤ m * n := Nat.mul_le_mul_right n (Nat.succ_le_of_lt ha)
+
 /-- Proposition 3.6.14 (f) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
     (X ^ Y).finite ∧ (X ^ Y).card = X.card ^ Y.card := by
@@ -1440,13 +1446,7 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
           use Classical.choose hcf' * n + Classical.choose hcyp
           constructor
           . rw [pow_succ]
-            have hn : n > 0 := by
-              by_contra hn
-              simp at hn
-              simp [hn] at hcys
-            have h1 := Nat.mul_lt_mul_of_pos_right hcf's.1 hn
-            have h2 := hcys.1
-            sorry
+            exact le_lemma hcf's.1 hcys.1
           . rfl
         ⟩
       use f

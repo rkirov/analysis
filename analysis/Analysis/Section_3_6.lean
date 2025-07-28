@@ -1194,20 +1194,353 @@ theorem SetTheory.Set.card_image_inj {X Y:Set} (hX: X.finite) {f: X → Y}
 
 /-- Proposition 3.6.14 (e) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
-    (X ×ˢ Y).finite ∧ (X ×ˢ Y).card = X.card * Y.card := by sorry
+    (X ×ˢ Y).finite ∧ (X ×ˢ Y).card = X.card * Y.card := by
+  obtain ⟨n, hX⟩ := hX
+  obtain ⟨m, hY⟩ := hY
+  have hX' := hX
+  have hY' := hY
+  obtain ⟨fX, hfX⟩ := hX
+  obtain ⟨fY, hfY⟩ := hY
+  have hmn : (X ×ˢ Y).has_card (n * m) := by
+    rw [has_card_iff]
+    use fun p: X ×ˢ Y ↦
+      let x := fX (fst p)
+      let y := fY (snd p)
+      let x' := Classical.choose ((mem_Fin _ x).mp x.prop)
+      let y' := Classical.choose ((mem_Fin _ y).mp y.prop)
+      ⟨x' * m + y', by
+        rw [mem_Fin]
+        use x' * m + y'
+        have xs := Classical.choose_spec ((mem_Fin _ x).mp x.prop)
+        have ys := Classical.choose_spec ((mem_Fin _ y).mp y.prop)
+        constructor
+        . calc
+            x' * m + y' < x' * m + m := by
+              simp only [add_lt_add_iff_left]
+              exact ys.1
+            _ = (x' + 1) * m := by exact Eq.symm (Nat.succ_mul x' m)
+            _ ≤ n * m := by
+              have (a b c: ℕ): a ≤ b → a * c ≤ b * c := by intro h; exact Nat.mul_le_mul_right _ h
+              apply this
+              suffices x' < n by omega
+              exact xs.1
+        . rfl
+      ⟩
+    constructor
+    . intro a b h
+      simp at h
+      generalize_proofs xa ya xb yb at h
+      have xas := Classical.choose_spec xa
+      have yas := Classical.choose_spec ya
+      have xbs := Classical.choose_spec xb
+      have ybs := Classical.choose_spec yb
+      have hmy1: choose ya % m = choose ya := Nat.mod_eq_of_lt yas.1
+      have hmy2: choose yb % m = choose yb := Nat.mod_eq_of_lt ybs.1
+      have h_mod := congr_arg (· % m) h
+      simp at h_mod
+      rw [hmy1, hmy2] at h_mod
+      have yeq := h_mod
+      rw [yeq] at h
+      simp at h
+      rw [← mk_cart_eq a]
+      rw [← mk_cart_eq b]
+      rw [mk_cart_inj]
+      constructor
+      . apply hfX.injective
+        rw [Subtype.mk.injEq]
+        rw [xas.2, xbs.2]
+        cases' h with h h'
+        . rw [h]
+        . exfalso
+          omega
+      . apply hfY.injective
+        rw [Subtype.mk.injEq]
+        rw [yas.2, ybs.2]
+        rw [yeq]
+    . intro z
+      have := z.property
+      rw [mem_Fin] at this
+      obtain ⟨ k, hk, hkm ⟩ := this
+      let x := k / m
+      let y := k % m
+      obtain ⟨x', hx'⟩ := hfX.surjective ⟨x, by
+        rw [mem_Fin]
+        use k / m
+        constructor
+        . rw [mul_comm] at hk
+          apply Nat.div_lt_of_lt_mul hk
+        . dsimp [x]
+      ⟩
+      obtain ⟨y', hy'⟩ := hfY.surjective ⟨y, by
+        rw [mem_Fin]
+        use k % m
+        constructor
+        . apply Nat.mod_lt k
+          by_contra hm0
+          simp at hm0
+          rw [hm0] at hk
+          contradiction
+        . dsimp [y]
+      ⟩
+      use mk_cart x' y'
+      simp only [mk_cart_fst, mk_cart_snd, x, y]
+      rw [Subtype.mk.injEq]
+      rw [hkm]
+      simp only [Object.natCast_inj, x, y]
+      generalize_proofs a b
+      have hxa := (Classical.choose_spec a).2
+      have hya := (Classical.choose_spec b).2
+      conv_lhs at hxa => rw [hx']
+      conv_lhs at hya => rw [hy']
+      simp only [Object.natCast_inj, x, y] at hxa hya
+      rw [← hxa, ← hya]
+      exact Nat.div_add_mod' k m
+  constructor
+  . rw [finite]
+    use n * m
+  . have h1 := has_card_to_card _ _ hX'
+    have h2 := has_card_to_card _ _ hY'
+    have h' := has_card_to_card _ _ hmn
+    rw [h1, h2, h']
 
-noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B → A) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
 
-lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ pow_fun_equiv x = pow_fun_equiv y := by
-  rw [←pow_fun_equiv.apply_eq_iff_eq]
+def empty_fn {X: Set} [SetTheory] : (∅:Set) → X := fun x ↦
+  absurd x.prop (SetTheory.emptyset_mem x)
+
+lemma SetTheory.Set.empty_pow_inhabited (X: Set) : ∃ a, a ∈ X ^ (∅:Set) := by
+  let F := function_to_object (∅: Set) X empty_fn
+  have hF : F ∈ X ^ (∅:Set) := by
+    rw [powerset_axiom]
+    use empty_fn
+    rfl
+  use F
+
+lemma SetTheory.Set.empty_fn_unique {X: Set} (f g: (∅:Set) → X) :
+    f = g := by
+  ext x
+  have := x.prop
+  have ne := not_mem_empty x
+  contradiction
 
 /-- Proposition 3.6.14 (f) / Exercise 3.6.4 -/
-theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
-    (Y ^ X).finite ∧ (Y ^ X).card = Y.card ^ X.card := by sorry
+theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
+    (X ^ Y).finite ∧ (X ^ Y).card = X.card ^ Y.card := by
+  obtain ⟨n, hX⟩ := hX
+  obtain ⟨m, hY⟩ := hY
+  have hX' := hX
+  have hY' := hY
+  obtain ⟨fX, hfX⟩ := hX
+  obtain ⟨fY, hfY⟩ := hY
+  have hnm : (X ^ Y).has_card (n ^ m) := by
+    induction' m with m ih generalizing Y
+    . rw [has_card_zero] at hY'
+      rw [hY']
+      by_cases hn: n = 0
+      . simp [hn]
+        rw [hn] at hX'
+        rw [has_card_zero] at hX'
+        rw [hX']
+        rw [has_card_iff]
+        use fun _ ↦ ⟨0, by rw [mem_Fin]; use 0; aesop⟩
+        constructor
+        . intro x y h
+          have xp := x.property
+          have yp := y.property
+          rw [powerset_axiom] at xp yp
+          obtain ⟨x', hx'⟩ := xp
+          obtain ⟨y', hy'⟩ := yp
+          rw [Subtype.mk.injEq]
+          rw [← hx', ← hy']
+          suffices x' = y' by exact congrArg coe_of_fun this
+          ext z
+          exfalso
+          have zp := z.property
+          have zpn := not_mem_empty z
+          contradiction
+        . intro x
+          have xp := x.property
+          rw [mem_Fin] at xp
+          obtain ⟨x', hx'⟩ := xp
+          simp at hx'
+          obtain ⟨x'', hx''⟩ := hx'
+          subst x''
+          simp only [Subtype.exists]
+          obtain ⟨a, ha⟩ := empty_pow_inhabited ∅
+          use a, ha
+          rw [Subtype.mk.injEq]
+          exact hx''.symm
+      . simp [hn]
+        have := pos_card_nonempty (by exact Nat.one_le_iff_ne_zero.mpr hn) hX'
+        apply nonempty_def at this
+        obtain ⟨x, hx⟩ := this
+        rw [has_card_iff]
+        use fun F ↦ ⟨0, by rw [mem_Fin]; use 0; aesop⟩
+        constructor
+        . intro x y h
+          have xp := x.property
+          have yp := y.property
+          rw [powerset_axiom] at xp yp
+          obtain ⟨x', hx'⟩ := xp
+          obtain ⟨y', hy'⟩ := yp
+          have := empty_fn_unique x' y'
+          rw [this] at hx'
+          rw [hx'] at hy'
+          rw [Subtype.mk.injEq]
+          exact hy'
+        . intro z
+          let F := function_to_object (∅: Set) X empty_fn
+          have hF : F ∈ X ^ (∅:Set) := by
+            rw [powerset_axiom]
+            use empty_fn
+            rfl
+          use ⟨F, hF⟩
+          simp only [F]
+          have zp := z.property
+          rw [mem_Fin] at zp
+          simp at zp
+          symm
+          rw [← Subtype.val_inj]
+          exact zp
+    . have := hfY.surjective ⟨m, by rw [mem_Fin]; use m; aesop⟩
+      obtain ⟨y, hy⟩ := this
+      let Y' := Y \ {y.val}
+      have hY' : Y'.has_card m := card_erase (by omega) hY' y
+      have hY'' := hY'
+      obtain ⟨fY', hfY'⟩ := hY'
+      specialize ih hY'' fY' hfY'
+      rw [has_card_iff] at ih
+      obtain ⟨gY, hgY⟩ := ih
+      -- we have a function g that gives a count for Y' -> X
+      -- to count function f in Y -> X, we count the inferred f' in Y' -> X
+      -- and multiply the value for f y through the X bijection
+      let f: (X ^ Y: Set) → Fin (n ^ (m + 1)) := fun F ↦
+        have hF := F.property
+        have := (powerset_axiom F).mp hF
+        let g := Classical.choose this
+        let x' := g y
+        let f': Y' → X := fun y' ↦ g ⟨y', by aesop⟩
+        let F' := function_to_object Y' X f'
+        have hF' : F' ∈ X ^ Y' := by
+          rw [powerset_axiom]
+          use f'
+          dsimp [F']
+          rfl
+        -- count from the induction
+        let cf' := gY ⟨F', hF'⟩
+        -- count from y
+        let cy := fX x'
+        have cf'p := cf'.property
+        have cyp := cy.property
+        have hcf' := (mem_Fin _ cf').mp cf'p
+        have hcyp := (mem_Fin _ cy).mp cyp
+        ⟨Classical.choose hcf' * n + Classical.choose hcyp, by
+          have hcf's := Classical.choose_spec hcf'
+          have hcys := Classical.choose_spec hcyp
+          rw [mem_Fin]
+          use Classical.choose hcf' * n + Classical.choose hcyp
+          constructor
+          . rw [pow_succ]
+            have hn : n > 0 := by
+              by_contra hn
+              simp at hn
+              simp [hn] at hcys
+            have h1 := Nat.mul_lt_mul_of_pos_right hcf's.1 hn
+            have h2 := hcys.1
+            sorry
+          . rfl
+        ⟩
+      use f
+      constructor
+      . intro F1 F2 h
+        unfold f at h
+        simp at h
+        generalize_proofs a b c d e f' g h' i at h
+        sorry
+      . intro z
+        have zp := z.property
+        rw [mem_Fin] at zp
+        obtain ⟨k, hk, hkm⟩ := zp
+        have hnz : n > 0 := by
+          by_contra hn
+          simp at hn
+          rw [hn] at hk
+          contradiction
+        let xs := k % n
+        let ys := k / n
+        obtain ⟨x', hx'⟩ := hfX.surjective ⟨xs, by
+          rw [mem_Fin]
+          use xs
+          constructor
+          . dsimp [xs]
+            exact Nat.mod_lt k hnz
+          . rfl
+        ⟩
+        obtain ⟨y', hy'⟩ := hgY.surjective ⟨ys, by
+          rw [mem_Fin]
+          use ys
+          constructor
+          . dsimp [ys]
+            rw [pow_succ] at hk
+            rw [mul_comm] at hk
+            exact Nat.div_lt_of_lt_mul hk
+          . rfl
+        ⟩
+        have y'p := y'.property
+        rw [powerset_axiom] at y'p
+        obtain ⟨g', hg'⟩ := y'p
+        let fs := (fun y'' ↦
+          if hy: y'' = y then x' else g' ⟨y''.val, by
+            dsimp [Y']
+            rw [mem_sdiff]
+            constructor
+            . exact y''.property
+            . intro h
+              rw [mem_singleton] at h
+              rw [Subtype.val_inj] at h
+              contradiction
+          ⟩)
+        let Fs := function_to_object Y X fs
+        have hF : Fs ∈ X ^ Y := by
+          rw [powerset_axiom]
+          use fs
+          rfl
+        use ⟨Fs, hF⟩
+        simp only [Fs, fs, f]
+        generalize_proofs a b c d e f' g
+        have hb := Classical.choose_spec b
+        have he := (Classical.choose_spec e).2
+        have hf' := (Classical.choose_spec f').2
+        rw [← Subtype.val_inj]
+        rw [hkm]
+        simp only [Object.natCast_inj, Fs, fs, f]
+        have he1 : choose e = ys := by sorry
+        have hf'1 : choose f' = xs := by sorry
+        rw [he1, hf'1]
+        simp [xs, ys]
+        exact Nat.div_add_mod' k n
+  constructor
+  . rw [finite]
+    use n ^ m
+  . have h1 := has_card_to_card _ _ hX'
+    have h2 := has_card_to_card _ _ hY'
+    have h' := has_card_to_card _ _ hnm
+    rw [h1, h2, h']
+
+/-- Exercise 3.6.2 -/
+theorem SetTheory.Set.card_eq_zero {X:Set} (hX: X.finite) :
+    X.card = 0 ↔ X = ∅ := by
+  constructor
+  . intro h
+    rw [card] at h
+    simp [hX] at h
+    generalize_proofs a at h
+    have := Classical.choose_spec a
+    simp [h] at this
+    rw [has_card_zero] at this
+    exact this
+  . intro h
+    rw [h]
+    rw [card_zero rfl]
 
 /-- Exercise 3.6.5. You might find `SetTheory.Set.prod_commutator` useful. -/
 theorem SetTheory.Set.prod_EqualCard_prod (A B:Set) :

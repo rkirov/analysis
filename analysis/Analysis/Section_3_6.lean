@@ -1150,7 +1150,8 @@ theorem SetTheory.Set.card_ssubset {X Y:Set} (hX: X.finite) (hY: Y ⊂ X) :
   contradiction
 
 /--
-  This overlaps with an exercise later in the book, but it is convenient to have it here.
+  Using `Function.surjInv` requires axiom of choice.
+  Todo: prove without using Function.surjInv.
 -/
 lemma SetTheory.Set.Fin_surjective_from_subset_bijective {n:ℕ} {X:Set}
     (f: Fin n → X) (hf: Function.Surjective f):
@@ -1860,7 +1861,43 @@ theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint
       simp [hc] at this
       rw [Subtype.val_inj]
       exact this
-  . sorry
+  . intro F
+    have hF := F.property
+    rw [powerset_axiom] at hF
+    obtain ⟨g, hg⟩ := hF
+    use mk_cart (fn_to_powerset fun b ↦ g ⟨b, by aesop⟩)
+      (fn_to_powerset fun c ↦ g ⟨c, by aesop⟩)
+    simp
+    rw [Subtype.mk.injEq]
+    conv_rhs => rw [← hg]
+    rw [fn_to_powerset]
+    simp only [coe_of_fun_inj]
+    ext bc
+    by_cases h: bc.val ∈ B
+    . simp [h]
+      generalize_proofs a b c
+      have hc := Classical.choose_spec c
+      conv_rhs at hc => simp
+      -- todo: clean up
+      have : choose c = fun (b: B) ↦ g ⟨b.val, by aesop⟩ := by
+        rw [coe_of_fun] at hc
+        conv_rhs at hc => simp [fn_to_powerset]
+        rw [coe_of_fun] at hc
+        rw [object_of_inj] at hc
+        exact hc
+      rw [this]
+    . simp [h]
+      generalize_proofs a b c d
+      have hc := Classical.choose_spec c
+      conv_rhs at hc => simp
+      -- todo: clean up
+      have : choose c = fun (c: C) ↦ g ⟨c.val, by aesop⟩ := by
+        rw [coe_of_fun] at hc
+        conv_rhs at hc => simp [fn_to_powerset]
+        rw [coe_of_fun] at hc
+        rw [object_of_inj] at hc
+        exact hc
+      rw [this]
 
 theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint B C) :
     EqualCard ((A ^ B) ×ˢ (A ^ C)) (A ^ (B ∪ C)) := by sorry

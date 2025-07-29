@@ -347,8 +347,8 @@ theorem SetTheory.Set.mk_cart_eq {X Y: Set} (z: X ×ˢ Y) :
   rw [Subtype.mk.injEq]
   rw [SetTheory.Set.pair_eq_fst_snd]
 
-theorem SetTheory.Set.mk_cart_inj {X Y: Set} (z z': X ×ˢ Y) :
-    (mk_cart (fst z) (snd z)) = (mk_cart (fst z') (snd z')) ↔ fst z = fst z' ∧ snd z = snd z' := by
+theorem SetTheory.Set.mk_cart_inj {X Y: Set} (x x': X) (y y': Y) :
+    (mk_cart x y) = (mk_cart x' y') ↔ x = x' ∧ y = y' := by
   constructor
   . intro h
     repeat rw [mk_cart] at h
@@ -357,6 +357,29 @@ theorem SetTheory.Set.mk_cart_inj {X Y: Set} (z z': X ×ˢ Y) :
     exact h
   . intro ⟨ h1, h2 ⟩
     rw [h1, h2]
+
+theorem SetTheory.Set.cart_fst_snd_ext {X Y: Set} (z z': X ×ˢ Y) :
+    fst z = fst z' ∧ snd z = snd z' ↔ z = z' := by
+  constructor
+  . intro h
+    obtain ⟨ h1, h2 ⟩ := h
+    have := z.property
+    rw [mem_cartesian] at this
+    obtain ⟨ x, y, h3 ⟩ := this
+    have := z'.property
+    rw [mem_cartesian] at this
+    obtain ⟨ x', y', h4 ⟩ := this
+    rw [Subtype.mk.injEq]
+    rw [h3, h4]
+    simp only [EmbeddingLike.apply_eq_iff_eq, OrderedPair.mk.injEq]
+    have : fst z = x := fst_eval' z x y h3
+    have : snd z = y := snd_eval' z x y h3
+    have : fst z' = x' := fst_eval' z' x' y' h4
+    have : snd z' = y' := snd_eval' z' x' y' h4
+    simp_all
+  . intro h
+    subst z'
+    constructor <;> rfl
 
 noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
   toFun := fun z ↦ mk_cart (snd z) (fst z)
@@ -1426,7 +1449,7 @@ def SetTheory.Set.diff_of_prod :
   Exercise 3.5.6.
 -/
 theorem SetTheory.Set.prod_subset_prod {A B C D:Set}
-  (hA: A ≠ ∅) (hB: B ≠ ∅) (hC: C ≠ ∅) (hD: D ≠ ∅) :
+  (hA: A ≠ ∅) (hB: B ≠ ∅) (_: C ≠ ∅) (_: D ≠ ∅) :
     A ×ˢ B ⊆ C ×ˢ D ↔ A ⊆ C ∧ B ⊆ D := by
   constructor
   . intro h

@@ -196,6 +196,16 @@ theorem SetTheory.Set.coe_of_fun_inj {X Y:Set} (f g:X → Y) : (f:Object) = (g:O
 theorem SetTheory.Set.powerset_axiom {X Y:Set} (F:Object) :
     F ∈ (X ^ Y) ↔ ∃ f: Y → X, f = F := SetTheory.powerset_axiom X Y F
 
+def SetTheory.Set.fn_to_powerset {X Y:Set} (f: X → Y): ((Y ^ X): Set) :=
+  ⟨f, by
+    rw [powerset_axiom]
+    use f
+  ⟩
+
+theorem SetTheory.Set.fn_to_powerset_inj {X Y:Set} (f g: X → Y) :
+    fn_to_powerset f = fn_to_powerset g ↔ f = g := by
+  simp [fn_to_powerset, coe_of_fun_inj]
+
 /-- Example 3.4.9 -/
 abbrev f_3_4_9_a : ({4,7}:Set) → ({0,1}:Set) := fun x ↦ ⟨ 0, by simp ⟩
 
@@ -283,6 +293,11 @@ theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
 theorem SetTheory.Set.exists_powerset (X:Set) :
    ∃ (Z: Set), ∀ x, x ∈ Z ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by
   use powerset X; apply mem_powerset
+
+@[simp]
+lemma SetTheory.Set.mem_powerset' {S S' : Set} : (S': Object) ∈ S.powerset ↔ S' ⊆ S := by
+  rw [mem_powerset]
+  simp
 
 /- As noted in errata, Exercise 3.4.6 (ii) is replaced by Exercise 3.5.11. -/
 
@@ -412,7 +427,7 @@ theorem SetTheory.Set.mem_iInter {I:Set} (hI: I ≠ ∅) (A: I → Set) (x:Objec
 
 /-- Exercise 3.4.1 -/
 theorem SetTheory.Set.preimage_eq_image_of_inv {X Y V:Set} (f:X → Y) (f_inv: Y → X)
-  (hf: Function.LeftInverse f_inv f ∧ Function.RightInverse f_inv f) (hV: V ⊆ Y) :
+  (hf: Function.LeftInverse f_inv f ∧ Function.RightInverse f_inv f) (_: V ⊆ Y) :
     image f_inv V = preimage f V := by
   apply ext
   intro x
@@ -820,8 +835,8 @@ theorem SetTheory.Set.partial_functions {X Y:Set} :
     Xout = union ((powerset Y).replace (P := fun Y' Yout ↦
       have hY' := (mem_powerset _).mp Y'.property
       Yout = set_to_object (Classical.choose hY' ^ Classical.choose hX')
-    ) (by intro x y y' a; simp_all only))
-  ) (by intro x y y' a; simp_all only))
+    ) (by simp_all))
+  ) (by simp_all))
   intro F
   constructor
   . intro h

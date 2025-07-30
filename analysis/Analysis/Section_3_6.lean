@@ -672,6 +672,118 @@ theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X
     use f
 
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
+theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
+    (X ∪ Y).finite ∧ (X ∪ Y).card ≤ X.card + Y.card := by
+  obtain ⟨n, hX⟩ := hX
+  obtain ⟨m, hY⟩ := hY
+  induction' n with n hn generalizing X
+  . rw [has_card_zero] at hX
+    subst hX
+    have : ∅ ∪ Y = Y := by
+      apply SetTheory.Set.ext
+      intro x
+      rw [mem_union]
+      have : (x ∈ (∅:Set)) = False := by
+        simp [not_mem_empty x]
+      simp only [this, false_or]
+    repeat rw [this]
+    constructor
+    . exact ⟨m, hY⟩
+    . rw [card_zero rfl]
+      exact Nat.le_add_left Y.card 0
+  . have := pos_card_nonempty (by simp) hX
+    have := nonempty_def this
+    obtain ⟨ x, hx ⟩ := this
+    set X' := X \ {x}
+    have hX' : X'.has_card n := by
+      dsimp [X']
+      apply card_erase (by omega) hX ⟨x, hx⟩
+    specialize hn hX'
+    by_cases hxY: x ∈ Y
+    . have : (X' ∪ Y) = X ∪ Y := by
+        dsimp [X']
+        apply ext
+        intro z
+        rw [mem_union, mem_union, mem_sdiff, mem_singleton]
+        constructor
+        . intro h
+          obtain ⟨ h1, h2 ⟩ := h
+          left
+          . exact h1
+          . right
+            assumption
+        . intro h
+          cases' h with h1 h2
+          . by_cases hxz : z = x
+            . right
+              subst z
+              exact hxY
+            . left
+              constructor
+              . exact h1
+              . exact hxz
+          . right
+            assumption
+      rw [this] at hn
+      constructor
+      . exact hn.1
+      . apply hn.2.trans
+        simp only [add_le_add_iff_right]
+        have h1 := has_card_to_card _ _ hX
+        have h2 := has_card_to_card _ _ hX'
+        rw [h1, h2]
+        exact Nat.le_add_right _ _
+    . have hneq : x ∉ (X' ∪ Y) := by aesop
+      have hin : (X' ∪ Y) ∪ {x} = X ∪ Y := by
+        apply ext
+        intro z
+        rw [mem_union, mem_union, mem_singleton, mem_union]
+        constructor
+        . intro h
+          cases' h with h1 h2
+          . cases' h1 with h11 h12
+            . dsimp [X'] at h11
+              rw [mem_sdiff] at h11
+              left
+              exact h11.1
+            . right
+              exact h12
+          . subst z
+            left
+            exact hx
+        . intro h
+          cases' h with h1 h2
+          . by_cases hxz : z = x
+            . subst z
+              right
+              rfl
+            . left
+              left
+              dsimp [X']
+              rw [mem_sdiff, mem_singleton]
+              constructor
+              . exact h1
+              . exact hxz
+          . left
+            right
+            exact h2
+      have := card_insert hn.1 hneq
+      rw [hin] at this
+      constructor
+      . exact this.1
+      . rw [this.2]
+        calc
+          (X' ∪ Y).card + 1 ≤ X'.card + Y.card + 1 := by
+            simp only [add_le_add_iff_right]
+            exact hn.2
+          _ = X.card + Y.card := by
+            have h1 := has_card_to_card _ _ hX
+            have h2 := has_card_to_card _ _ hX'
+            rw [h1, h2]
+            omega
+          _ ≤ X.card + Y.card := by exact Nat.le_refl (X.card + Y.card)
+
+/-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite)
   (hdisj: Disjoint X Y) : (X ∪ Y).card = X.card + Y.card := by
   -- copy/paste from previous theorem, but with the disjointness condition removed.
@@ -797,118 +909,6 @@ theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite
           have h2 := has_card_to_card _ _ hX'
           rw [h1, h2]
           omega
-
-/-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
-theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
-    (X ∪ Y).finite ∧ (X ∪ Y).card ≤ X.card + Y.card := by
-  obtain ⟨n, hX⟩ := hX
-  obtain ⟨m, hY⟩ := hY
-  induction' n with n hn generalizing X
-  . rw [has_card_zero] at hX
-    subst hX
-    have : ∅ ∪ Y = Y := by
-      apply SetTheory.Set.ext
-      intro x
-      rw [mem_union]
-      have : (x ∈ (∅:Set)) = False := by
-        simp [not_mem_empty x]
-      simp only [this, false_or]
-    repeat rw [this]
-    constructor
-    . exact ⟨m, hY⟩
-    . rw [card_zero rfl]
-      exact Nat.le_add_left Y.card 0
-  . have := pos_card_nonempty (by simp) hX
-    have := nonempty_def this
-    obtain ⟨ x, hx ⟩ := this
-    set X' := X \ {x}
-    have hX' : X'.has_card n := by
-      dsimp [X']
-      apply card_erase (by omega) hX ⟨x, hx⟩
-    specialize hn hX'
-    by_cases hxY: x ∈ Y
-    . have : (X' ∪ Y) = X ∪ Y := by
-        dsimp [X']
-        apply ext
-        intro z
-        rw [mem_union, mem_union, mem_sdiff, mem_singleton]
-        constructor
-        . intro h
-          obtain ⟨ h1, h2 ⟩ := h
-          left
-          . exact h1
-          . right
-            assumption
-        . intro h
-          cases' h with h1 h2
-          . by_cases hxz : z = x
-            . right
-              subst z
-              exact hxY
-            . left
-              constructor
-              . exact h1
-              . exact hxz
-          . right
-            assumption
-      rw [this] at hn
-      constructor
-      . exact hn.1
-      . apply hn.2.trans
-        simp only [add_le_add_iff_right]
-        have h1 := has_card_to_card _ _ hX
-        have h2 := has_card_to_card _ _ hX'
-        rw [h1, h2]
-        exact Nat.le_add_right _ _
-    . have hneq : x ∉ (X' ∪ Y) := by aesop
-      have hin : (X' ∪ Y) ∪ {x} = X ∪ Y := by
-        apply ext
-        intro z
-        rw [mem_union, mem_union, mem_singleton, mem_union]
-        constructor
-        . intro h
-          cases' h with h1 h2
-          . cases' h1 with h11 h12
-            . dsimp [X'] at h11
-              rw [mem_sdiff] at h11
-              left
-              exact h11.1
-            . right
-              exact h12
-          . subst z
-            left
-            exact hx
-        . intro h
-          cases' h with h1 h2
-          . by_cases hxz : z = x
-            . subst z
-              right
-              rfl
-            . left
-              left
-              dsimp [X']
-              rw [mem_sdiff, mem_singleton]
-              constructor
-              . exact h1
-              . exact hxz
-          . left
-            right
-            exact h2
-      have := card_insert hn.1 hneq
-      rw [hin] at this
-      constructor
-      . exact this.1
-      . rw [this.2]
-        calc
-          (X' ∪ Y).card + 1 ≤ X'.card + Y.card + 1 := by
-            simp only [add_le_add_iff_right]
-            exact hn.2
-          _ = X.card + Y.card := by
-            have h1 := has_card_to_card _ _ hX
-            have h2 := has_card_to_card _ _ hX'
-            rw [h1, h2]
-            omega
-          _ ≤ X.card + Y.card := by exact Nat.le_refl (X.card + Y.card)
 
 /--
   The proof roughly goes as follows:
@@ -1902,7 +1902,64 @@ theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint
 theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint B C) :
     EqualCard ((A ^ B) ×ˢ (A ^ C)) (A ^ (B ∪ C)) := by sorry
 
-theorem SetTheory.Set.pow_mul_pow_eq_pow_add (a b c:ℕ): (a^b) * a^c = a^(b+c) := by sorry
+example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
+  let A := SetTheory.Set.Fin a
+  let B := SetTheory.Set.Fin b
+  let C := SetTheory.Set.Fin c ×ˢ SetTheory.Set.Fin 1 -- to make sure that B and C are disjoint
+  have dis: Disjoint B C := by
+    rw [disjoint_iff]
+    sorry
+
+  have hAfin : A.finite := SetTheory.Set.Fin_finite a
+  have hBfin : B.finite := SetTheory.Set.Fin_finite b
+  have hCfin' := SetTheory.Set.Fin_finite c
+  have hCfin : C.finite := (SetTheory.Set.card_prod hCfin' (SetTheory.Set.Fin_finite 1)).1
+
+  have h := SetTheory.Set.pow_prod_pow_EqualCard_pow_union A B C
+  have hA : A.card = a := SetTheory.Set.Fin_card a
+  have hB : B.card = b := SetTheory.Set.Fin_card b
+  have hC : C.card = c := by
+    have := (SetTheory.Set.card_prod hCfin' (SetTheory.Set.Fin_finite 1)).2
+    rw [SetTheory.Set.Fin_card 1] at this
+    rw [SetTheory.Set.Fin_card c] at this
+    simp at this
+    exact this
+  have disj : Disjoint B C := by
+    rw [SetTheory.Set.disjoint_iff]
+    apply SetTheory.Set.ext
+    intro x
+    constructor
+    . intro h
+      rw [SetTheory.Set.mem_inter] at h
+      exfalso
+      obtain ⟨hB, hC⟩ := h
+      dsimp [B, C] at hB hC
+      rw [SetTheory.Set.mem_cartesian] at hC
+      rw [SetTheory.Set.mem_Fin] at hB
+      obtain ⟨b', hb'⟩ := hB
+      obtain ⟨c', hc'⟩ := hC
+      obtain ⟨c'', hc''⟩ := hc'
+      rw [hb'.2] at hc''
+      sorry
+    . intro h
+      have := SetTheory.Set.not_mem_empty x
+      contradiction
+  have h := SetTheory.Set.pow_prod_pow_EqualCard_pow_union A B C disj
+  apply SetTheory.Set.EquivCard_to_card_eq at h
+  have hAb := SetTheory.Set.card_pow hAfin hBfin
+  rw [hA, hB] at hAb
+  have hAc := SetTheory.Set.card_pow hAfin hCfin
+  rw [hA, hC] at hAc
+  have hl := SetTheory.Set.card_prod hAb.1 hAc.1
+  rw [hAb.2, hAc.2] at hl
+  rw [hl.2] at h
+  have hBunionC := SetTheory.Set.card_union_disjoint hBfin hCfin disj
+  have hBunionCFin := (SetTheory.Set.card_union hBfin hCfin).1
+  rw [hB, hC] at hBunionC
+  have hr := SetTheory.Set.card_pow hAfin hBunionCFin
+  rw [hA, hBunionC] at hr
+  rw [hr.2] at h
+  exact h
 
 /-- Exercise 3.6.7 -/
 theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.finite) :

@@ -1904,46 +1904,151 @@ theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint
 
 example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
   let A := SetTheory.Set.Fin a
-  let B := SetTheory.Set.Fin b
-  let C := SetTheory.Set.Fin c ×ˢ SetTheory.Set.Fin 1 -- to make sure that B and C are disjoint
-  have dis: Disjoint B C := by
-    rw [disjoint_iff]
-    sorry
-
-  have hAfin : A.finite := SetTheory.Set.Fin_finite a
-  have hBfin : B.finite := SetTheory.Set.Fin_finite b
-  have hCfin' := SetTheory.Set.Fin_finite c
-  have hCfin : C.finite := (SetTheory.Set.card_prod hCfin' (SetTheory.Set.Fin_finite 1)).1
-
-  have h := SetTheory.Set.pow_prod_pow_EqualCard_pow_union A B C
-  have hA : A.card = a := SetTheory.Set.Fin_card a
-  have hB : B.card = b := SetTheory.Set.Fin_card b
-  have hC : C.card = c := by
-    have := (SetTheory.Set.card_prod hCfin' (SetTheory.Set.Fin_finite 1)).2
-    rw [SetTheory.Set.Fin_card 1] at this
-    rw [SetTheory.Set.Fin_card c] at this
-    simp at this
-    exact this
-  have disj : Disjoint B C := by
+  let BC := SetTheory.Set.Fin (b + c)
+  let B := BC.specify (fun x ↦ ∃ m, m < b ∧ x.val = m)
+  let C := BC.specify (fun x ↦ ∃ m, b ≤ m ∧ m < b + c ∧ x.val = m)
+  have disj: Disjoint B C := by
     rw [SetTheory.Set.disjoint_iff]
     apply SetTheory.Set.ext
     intro x
+    rw [SetTheory.Set.mem_inter]
     constructor
-    . intro h
-      rw [SetTheory.Set.mem_inter] at h
-      exfalso
-      obtain ⟨hB, hC⟩ := h
+    . intro ⟨hB, hC⟩
       dsimp [B, C] at hB hC
-      rw [SetTheory.Set.mem_cartesian] at hC
-      rw [SetTheory.Set.mem_Fin] at hB
-      obtain ⟨b', hb'⟩ := hB
-      obtain ⟨c', hc'⟩ := hC
-      obtain ⟨c'', hc''⟩ := hc'
-      rw [hb'.2] at hc''
-      sorry
+      rw [SetTheory.Set.specification_axiom''] at hB hC
+      obtain ⟨b', hb', ⟨hb'', hbc⟩⟩ := hB
+      obtain ⟨c', hc', ⟨hc'', hbc'⟩⟩ := hC
+      exfalso
+      simp at hbc hbc'
+      subst x
+      simp at hbc'
+      rw [hbc'.2] at hb''
+      omega
     . intro h
       have := SetTheory.Set.not_mem_empty x
       contradiction
+
+  let Beq : SetTheory.Set.EqualCard B (SetTheory.Set.Fin b) := by
+    rw [SetTheory.Set.EqualCard]
+    use fun x ↦ ⟨x.val, by
+      have h := x.property
+      dsimp [B] at h
+      rw [SetTheory.Set.specification_axiom''] at h
+      obtain ⟨m, hm, hmb⟩ := h
+      rw [SetTheory.Set.mem_Fin]
+      use hm
+    ⟩
+    constructor
+    . intro x y h
+      rw [Subtype.mk.injEq] at h
+      rw [Subtype.val_inj] at h
+      exact h
+    . intro x
+      have h := x.property
+      rw [SetTheory.Set.mem_Fin] at h
+      obtain ⟨m, hm, hmb⟩ := h
+      use ⟨x.val, by
+        dsimp [B]
+        rw [SetTheory.Set.specification_axiom'']
+        simp
+        constructor
+        . dsimp [BC]
+          rw [SetTheory.Set.mem_Fin]
+          use m
+          constructor
+          . exact Nat.lt_add_right c hm
+          . exact hmb
+        . use m
+      ⟩
+  have hB := SetTheory.Set.EquivCard_to_card_eq Beq
+  have hB'card := SetTheory.Set.Fin_card b
+  rw [hB'card] at hB
+  have hBfin : B.finite := by
+    have := SetTheory.Set.EquivCard_to_has_card_eq Beq b
+    rw [SetTheory.Set.finite]
+    use b
+    rw [this]
+  let Ceq : SetTheory.Set.EqualCard C (SetTheory.Set.Fin c) := by
+    rw [SetTheory.Set.EqualCard]
+    use fun x ↦
+      have h := (SetTheory.Set.specification_axiom'' _ _).mp x.prop
+      -- can't use Exist.comm for some reason
+      let m := Classical.choose (Classical.choose_spec h)
+    ⟨m - b, by
+      have h := x.property
+      dsimp [C] at h
+      rw [SetTheory.Set.specification_axiom''] at h
+      obtain ⟨m', hm', hmb'⟩ := h
+      rw [SetTheory.Set.mem_Fin]
+      use hm' - b
+      constructor
+      . omega
+      . obtain ⟨h1, h2, h3⟩ := hmb'
+        simp at h3
+        generalize_proofs _ c at m
+        have hc := Classical.choose_spec c
+        simp [m]
+        have : choose c - b = hm' - b := by
+          have := hc.2.2
+          simp at this
+          rw [this] at h3
+          simp at h3
+          rw [h3]
+        rw [this]
+    ⟩
+    constructor
+    . intro x y h
+      rw [Subtype.mk.injEq] at h
+      generalize_proofs _ p1 _ p2 at h
+      have h1 := Classical.choose_spec p1
+      have h2 := Classical.choose_spec p2
+      simp at h
+      have : choose p1 = choose p2 := by
+        rw [← Nat.sub_add_cancel h1.1, ← Nat.sub_add_cancel h2.1]
+        rw [h]
+      rw [this] at h1
+      rw [← h2.2.2] at h1
+      have := h1.2.2
+      simp at this
+      rw [Subtype.val_inj] at this
+      exact this
+    . intro z
+      have hz := z.property
+      rw [SetTheory.Set.mem_Fin] at hz
+      obtain ⟨m, hm, hmb⟩ := hz
+      use ⟨m + b, by
+        dsimp [C]
+        rw [SetTheory.Set.specification_axiom'']
+        simp
+        constructor
+        . dsimp [BC]
+          rw [SetTheory.Set.mem_Fin]
+          use m + b
+          constructor
+          . omega
+          . simp only
+        . omega
+      ⟩
+      simp
+      generalize_proofs p1 p2
+      have h1 := Classical.choose_spec p1
+      have : m = choose p1 - b := by omega
+      rw [← SetTheory.Object.natCast_inj m (choose p1 - b)] at this
+      rw [← hmb] at this
+      rw [← Subtype.val_inj]
+      rw [this]
+  have hC := SetTheory.Set.EquivCard_to_card_eq Ceq
+  have hC'card := SetTheory.Set.Fin_card c
+  rw [hC'card] at hC
+  have hCfin : C.finite := by
+    have := SetTheory.Set.EquivCard_to_has_card_eq Ceq c
+    rw [SetTheory.Set.finite]
+    use c
+    rw [this]
+  have hAfin : A.finite := SetTheory.Set.Fin_finite a
+  have h := SetTheory.Set.pow_prod_pow_EqualCard_pow_union A B C
+  have hA : A.card = a := SetTheory.Set.Fin_card a
+
   have h := SetTheory.Set.pow_prod_pow_EqualCard_pow_union A B C disj
   apply SetTheory.Set.EquivCard_to_card_eq at h
   have hAb := SetTheory.Set.card_pow hAfin hBfin

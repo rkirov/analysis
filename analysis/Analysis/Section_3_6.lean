@@ -1963,7 +1963,47 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
 
 /-- Exercise 3.6.7 -/
 theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.finite) :
-    (∃ f:A → B, Function.Injective f) ↔ A.card ≤ B.card := sorry
+    (∃ f:A → B, Function.Injective f) ↔ A.card ≤ B.card := by
+  constructor
+  . intro ⟨f, hf⟩
+    have him_card:= card_image_inj hA hf
+    have him_card_finite := (card_image hA f).1
+    have hsub := card_subset hB (image_in_codomain f A)
+    rw [him_card] at hsub
+    exact hsub.2
+  . intro h
+    rw [finite] at hA
+    rw [finite] at hB
+    obtain ⟨n, hA⟩ := hA
+    obtain ⟨m, hB⟩ := hB
+    have hA' := has_card_to_card _ _ hA
+    have hB' := has_card_to_card _ _ hB
+    simp [hA', hB'] at h
+    rw [has_card_iff] at hA hB
+    obtain ⟨fA, hfA⟩ := hA
+    obtain ⟨fB, hfB⟩ := hB
+    let eA := Equiv.ofBijective fA hfA
+    let eB := Equiv.ofBijective fB hfB
+    let inc : Fin n → Fin m := fun x ↦ ⟨x.val, by
+      have hx := x.property
+      rw [mem_Fin] at hx ⊢
+      obtain ⟨k, hk, hkm⟩ := hx
+      use k
+      constructor
+      . exact Nat.lt_of_lt_of_le hk h
+      . exact hkm
+    ⟩
+    have hinc : Function.Injective inc := by
+      intro x y hxy
+      rw [Subtype.mk.injEq] at hxy
+      rw [Subtype.val_inj] at hxy
+      exact hxy
+    use eB.symm.toFun ∘ inc ∘ eA.toFun
+    apply Function.Injective.comp
+    . exact eB.symm.injective
+    . apply Function.Injective.comp
+      . exact hinc
+      . exact eA.injective
 
 /-- Exercise 3.6.8 -/
 theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A → B)

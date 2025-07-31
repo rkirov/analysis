@@ -2112,15 +2112,274 @@ theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.fini
 
 /-- Exercise 3.6.8 -/
 theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A → B)
-  (hf: Function.Injective f) : ∃ g:B → A, Function.Surjective g := by sorry
+  (hf: Function.Injective f) : ∃ g:B → A, Function.Surjective g := by
+  apply nonempty_def at hA
+  obtain ⟨a, ha⟩ := hA
+  let g: B → A := fun b ↦
+    if hb: ∃ a, f a = b then Classical.choose hb else ⟨a, ha⟩
+  use g
+  intro a
+  use f a
+  unfold g
+  simp only [exists_apply_eq_apply, ↓reduceDIte]
+  generalize_proofs p1
+  have h1 := Classical.choose_spec p1
+  apply hf
+  exact h1
+
+lemma SetTheory.Set.inter_finite {X Y: Set} (hX: X.finite): (X ∩ Y).finite := by
+  have : X ∩ Y ⊆ X := by exact inter_subset_left X Y
+  exact (card_subset hX this).1
+
+
+lemma SetTheory.Set.diff_finite {X Y: Set} (hX: X.finite): (X \ Y).finite := by
+  have : X \ Y ⊆ X := by
+    intro x hx
+    rw [SetTheory.Set.mem_sdiff] at hx
+    exact hx.1
+  exact (card_subset hX this).1
+
+lemma SetTheory.Set.diff_disjoint {X Y: Set}: Disjoint (X \ Y) Y := by
+  rw [disjoint_iff]
+  apply SetTheory.Set.ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_inter] at hx
+    obtain ⟨h1, h2⟩ := hx
+    rw [mem_sdiff] at h1
+    exfalso
+    tauto
+  . intro h
+    have := not_mem_empty x
+    contradiction
+
+lemma SetTheory.Set.union_diff {X Y: Set}: (X \ (X ∩ Y)) ∪ (X ∩ Y) = X := by
+  apply SetTheory.Set.ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_union] at hx
+    cases' hx with h1 h2
+    . rw [mem_sdiff] at h1
+      exact h1.1
+    . rw [mem_inter] at h2
+      exact h2.1
+  . intro hx
+    rw [mem_union]
+    by_cases hxy: x ∈ X ∩ Y
+    . right
+      exact hxy
+    . left
+      rw [mem_sdiff]
+      constructor
+      . exact hx
+      . exact hxy
+
+lemma SetTheory.Set.diff_inter_union {X Y: Set}: (X \ (X ∩ Y)) ∪ Y = X ∪ Y := by
+  apply SetTheory.Set.ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_union] at hx
+    cases' hx with h1 h2
+    . rw [mem_sdiff] at h1
+      obtain ⟨h1, h2⟩ := h1
+      rw [mem_union]
+      left
+      exact h1
+    . rw [mem_union]
+      right
+      exact h2
+  . intro hx
+    rw [mem_union] at hx
+    rw [mem_union]
+    rw [mem_sdiff]
+    by_cases hxy: x ∈ X ∩ Y
+    . rw [mem_inter] at hxy
+      right
+      exact hxy.2
+    . cases' hx with h1 h2
+      . left
+        constructor
+        . exact h1
+        . exact hxy
+      . right
+        exact h2
+
+lemma SetTheory.Set.diff_inter_disj {X Y: Set}: Disjoint (X \ (X ∩ Y)) Y := by
+  rw [disjoint_iff]
+  apply SetTheory.Set.ext
+  intro x
+  constructor
+  . intro hx
+    rw [mem_inter] at hx
+    obtain ⟨h1, h2⟩ := hx
+    rw [mem_sdiff] at h1
+    obtain ⟨h1, h3⟩ := h1
+    rw [mem_inter] at h3
+    tauto
+  . intro hx
+    have := not_mem_empty x
+    contradiction
 
 /-- Exercise 3.6.9 -/
 theorem SetTheory.Set.card_union_add_card_inter {A B:Set} (hA: A.finite) (hB: B.finite) :
-    A.card + B.card = (A ∪ B).card + (A ∩ B).card := by  sorry
+    A.card + B.card = (A ∪ B).card + (A ∩ B).card := by
+  have hAD : Disjoint (A \ (A ∩ B)) (A ∩ B) := diff_disjoint
+  have hADU : (A \ (A ∩ B)) ∪ (A ∩ B) = A := union_diff
+  have hAcard := card_union_disjoint (diff_finite hA) (inter_finite hA) hAD
+  rw [hADU] at hAcard
+  rw [hAcard]
+  have hBD : Disjoint (A \ (A ∩ B)) B := diff_inter_disj
+  have hBU : (A \ (A ∩ B)) ∪ B = A ∪ B := diff_inter_union
+  have hBcard := card_union_disjoint (diff_finite hA) hB hBD
+  rw [hBU] at hBcard
+  rw [hBcard]
+  exact Nat.add_right_comm _ _ B.card
+
+def SetTheory.Set.Fin_downcast {n m:ℕ} (h: n ≤ m) : Fin n → Fin m := fun x ↦
+  ⟨x.val, by
+    have hx := x.property
+    rw [mem_Fin] at hx ⊢
+    obtain ⟨k, hk, hkm⟩ := hx
+    use k
+    constructor
+    . exact Nat.lt_of_lt_of_le hk h
+    . exact hkm
+  ⟩
+
+lemma SetTheory.Set.iUnion_of_finite {n:ℕ} {A: Fin n → Set} (hA: ∀ i, (A i).finite): ((Fin n).iUnion A).finite := by
+  induction' n with n ih
+  . have := Fin_zero_empty
+    have hempty := iUnion_of_empty
+    rw [← this] at hempty
+    specialize hempty A
+    rw [hempty]
+    exact Fin_finite 0
+  . let A' : Fin n → Set := fun i ↦ A (Fin_downcast (by omega) i)
+    have hA' : ∀ i, (A' i).finite := by
+      intro i
+      exact hA (Fin_downcast (by omega) i)
+    have hA'fin := ih hA'
+    let n': Fin (n + 1) := ⟨n, by rw [mem_Fin]; use n; constructor; linarith; rfl⟩
+    specialize hA n'
+    -- copy/paste from below. Todo: refactor
+    have hu: ((Fin n).iUnion A') ∪ A n' = (Fin (n + 1)).iUnion A := by
+      apply ext
+      intro x
+      constructor
+      . intro hx
+        rw [mem_union] at hx
+        rw [mem_iUnion] at hx ⊢
+        cases' hx with h1 h2
+        . obtain ⟨i, hi⟩ := h1
+          use Fin_downcast (by omega) i
+        . use n'
+      . intro h
+        rw [mem_union]
+        rw [mem_iUnion] at h ⊢
+        obtain ⟨i, hi⟩ := h
+        by_cases hi': i = n'
+        . right
+          rw [hi'] at hi
+          exact hi
+        . left
+          dsimp [n'] at hi'
+          use ⟨i.val, by
+            have h := i.property
+            rw [mem_Fin] at h ⊢
+            obtain ⟨k, hk, hkm⟩ := h
+            use k
+            constructor
+            . by_cases hk : k = n
+              . subst n
+                exfalso
+                apply hi'
+                rw [Subtype.mk.injEq]
+                exact hkm
+              . omega
+            . exact hkm
+          ⟩
+          dsimp [A']
+          exact hi
+    have := card_union hA'fin hA
+    rw [hu] at this
+    exact this.1
 
 /-- Exercise 3.6.10 -/
 theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
-  (hA: ∀ i, (A i).finite) (hAcard: (iUnion _ A).card > n) : ∃ i, (A i).card ≥ 2 := by sorry
+  (hA: ∀ i, (A i).finite) (hAcard: (iUnion _ A).card > n) : ∃ i, (A i).card ≥ 2 := by
+  induction' n with n ih
+  . simp at hAcard
+    rw [card_zero] at hAcard
+    . contradiction
+    . have := Fin_zero_empty
+      have hempty := iUnion_of_empty
+      rw [← this] at hempty
+      specialize hempty A
+      rw [hempty]
+      exact Fin_zero_empty
+  . let n' : Fin (n + 1) := ⟨n, by rw [mem_Fin]; use n; aesop⟩
+    let A': Fin n → Set := fun i ↦ A (Fin_downcast (by omega) i)
+    have hA': (∀ (i : (Fin n).toSubtype), (A' i).finite) := by
+      intro i
+      exact hA (Fin_downcast (by omega) i)
+    have hu: ((Fin n).iUnion A') ∪ A n' = (Fin (n + 1)).iUnion A := by
+      apply ext
+      intro x
+      constructor
+      . intro hx
+        rw [mem_union] at hx
+        rw [mem_iUnion] at hx ⊢
+        cases' hx with h1 h2
+        . obtain ⟨i, hi⟩ := h1
+          use Fin_downcast (by omega) i
+        . use n'
+      . intro h
+        rw [mem_union]
+        rw [mem_iUnion] at h ⊢
+        obtain ⟨i, hi⟩ := h
+        by_cases hi': i = n'
+        . right
+          rw [hi'] at hi
+          exact hi
+        . left
+          dsimp [n'] at hi'
+          use ⟨i.val, by
+            have h := i.property
+            rw [mem_Fin] at h ⊢
+            obtain ⟨k, hk, hkm⟩ := h
+            use k
+            constructor
+            . by_cases hk : k = n
+              . subst n
+                exfalso
+                apply hi'
+                rw [Subtype.mk.injEq]
+                exact hkm
+              . omega
+            . exact hkm
+          ⟩
+          dsimp [A']
+          exact hi
+    have hA'fin : ((Fin n).iUnion A').finite := iUnion_of_finite hA'
+    have hucard := card_union (X:=((Fin n).iUnion A')) (Y:= A n') hA'fin (hA n')
+    rw [hu] at hucard
+    have hucard := hucard.2
+    by_cases hn' : (A n').card ≥ 2
+    . use n'
+    . specialize ih hA'
+      have := lt_of_lt_of_le hAcard hucard
+      simp at hn'
+      have : n + 1 ≤ ((Fin n).iUnion A').card + 2 := by linarith [hn']
+      have : n < ((Fin n).iUnion A').card := by linarith [this]
+      specialize ih this
+      obtain ⟨i, hi⟩ := ih
+      have ip := i.property
+      rw [mem_Fin] at ip
+      obtain ⟨k, hk, hkm⟩ := ip
+      use Fin_downcast (by omega) i
 
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔

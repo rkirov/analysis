@@ -503,6 +503,15 @@ theorem SetTheory.Set.card_zero {X:Set}: X = ∅ → X.card = 0 := by
   apply has_card_to_card
   exact hX
 
+theorem SetTheory.Set.card_singleton (x:Object) : ({x}:Set).card = 1 := by
+  rw [card]
+  have hX := Example_3_6_7a x
+  exact has_card_to_card _ _ hX
+
+theorem SetTheory.Set.singleton_finite (x:Object) : ({x}:Set).finite := by
+  use 1
+  exact card_to_has_card _ 1 (by omega) (card_singleton x)
+
 theorem SetTheory.Set.Fin_card (n:ℕ) : (Fin n).card = n := by
   exact has_card_to_card _ _ (card_fin_eq n)
 
@@ -2314,12 +2323,9 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
   . simp at hAcard
     rw [card_zero] at hAcard
     . contradiction
-    . have := Fin_zero_empty
-      have hempty := iUnion_of_empty
-      rw [← this] at hempty
-      specialize hempty A
-      rw [hempty]
-      exact Fin_zero_empty
+    . revert A
+      rw [Fin_zero_empty]
+      simp [iUnion_of_empty]
   . let n' : Fin (n + 1) := ⟨n, by rw [mem_Fin]; use n; aesop⟩
     let A': Fin n → Set := fun i ↦ A (Fin_downcast (by omega) i)
     have hA': (∀ (i : (Fin n).toSubtype), (A' i).finite) := by
@@ -2383,120 +2389,87 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
 
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
-    ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by sorry
-
-/-- Exercise 3.6.12 -/
-def SetTheory.Set.Permutations (n: ℕ): Set := (Fin n ^ Fin n).specify (fun F ↦
-    Function.Bijective (pow_fun_equiv F))
-
-/-- Exercise 3.6.12 (i), first part -/
-theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := by sorry
-
-/- To continue Exercise 3.6.12 (i), we'll first develop some theory about `Permutations` and `Fin`. -/
-
-noncomputable def SetTheory.Set.Permutations_toFun {n: ℕ} (p: Permutations n) : (Fin n) → (Fin n) := by
-  have := p.property
-  simp only [Permutations, specification_axiom'', powerset_axiom] at this
-  exact this.choose.choose
-
-theorem SetTheory.Set.Permutations_bijective {n: ℕ} (p: Permutations n) :
-    Function.Bijective (Permutations_toFun p) := by sorry
-
-theorem SetTheory.Set.Permutations_inj {n: ℕ} (p1 p2: Permutations n) :
-    Permutations_toFun p1 = Permutations_toFun p2 ↔ p1 = p2 := by sorry
-
-/-- This connects our concept of a permutation with Mathlib's `Equiv` between `Fin n` and `Fin n`. -/
-noncomputable def SetTheory.Set.perm_equiv_equiv {n : ℕ} : Permutations n ≃ (Fin n ≃ Fin n) := {
-  toFun := fun p => Equiv.ofBijective (Permutations_toFun p) (Permutations_bijective p)
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
-}
-
-/- Exercise 3.6.12 involves a lot of moving between `Fin n` and `Fin (n + 1)` so let's add some conveniences. -/
-
-/-- Any `Fin n` can be cast to `Fin (n + 1)`. Compare to Mathlib `Fin.castSucc`. -/
-def SetTheory.Set.Fin.castSucc {n} (x : Fin n) : Fin (n + 1) :=
-  Fin_embed _ _ (by omega) x
-
-@[simp]
-lemma SetTheory.Set.Fin.castSucc_inj {n} {x y : Fin n} : castSucc x = castSucc y ↔ x = y := by sorry
-
-@[simp]
-theorem SetTheory.Set.Fin.castSucc_ne {n} (x : Fin n) : castSucc x ≠ n := by sorry
-
-/-- Any `Fin (n + 1)` except `n` can be cast to `Fin n`. Compare to Mathlib `Fin.castPred`. -/
-noncomputable def SetTheory.Set.Fin.castPred {n} (x : Fin (n + 1)) (h : (x : ℕ) ≠ n) : Fin n :=
-  Fin_mk _ (x : ℕ) (by have := Fin.toNat_lt x; omega)
-
-@[simp]
-theorem SetTheory.Set.Fin.castSucc_castPred {n} (x : Fin (n + 1)) (h : (x : ℕ) ≠ n) :
-    castSucc (castPred x h) = x := by sorry
-
-@[simp]
-theorem SetTheory.Set.Fin.castPred_castSucc {n} (x : Fin n) (h : ((castSucc x : Fin (n + 1)) : ℕ) ≠ n) :
-    castPred (castSucc x) h = x := by sorry
-
-/-- Any natural `n` can be cast to `Fin (n + 1)`. Compare to Mathlib `Fin.last`. -/
-def SetTheory.Set.Fin.last (n : ℕ) : Fin (n + 1) := Fin_mk _ n (by omega)
-
-/-- Now is a good time to prove this result, which will be useful for completing Exercise 3.6.12 (i). -/
-theorem SetTheory.Set.card_iUnion_card_disjoint {n m: ℕ} {S : Fin n → Set}
-    (hSc : ∀ i, (S i).has_card m)
-    (hSd : Pairwise fun i j => Disjoint (S i) (S j)) :
-    ((Fin n).iUnion S).finite ∧ ((Fin n).iUnion S).card = n * m := by sorry
-
-/- Finally, we'll set up a way to shrink `Fin (n + 1)` into `Fin n` (or expand the latter) by making a hole. -/
-
-/--
-  If some `x : Fin (n+1)` is never equal to `i`, we can shrink it into `Fin n` by shifting all `x > i` down by one.
-  Compare to Mathlib `Fin.predAbove`.
--/
-noncomputable def SetTheory.Set.Fin.predAbove {n} (i : Fin (n + 1)) (x : Fin (n + 1)) (h : x ≠ i) : Fin n :=
-  if hx : (x:ℕ) < i then
-    Fin_mk _ (x:ℕ) (by sorry)
-  else
-    Fin_mk _ ((x:ℕ) - 1) (by sorry)
-
-/--
-  We can expand `x : Fin n` into `Fin (n + 1)` by shifting all `x ≥ i` up by one.
-  The output is never `i`, so it forms an inverse to the shrinking done by `predAbove`.
-  Compare to Mathlib `Fin.succAbove`.
--/
-noncomputable def SetTheory.Set.Fin.succAbove {n} (i : Fin (n + 1)) (x : Fin n) : Fin (n + 1) :=
-  if (x:ℕ) < i then
-    Fin_embed _ _ (by sorry) x
-  else
-    Fin_mk _ ((x:ℕ) + 1) (by sorry)
-
-@[simp]
-theorem SetTheory.Set.Fin.succAbove_ne {n} (i : Fin (n + 1)) (x : Fin n) : succAbove i x ≠ i := by sorry
-
-@[simp]
-theorem SetTheory.Set.Fin.succAbove_predAbove {n} (i : Fin (n + 1)) (x : Fin (n + 1)) (h : x ≠ i) :
-    (succAbove i) (predAbove i x h) = x := by sorry
-
-@[simp]
-theorem SetTheory.Set.Fin.predAbove_succAbove {n} (i : Fin (n + 1)) (x : Fin n) :
-    (predAbove i) (succAbove i x) (succAbove_ne i x) = x := by sorry
-
-/-- Exercise 3.6.12 (i), second part -/
-theorem SetTheory.Set.Permutations_ih (n: ℕ):
-    (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
-  let S i := (Permutations (n + 1)).specify (fun p ↦ perm_equiv_equiv p (Fin.last n) = i)
-
-  have hSe : ∀ i, S i ≈ Permutations n := by
-    intro i
-    -- Hint: you might find `perm_equiv_equiv`, `Fin.succAbove`, and `Fin.predAbove` useful.
-    have equiv : S i ≃ Permutations n := sorry
-    use equiv, equiv.injective, equiv.surjective
-
-  -- Hint: you might find `card_iUnion_card_disjoint` and `Permutations_finite` useful.
-  sorry
-
-/-- Exercise 3.6.12 (ii) -/
-theorem SetTheory.Set.Permutations_card (n: ℕ):
-    (Permutations n).card = n.factorial := by sorry
+    ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by
+  constructor
+  . intro hf S hS hcard
+    let f': S → image f S := fun x ↦ ⟨f ⟨x.val, hS _ x.prop⟩, by
+      rw [mem_image]
+      use ⟨x, hS _ x.prop⟩
+      simp
+      exact x.prop
+    ⟩
+    have h : image f' S = image f S := by
+      apply ext
+      intro z
+      repeat rw [mem_image]
+      unfold f'
+      aesop
+    have hf' : Function.Injective f' := by
+      intro x y hfxy
+      rw [Subtype.mk.injEq] at hfxy
+      rw [Subtype.val_inj] at hfxy
+      apply hf at hfxy
+      rw [Subtype.mk.injEq] at hfxy
+      rw [Subtype.val_inj] at hfxy
+      exact hfxy
+    rw [← h]
+    have him_finite : S.finite := by
+      rw [finite]
+      use 2
+      exact card_to_has_card _ 2 (by omega) hcard
+    rw [card_image_inj him_finite hf']
+    exact hcard
+  . intro h
+    intro x y hfxy
+    let S: Set := {x.val, y.val}
+    have hS : S ⊆ X := by
+      intro z hz
+      dsimp [S] at hz
+      rw [mem_pair] at hz
+      cases' hz with hz1 hz2
+      . rw [hz1]
+        exact x.property
+      . rw [hz2]
+        exact y.property
+    specialize h S hS
+    by_contra! hxy
+    have : S.card = 2 := by
+      unfold S
+      have hxfin: ({x.val}:Set).finite := by exact singleton_finite _
+      have hynotin: y.val ∉ ({x.val}:Set) := by
+        by_contra! h
+        rw [mem_singleton] at h
+        rw [Subtype.val_inj] at h
+        symm at h
+        contradiction
+      have := (card_insert hxfin hynotin).2
+      rw [card_singleton] at this
+      have hu : ({x.val}:Set) ∪ ({y.val}:Set) = ({x.val, y.val}:Set) := by
+        apply ext
+        intro z
+        rw [mem_union]
+        repeat rw [mem_singleton]
+        rw [mem_pair]
+      rw [hu] at this
+      exact this
+    have himcard := h this
+    have him_eq : image f S = ({(f x).val, (f y).val}:Set) := by
+      rw [image]
+      apply ext
+      intro z
+      rw [replacement_axiom]
+      rw [mem_pair]
+      aesop
+    rw [him_eq] at himcard
+    have : ({(f x).val, (f y).val}:Set) = {(f x).val} := by
+      apply ext
+      intro z
+      rw [mem_pair, mem_singleton]
+      rw [hfxy]
+      tauto
+    rw [this] at himcard
+    rw [card_singleton] at himcard
+    omega
 
 /-- Connections with Mathlib's `Finite` -/
 theorem SetTheory.Set.finite_iff_finite {X:Set} : X.finite ↔ Finite X := by

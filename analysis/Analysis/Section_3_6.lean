@@ -593,6 +593,15 @@ theorem SetTheory.Set.card_zero {X:Set}: X = ∅ → X.card = 0 := by
   apply has_card_to_card
   exact hX
 
+theorem SetTheory.Set.card_singleton (x:Object) : ({x}:Set).card = 1 := by
+  rw [card]
+  have hX := Example_3_6_7a x
+  exact has_card_to_card _ _ hX
+
+theorem SetTheory.Set.singleton_finite (x:Object) : ({x}:Set).finite := by
+  use 1
+  exact card_to_has_card _ 1 (by omega) (card_singleton x)
+
 theorem SetTheory.Set.Fin_card (n:ℕ) : (Fin n).card = n := by
   exact has_card_to_card _ _ (card_fin_eq n)
 
@@ -2412,12 +2421,9 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
   . simp at hAcard
     rw [card_zero] at hAcard
     . contradiction
-    . have := Fin_zero_empty
-      have hempty := iUnion_of_empty
-      rw [← this] at hempty
-      specialize hempty A
-      rw [hempty]
-      exact Fin_zero_empty
+    . revert A
+      rw [Fin_zero_empty]
+      simp [iUnion_of_empty]
   . let n' : Fin (n + 1) := ⟨n, by rw [mem_Fin]; use n; aesop⟩
     let A': Fin n → Set := fun i ↦ A (Fin_downcast (by omega) i)
     have hA': (∀ (i : (Fin n).toSubtype), (A' i).finite) := by
@@ -2481,22 +2487,87 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
 
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
-    ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by sorry
-
-/-- Exercise 3.6.12 -/
-def SetTheory.Set.Permutations (n: ℕ): Set := (Fin n ^ Fin n).specify (fun F ↦
-    Function.Bijective ((powerset_axiom F).mp F.prop).choose)
-
-/-- Exercise 3.6.12 (i) -/
-theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := by sorry
-
-/-- Exercise 3.6.12 (i) -/
-theorem SetTheory.Set.Permutations_ih (n: ℕ):
-    (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by sorry
-
-/-- Exercise 3.6.12 (ii) -/
-theorem SetTheory.Set.Permutations_card (n: ℕ):
-    (Permutations n).card = n.factorial := by sorry
+    ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by
+  constructor
+  . intro hf S hS hcard
+    let f': S → image f S := fun x ↦ ⟨f ⟨x.val, hS _ x.prop⟩, by
+      rw [mem_image]
+      use ⟨x, hS _ x.prop⟩
+      simp
+      exact x.prop
+    ⟩
+    have h : image f' S = image f S := by
+      apply ext
+      intro z
+      repeat rw [mem_image]
+      unfold f'
+      aesop
+    have hf' : Function.Injective f' := by
+      intro x y hfxy
+      rw [Subtype.mk.injEq] at hfxy
+      rw [Subtype.val_inj] at hfxy
+      apply hf at hfxy
+      rw [Subtype.mk.injEq] at hfxy
+      rw [Subtype.val_inj] at hfxy
+      exact hfxy
+    rw [← h]
+    have him_finite : S.finite := by
+      rw [finite]
+      use 2
+      exact card_to_has_card _ 2 (by omega) hcard
+    rw [card_image_inj him_finite hf']
+    exact hcard
+  . intro h
+    intro x y hfxy
+    let S: Set := {x.val, y.val}
+    have hS : S ⊆ X := by
+      intro z hz
+      dsimp [S] at hz
+      rw [mem_pair] at hz
+      cases' hz with hz1 hz2
+      . rw [hz1]
+        exact x.property
+      . rw [hz2]
+        exact y.property
+    specialize h S hS
+    by_contra! hxy
+    have : S.card = 2 := by
+      unfold S
+      have hxfin: ({x.val}:Set).finite := by exact singleton_finite _
+      have hynotin: y.val ∉ ({x.val}:Set) := by
+        by_contra! h
+        rw [mem_singleton] at h
+        rw [Subtype.val_inj] at h
+        symm at h
+        contradiction
+      have := (card_insert hxfin hynotin).2
+      rw [card_singleton] at this
+      have hu : ({x.val}:Set) ∪ ({y.val}:Set) = ({x.val, y.val}:Set) := by
+        apply ext
+        intro z
+        rw [mem_union]
+        repeat rw [mem_singleton]
+        rw [mem_pair]
+      rw [hu] at this
+      exact this
+    have himcard := h this
+    have him_eq : image f S = ({(f x).val, (f y).val}:Set) := by
+      rw [image]
+      apply ext
+      intro z
+      rw [replacement_axiom]
+      rw [mem_pair]
+      aesop
+    rw [him_eq] at himcard
+    have : ({(f x).val, (f y).val}:Set) = {(f x).val} := by
+      apply ext
+      intro z
+      rw [mem_pair, mem_singleton]
+      rw [hfxy]
+      tauto
+    rw [this] at himcard
+    rw [card_singleton] at himcard
+    omega
 
 /-- Connections with Mathlib's `Nat.card` -/
 theorem SetTheory.Set.card_eq_nat_card {X:Set} : X.card = Nat.card X := by sorry

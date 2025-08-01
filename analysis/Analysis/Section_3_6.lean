@@ -1,4 +1,5 @@
 import Mathlib.Tactic
+import Mathlib.Data.Nat.Basic
 import Analysis.Section_3_5
 
 /-!
@@ -2499,7 +2500,7 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
       use Fin_downcast (by omega) i
 
 /-- Exercise 3.6.11 -/
-theorem SetTheory.Set.two_to_two {X Y:Set} (f: X → Y): Function.Injective f ↔
+theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
     ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by
   constructor
   . intro hf S hS hcard
@@ -2582,8 +2583,130 @@ theorem SetTheory.Set.two_to_two {X Y:Set} (f: X → Y): Function.Injective f �
     rw [card_singleton] at himcard
     omega
 
+/-- Exercise 3.6.12 -/
+def SetTheory.Set.Permutations (n: ℕ): Set := (Fin n ^ Fin n).specify (fun F ↦
+    let f := Classical.choose ((powerset_axiom F).mp F.prop)
+    Function.Bijective f)
+
+/-- Exercise 3.6.12 (i) -/
+theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := by
+  have hpow_fin := card_pow (Fin_finite n) (Fin_finite n)
+  have hsub: Permutations n ⊆ (Fin n ^ Fin n) := by
+    intro x h
+    rw [Permutations] at h
+    apply specification_axiom
+    exact h
+  exact (card_subset hpow_fin.1 hsub).1
+
+/-- Exercise 3.6.12 (i) -/
+theorem SetTheory.Set.Permutations_ih (n: ℕ):
+    (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
+  sorry
+
+/-- Exercise 3.6.12 (ii) -/
+theorem SetTheory.Set.Permutations_card (n: ℕ):
+    (Permutations n).card = Nat.factorial n := by
+  induction' n with n ih
+  . suffices Permutations 0 = ({function_to_object ∅ ∅ empty_fn}: Set) by
+      rw [this]
+      rw [card_singleton]
+      simp only [Nat.factorial_zero]
+    apply ext
+    intro x
+    rw [Permutations]
+    rw [specification_axiom'']
+    rw [mem_singleton]
+    simp only
+    constructor
+    . intro h
+      obtain ⟨hf, hf'⟩ := h
+      rw [powerset_axiom] at hf
+      obtain ⟨f, hf⟩ := hf
+      rw [← hf]
+      rw [coe_of_fun]
+      revert f
+      rw [Fin_zero_empty]
+      intro f hf
+      simp only [EmbeddingLike.apply_eq_iff_eq]
+      ext x
+      exfalso
+      have hp := x.prop
+      have := not_mem_empty x
+      contradiction
+    . simp [Fin_zero_empty]
+      intro h
+      have : x ∈ (∅:Set) ^ (∅:Set) := by
+        rw [powerset_axiom]
+        use empty_fn
+        rw [h]
+        rfl
+      use this
+      constructor
+      . intro x1 x2 h
+        have h := x1.property
+        simp only [Fin_zero_empty, not_mem_empty] at h
+      . intro y
+        have hy := y.property
+        simp only [Fin_zero_empty, not_mem_empty] at hy
+  . rw [Permutations_ih, ih]
+    exact rfl
+
+theorem SetTheory.Set.Fin_mathlib_eq (n: ℕ) : ∃ f: (Fin n) → (_root_.Fin n), Function.Bijective f := by
+  use fun x ↦
+    have h := x.property
+    have hfin := (mem_Fin _ _).mp h
+    let m := Classical.choose hfin
+    have h1 := Classical.choose_spec hfin
+    ⟨m, by
+      dsimp [m]
+      exact h1.1
+    ⟩
+  constructor
+  . intro x y hxy
+    simp at hxy
+    generalize_proofs a b at hxy
+    have ha := Classical.choose_spec a
+    have hb := Classical.choose_spec b
+    rw [Subtype.mk.injEq]
+    rw [ha.2, hb.2]
+    rw [hxy]
+  . intro z
+    use ⟨z.val, by
+      rw [mem_Fin]
+      use z.val
+      simp
+    ⟩
+    simp
+    generalize_proofs a b
+    have ha := Classical.choose_spec a
+    rw [Fin.mk.injEq]
+    exact ha.2.symm
+
 /-- Connections with Mathlib's `Nat.card` -/
-theorem SetTheory.Set.card_eq_nat_card {X:Set} : X.card = Nat.card X := by sorry
+theorem SetTheory.Set.card_eq_nat_card {X:Set} : X.card = Nat.card X := by
+  by_cases h : X.finite
+  . rw [finite] at h
+    obtain ⟨n, hX⟩ := h
+    have hX' := hX
+    rw [has_card_iff] at hX
+    obtain ⟨f, hf⟩ := hX
+    obtain ⟨fFin, hfFin⟩ := SetTheory.Set.Fin_mathlib_eq n
+    let composed := fFin ∘ f
+    have hcomp : Function.Bijective composed := Function.Bijective.comp hfFin hf
+    let e := Equiv.ofBijective composed hcomp
+    let fintype_inst : Fintype X := Fintype.ofBijective e.symm e.symm.bijective
+    have : Nat.card X = n := by
+      rw [Nat.card_eq_fintype_card]
+      have := Fintype.card_of_bijective e.symm.bijective
+      rw [← this]
+      simp only [Fintype.card_fin]
+    rw [this]
+    exact has_card_to_card _ _ hX'
+  . have : X.card = 0 := by dsimp [card]; simp [h]
+    rw [finite] at h
+    rw [this]
+    symm
+    sorry
 
 /-- Connections with Mathlib's `Set.ncard` -/
 theorem SetTheory.Set.card_eq_ncard {X:Set} : X.card = (X: _root_.Set Object).ncard := by sorry

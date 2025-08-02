@@ -2584,6 +2584,39 @@ def SetTheory.Set.Permutations (n: ℕ): Set := (Fin n ^ Fin n).specify (fun F �
     let f := Classical.choose ((powerset_axiom F).mp F.prop)
     Function.Bijective f)
 
+theorem SetTheory.Set.mem_Permutations (n: ℕ) (F: Object): F ∈ Permutations n ↔
+    ∃ f: Fin n → Fin n, Function.Bijective f ∧ F = function_to_object _ _ f := by
+  rw [Permutations]
+  rw [specification_axiom'']
+  constructor
+  . intro h
+    obtain ⟨hf, hf'⟩ := h
+    rw [powerset_axiom] at hf
+    obtain ⟨f, hf''⟩ := hf
+    simp at hf'
+    use f
+    generalize_proofs a at hf'
+    have ha := Classical.choose_spec a
+    subst F
+    rw [coe_of_fun_inj] at ha
+    constructor
+    . rw [ha] at hf'
+      exact hf'
+    . rw [powerset_axiom] at hf
+      exact rfl
+  . intro h
+    obtain ⟨f, hf, he⟩ := h
+    have h: F ∈ Fin n ^ Fin n := by rw [powerset_axiom]; use f; rw [he]; rfl
+    use h
+    simp only
+    generalize_proofs a
+    have ha := Classical.choose_spec a
+    subst F
+    rw [coe_of_fun] at ha
+    simp only [EmbeddingLike.apply_eq_iff_eq] at ha
+    rw [ha]
+    exact hf
+
 /-- Exercise 3.6.12 (i) -/
 theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := by
   have hpow_fin := card_pow (Fin_finite n) (Fin_finite n)
@@ -2597,7 +2630,80 @@ theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := b
 /-- Exercise 3.6.12 (i) -/
 theorem SetTheory.Set.Permutations_ih (n: ℕ):
     (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
-  sorry
+  -- we will construct a bijection between `Permutations (n + 1)` and `Fin (n + 1) × Permutations n`
+  let f : Permutations (n + 1) → Fin (n + 1) ×ˢ Permutations n := fun x ↦
+    have hfin := (mem_Permutations (n + 1) x).mp x.prop
+    let f' := Classical.choose hfin
+    have hf := Classical.choose_spec hfin
+    let y := f' ⟨n, by rw [mem_Fin]; use n; constructor; exact lt_add_one n; rfl⟩
+    let yN := Classical.choose ((mem_Fin _ _).mp y.property)
+    let g : Fin n → Fin n := fun i ↦
+      let yi := f' (Fin_downcast (by omega) i)
+      let yiN := Classical.choose ((mem_Fin _ _).mp yi.property)
+      if h: yiN < yN then Fin_mk n yiN (by
+        have hyiN := yi.property
+        rw [mem_Fin] at hyiN
+        obtain ⟨k, hk, hkm⟩ := hyiN
+        have yNs := Classical.choose_spec ((mem_Fin _ _).mp y.property)
+        generalize_proofs a at yNs
+        have : choose a = yN := by rfl
+        rw [this] at yNs
+        linarith
+      )
+      else Fin_mk n (yiN - 1) (by
+        have hyiN := yi.property
+        rw [mem_Fin] at hyiN
+        obtain ⟨k, hk, hkm⟩ := hyiN
+        have yiNs := Classical.choose_spec ((mem_Fin _ _).mp yi.property)
+        generalize_proofs a at yiNs
+        have : choose a = yiN := by rfl
+        rw [this] at yiNs
+        rw [Nat.sub_lt_iff_lt_add]
+        . exact yiNs.1
+        . simp at h
+          have hneq : yiN ≠ yN := by
+            have yne : y ≠ yi := by
+              dsimp [y, yi, f']
+              intro h
+              apply hf.1.injective at h
+              dsimp [Fin_downcast] at h
+              rw [Subtype.mk.injEq] at h
+              have hi := i.prop
+              rw [mem_Fin] at hi
+              obtain ⟨k, hk, hkm⟩ := hi
+              rw [← h] at hkm
+              simp only [Object.natCast_inj] at hkm
+              linarith
+            dsimp [yiN, yN]
+            intro h
+            generalize_proofs b at h
+            have hb := Classical.choose_spec b
+            rw [this] at h
+            rw [← h] at hb
+            rw [← yiNs.2] at hb
+            have := hb.2
+            rw [Subtype.val_inj] at this
+            contradiction
+          have : yN < yiN := by exact Nat.lt_of_le_of_ne h (id (Ne.symm hneq))
+          linarith
+      )
+    let G := function_to_object (Fin n) (Fin n) g
+    have hG : G ∈ Permutations n := by
+      rw [mem_Permutations]
+      use g
+      constructor
+      . sorry
+      . rfl
+    mk_cart y ⟨G, hG⟩
+  have hf : Function.Bijective f := by
+    sorry
+  have e : EqualCard (Permutations (n + 1)) (Fin (n + 1) ×ˢ Permutations n) := by
+    use f
+  have h := EquivCard_to_card_eq e
+  rw [h]
+  have hprod := card_prod (Fin_finite (n + 1)) (Permutations_finite n)
+  rw [hprod.2]
+  rw [Fin_card]
 
 /-- Exercise 3.6.12 (ii) -/
 theorem SetTheory.Set.Permutations_card (n: ℕ):

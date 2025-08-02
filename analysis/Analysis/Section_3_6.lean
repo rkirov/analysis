@@ -2224,12 +2224,21 @@ theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A 
   apply nonempty_def at hA
   obtain ⟨a, ha⟩ := hA
   let g: B → A := fun b ↦
-    if hb: ∃ a, f a = b then Classical.choose hb else ⟨a, ha⟩
+    -- using unique choise instead of full AC here
+    if hb: ∃! a, f a = b then Classical.choose hb.exists else ⟨a, ha⟩
   use g
   intro a
   use f a
+  have huqinue : ∃! a', f a' = f a := by
+    apply existsUnique_of_exists_of_unique
+    . use a
+    . intro x y hxy
+      rw [← hxy]
+      intro h
+      apply hf
+      exact h.symm
   unfold g
-  simp only [exists_apply_eq_apply, ↓reduceDIte]
+  simp only [huqinue, ↓reduceDIte]
   generalize_proofs p1
   have h1 := Classical.choose_spec p1
   apply hf
@@ -2693,16 +2702,67 @@ theorem SetTheory.Set.card_eq_nat_card {X:Set} : X.card = Nat.card X := by
     rw [finite] at h
     rw [this]
     symm
-    sorry
+    by_contra! hX
+    let hE: X ≃ _root_.Fin (Nat.card X) := by
+      have : Finite X.toSubtype := Nat.finite_of_card_ne_zero hX
+      have I: Fintype X.toSubtype := Fintype.ofFinite X.toSubtype
+      have := Fintype.equivFin X.toSubtype
+      rw [← Nat.card_eq_fintype_card] at this
+      exact this
+    let f := Classical.choose (Fin_mathlib_eq (Nat.card X))
+    have hf := Classical.choose_spec (Fin_mathlib_eq (Nat.card X))
+    let e := Equiv.ofBijective f hf
+    let e' := hE.trans e.symm
+    have : X.has_card (Nat.card X) := by
+      rw [has_card_iff]
+      use e'
+      exact e'.bijective
+    push_neg at h
+    specialize h (Nat.card X)
+    contradiction
 
 /-- Connections with Mathlib's `Set.ncard` -/
-theorem SetTheory.Set.card_eq_ncard {X:Set} : X.card = (X: _root_.Set Object).ncard := by sorry
+theorem SetTheory.Set.card_eq_ncard {X:Set} : X.card = (X: _root_.Set Object).ncard := by
+  rw [SetTheory.Set.card_eq_nat_card]
+  rfl
 
 /-- Connections with Mathlib's `Finite` -/
-theorem SetTheory.Set.finite_iff_finite {X:Set} : X.finite ↔ Finite X := by sorry
+theorem SetTheory.Set.finite_iff_finite {X:Set} : X.finite ↔ Finite X := by
+  constructor
+  . intro hX
+    rw [finite] at hX
+    obtain ⟨n, hX⟩ := hX
+    by_cases hn: n = 0
+    . rw [hn] at hX
+      rw [has_card_zero] at hX
+      rw [hX]
+      rw [← Fin_zero_empty]
+      have := Fin_mathlib_eq 0
+      let f := Classical.choose this
+      have hf := Classical.choose_spec this
+      let e := Equiv.ofBijective f hf
+      exact Finite.of_equiv (_root_.Fin 0) e.symm
+    have := has_card_to_card _ _ hX
+    rw [SetTheory.Set.card_eq_nat_card] at this
+    rw [← this] at hn
+    exact Nat.finite_of_card_ne_zero hn
+  . intro hX
+    let e := @Finite.equivFin X.toSubtype hX
+    have := Fin_mathlib_eq (Nat.card X)
+    let f := Classical.choose this
+    have hf := Classical.choose_spec this
+    let e' := Equiv.ofBijective f hf
+    let e'' := e.trans e'.symm
+    rw [finite]
+    use Nat.card X
+    rw [has_card_iff]
+    use e''
+    exact e''.bijective
 
 /-- Connections with Mathlib's `Set.Finite` -/
 theorem SetTheory.Set.finite_iff_set_finite {X:Set} :
-    X.finite ↔ (X :_root_.Set Object).Finite := by sorry
+    X.finite ↔ (X :_root_.Set Object).Finite := by
+  rw [SetTheory.Set.finite_iff_finite]
+  rfl
 
 end Chapter3

@@ -772,6 +772,16 @@ theorem SetTheory.Set.Fin.toNat_spec {n:ℕ} (i: Fin n) :
 
 theorem SetTheory.Set.Fin.toNat_lt {n:ℕ} (i: Fin n) : i < n := (toNat_spec i).choose
 
+theorem SetTheory.Set.Fin.toNat_inj {n:ℕ} (i j: Fin n) : toNat i = toNat j ↔ i = j := by
+  constructor
+  . intro h
+    have ⟨_, hi⟩ := toNat_spec i
+    have ⟨_, hj⟩  := toNat_spec j
+    rw [hi, hj]
+    simp only [Subtype.mk.injEq, Object.natCast_inj]
+    exact h
+  . intro h; subst h; rfl
+
 @[simp]
 theorem SetTheory.Set.Fin.coe_toNat {n:ℕ} (i: Fin n) : ((i:ℕ):Object) = (i:Object) := by
   set j := (i:ℕ); obtain ⟨ h, h':i = Fin_mk n j h ⟩ := toNat_spec i; rw [h']

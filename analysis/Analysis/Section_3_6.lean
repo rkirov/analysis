@@ -481,11 +481,9 @@ theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ 
     simp_all
     rw [← Finset.card_eq_zero, Finset.card_fin] at h
     use 0
-    intro a b
-    rw [h] at b
-    rw [Fin_zero_empty] at b
-    have nb := not_mem_empty a
-    contradiction
+    intro a b hab
+    rw [h] at hab
+    omega
 
 /-- Theorem 3.6.12 -/
 theorem SetTheory.Set.nat_infinite : infinite nat := by
@@ -1967,9 +1965,6 @@ theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint
         exact hc
       rw [this]
 
-theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint B C) :
-    EqualCard ((A ^ B) ×ˢ (A ^ C)) (A ^ (B ∪ C)) := by sorry
-
 example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
   let A := SetTheory.Set.Fin a
   let BC := SetTheory.Set.Fin (b + c)
@@ -2921,11 +2916,7 @@ theorem SetTheory.Set.Permutations_card (n: ℕ):
       contradiction
     . simp [Fin_zero_empty]
       intro h
-      have : x ∈ (∅:Set) ^ (∅:Set) := by
-        rw [powerset_axiom]
-        use empty_fn
-        rw [h]
-        rfl
+      have : ∃ f : (∅:Set) → (∅:Set), ↑f = x := by exact Exists.intro empty_fn (id (Eq.symm h))
       use this
       constructor
       . intro x1 x2 h

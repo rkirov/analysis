@@ -285,6 +285,7 @@ theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by
       have hneq := not_mem_empty y
       contradiction
 
+set_option maxHeartbeats 2000000 in
 /-- Lemma 3.6.9 -/
 theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n) (x:X) :
     (X \ {x.val}).has_card (n-1) := by
@@ -313,17 +314,218 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
   have hg : Function.Bijective g := by
     constructor
     . intro y1 y2 h
-      simp [g] at h
-      sorry
-    . intro y
-      let e := Equiv.ofBijective f hf
-      sorry
-      -- by_cases h: y < m₀
-      -- . use e.symm ⟨y, by have := y.prop; rw [mem_Fin] at this; exact Xsub y _⟩
-      --   sorry
-      -- . use e.symm y + 1
-      --   sorry
+      have hy1 := y1.property
+      have hy2 := y2.property
+      simp [X'] at hy1 hy2
+      obtain ⟨ hy11, hy12 ⟩ := hy1
+      obtain ⟨ hy21, hy22 ⟩ := hy2
+      have h1 := (f ⟨y1.val, hy11⟩).property
+      have h2 := (f ⟨y2.val, hy21⟩).property
+      rw [mem_Fin] at h1 h2
+      have ⟨hm1n, hm1m⟩ := h1.choose_spec
+      have ⟨hm2n, hm2m⟩ := h2.choose_spec
+      set m1' := h1.choose
+      set m2' := h2.choose
+      ext
+      set y1' : X := ⟨y1.val, hy11⟩
+      set y2' : X := ⟨y2.val, hy21⟩
+      suffices y1' = y2' by
+        rwa [← Subtype.val_inj] at this
+      rw [← hf.injective.eq_iff]
+      suffices m1' = m2' by
+        rw [this] at hm1m
+        rw [← hm1m] at hm2m
+        rw [Subtype.val_inj] at hm2m
+        exact hm2m.symm
 
+      have hm1_ne : m1' ≠ m₀ := by
+        contrapose! hy12
+        rwa [hy12, ←hm₀f, Subtype.val_inj, hf.injective.eq_iff, ←Subtype.val_inj] at hm1m
+
+      have hm2_ne : m2' ≠ m₀ := by
+        contrapose! hy22
+        rwa [hy22, ←hm₀f, Subtype.val_inj, hf.injective.eq_iff, ←Subtype.val_inj] at hm2m
+
+      by_cases h1_lt : m1' < m₀
+      . have hg1 : g y1 = Fin_mk (n-1) m1' (by omega) := by
+          unfold g
+          have hyp := (f ⟨y1.val, hy11⟩).property
+          rw [mem_Fin] at hyp
+          have : hyp.choose = m1' := rfl
+          simp [this, h1_lt]
+          generalize_proofs _ _ _ _ a
+          rw [show a = ⟨hy11, hy12⟩ from rfl]
+          simp only
+          generalize_proofs _ b
+          cases b with
+          | intro _ _ => rfl
+        . by_cases h2_lt : m2' < m₀
+          -- These "g eval" helper proofs are repeated 4 times below
+          -- once for each case of h1_lt, h2_lt
+          -- todo: extract into a helper lemma to avoid duplication
+          . have hg2 : g y2 = Fin_mk (n-1) m2' (by omega) := by
+              unfold g
+              have hyp := (f ⟨y2.val, hy21⟩).property
+              rw [mem_Fin] at hyp
+              have : hyp.choose = m2' := rfl
+              simp [this, h2_lt]
+              generalize_proofs _ _ _ _ a
+              rw [show a = ⟨hy21, hy22⟩ from rfl]
+              simp only
+              generalize_proofs _ b
+              cases b with
+              | intro _ _ => rfl
+            rw [hg1, hg2] at h
+            simp only [Subtype.mk.injEq, Object.natCast_inj] at h
+            exact h
+          . exfalso
+            have hg2 : g y2 = Fin_mk (n-1) (m2'-1) (by omega) := by
+              unfold g
+              have hyp := (f ⟨y2.val, hy21⟩).property
+              rw [mem_Fin] at hyp
+              have : hyp.choose = m2' := rfl
+              simp [this, if_neg h2_lt]
+              generalize_proofs _ _ _ _ _ a
+              rw [show a = ⟨hy21, hy22⟩ from rfl]
+              simp only
+              generalize_proofs _ b
+              cases b with
+              | intro _ _ => simp [h2_lt]
+            rw [hg1, hg2] at h
+            rw [Subtype.mk.injEq, Object.natCast_inj] at h
+            simp only [not_lt] at h2_lt
+            have h2_gt : m2' > m₀ := by exact Nat.lt_of_le_of_ne h2_lt (id (Ne.symm hm2_ne))
+            omega
+      . have hg1 : g y1 = Fin_mk (n-1) (m1'-1) (by omega) := by
+          unfold g
+          have hyp := (f ⟨y1.val, hy11⟩).property
+          rw [mem_Fin] at hyp
+          have : hyp.choose = m1' := rfl
+          simp [this, if_neg h1_lt]
+          generalize_proofs _ _ _ _ _ a
+          rw [show a = ⟨hy11, hy12⟩ from rfl]
+          simp only
+          generalize_proofs _ b
+          cases b with
+          | intro _ _ => simp [h1_lt]
+        by_cases h2_lt : m2' < m₀
+        . have hg2 : g y2 = Fin_mk (n-1) m2' (by omega) := by
+            unfold g
+            have hyp := (f ⟨y2.val, hy21⟩).property
+            rw [mem_Fin] at hyp
+            have : hyp.choose = m2' := rfl
+            simp [this, h2_lt]
+            generalize_proofs _ _ _ _ a
+            rw [show a = ⟨hy21, hy22⟩ from rfl]
+            simp only
+            generalize_proofs _ b
+            cases b with
+            | intro _ _ => rfl
+          rw [hg1, hg2] at h
+          exfalso
+          rw [Subtype.mk.injEq, Object.natCast_inj] at h
+          omega
+        . have hg2 : g y2 = Fin_mk (n-1) (m2'-1) (by omega) := by
+            unfold g
+            have hyp := (f ⟨y2.val, hy21⟩).property
+            rw [mem_Fin] at hyp
+            have : hyp.choose = m2' := rfl
+            simp [this, h2_lt]
+            generalize_proofs _ _ _ _ a
+            rw [show a = ⟨hy21, hy22⟩ from rfl]
+            simp only
+            generalize_proofs _ b
+            cases b with
+            | intro _ _ => simp [h2_lt]
+          rw [hg1, hg2] at h
+          rw [Subtype.mk.injEq, Object.natCast_inj] at h
+          omega
+    . intro y
+      have hy := y.property
+      rw [mem_Fin] at hy
+      obtain ⟨ m, hm, hmn ⟩ := hy
+      by_cases h: m < m₀
+      . have hx := hf.surjective (Fin_mk _ m (by omega))
+        obtain ⟨ x', hx'f ⟩ := hx
+        have hneq' : x'.val ≠ x.val := by
+          by_contra! hmn
+          rw [Subtype.val_inj] at hmn
+          subst x'
+          rw [hx'f] at hm₀f
+          simp only [Object.natCast_inj, X'] at hm₀f
+          omega
+        have hx' : x'.val ∈ X' := by
+          dsimp [X']
+          rw [mem_sdiff]
+          constructor
+          . exact x'.property
+          . rw [mem_singleton]
+            intro h
+            contradiction
+        use ⟨x', hx'⟩
+        dsimp [g]
+        generalize_proofs _ _ _ _ _ a
+        rw [show a = ⟨x'.prop, hneq'⟩  from rfl]
+        simp only
+        generalize_proofs _ _ _ c b
+        cases b with
+        | intro _ _ =>
+          simp [h]
+          have hc := (c.choose_spec).2
+          conv_lhs at hc => rw [Subtype.coe_eta, hx'f]; simp only []
+          rw [Object.natCast_inj] at hc
+          rw [hc] at h
+          simp only [h, ↓reduceDIte]
+          rw [← Subtype.val_inj]
+          generalize_proofs d _
+          have hd := (d.choose_spec).2
+          rw [hmn]
+          conv_lhs at hd => rw [hx'f]
+          simp only [Object.natCast_inj] at hd
+          rw [hd]
+      . have hx := hf.surjective (Fin_mk _ (m + 1) (by omega))
+        obtain ⟨ x', hx'f ⟩ := hx
+        have hneq' : x'.val ≠ x.val := by
+          by_contra! hmn
+          rw [Subtype.val_inj] at hmn
+          subst x'
+          rw [hx'f] at hm₀f
+          simp only [Object.natCast_inj, X'] at hm₀f
+          omega
+        have hx' : x'.val ∈ X' := by
+          dsimp [X']
+          rw [mem_sdiff]
+          constructor
+          . exact x'.property
+          . rw [mem_singleton]
+            intro h
+            contradiction
+        use ⟨x', hx'⟩
+        dsimp [g]
+        generalize_proofs _ _ _ _ _ a
+        rw [show a = ⟨x'.prop, hneq'⟩  from rfl]
+        simp only
+        generalize_proofs _ _ _ c b
+        cases b with
+        | intro _ _ =>
+          simp [h]
+          have hc := (c.choose_spec).2
+          conv_lhs at hc => rw [Subtype.coe_eta, hx'f]; simp only []
+          rw [Object.natCast_inj] at hc
+          simp only [not_lt] at h
+          have :¬ c.choose < m₀ := by
+            intro h
+            rw [← hc] at h
+            omega
+          simp only [this, ↓reduceDIte]
+          rw [← Subtype.val_inj]
+          generalize_proofs d _
+          have hd := (d.choose_spec).2
+          rw [hmn]
+          conv_lhs at hd => rw [hx'f]
+          simp only [Object.natCast_inj] at hd
+          have : m = d.choose - 1 := by exact Nat.eq_sub_of_add_eq hc
+          rw [this]
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/

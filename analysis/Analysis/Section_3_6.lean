@@ -2268,6 +2268,17 @@ def SetTheory.Set.Fin_downcast {n m:ℕ} (h: n ≤ m) : Fin n → Fin m := fun x
     . exact hkm
   ⟩
 
+theorem SetTheory.Set.Fin_downcast_inj {n m:ℕ} (h: n ≤ m) (x y: Fin n):
+    Fin_downcast h x = Fin_downcast h y ↔ x = y := by
+  constructor
+  . intro h
+    simp only [Fin_downcast] at h
+    rw [Subtype.mk.injEq] at h
+    rw [Subtype.val_inj] at h
+    exact h
+  . intro h
+    rw [h]
+
 lemma SetTheory.Set.iUnion_of_finite {n:ℕ} {A: Fin n → Set} (hA: ∀ i, (A i).finite): ((Fin n).iUnion A).finite := by
   induction' n with n ih
   . have := Fin_zero_empty
@@ -2529,10 +2540,14 @@ theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := b
     exact h
   exact (card_subset hpow_fin.1 hsub).1
 
+set_option maxHeartbeats 1000000 in
 /-- Exercise 3.6.12 (i) -/
 theorem SetTheory.Set.Permutations_ih (n: ℕ):
     (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
   -- we will construct a bijection between `Permutations (n + 1)` and `Fin (n + 1) × Permutations n`
+  -- the basic idea is take f n as the first component
+  -- construct a function g from `Fin n` to `Fin n` that
+  -- skips f n in the image, by subtracting 1 from all images above f n.
   let f : Permutations (n + 1) → Fin (n + 1) ×ˢ Permutations n := fun x ↦
     have hfin := (mem_Permutations (n + 1) x).mp x.prop
     let f' := Classical.choose hfin
@@ -2594,11 +2609,220 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
       rw [mem_Permutations]
       use g
       constructor
-      . sorry
+      . constructor
+        . intro i j h
+          unfold g at h
+          simp at h
+          generalize_proofs _ a _ _ d e f at h
+          have ha := Classical.choose_spec a
+          have hd := Classical.choose_spec d
+          have hneqd : choose d ≠ yN := by
+            dsimp [yN]
+            generalize_proofs b
+            have hb := Classical.choose_spec b
+            intro h
+            rw [← h] at hb
+            rw [← hd.2] at hb
+            have := hb.2
+            dsimp [y] at this
+            rw [Subtype.val_inj] at this
+            apply hf.1.injective at this
+            rw [Fin_downcast] at this
+            rw [Subtype.mk.injEq] at this
+            have hj := j.prop
+            rw [mem_Fin] at hj
+            obtain ⟨k, hk, hkm⟩ := hj
+            rw [hkm] at this
+            simp only [Object.natCast_inj] at this
+            linarith
+          -- more copy/pasta from above
+          -- todo: clean up
+          have hneqa : choose a ≠ yN := by
+            dsimp [yN]
+            generalize_proofs b
+            have hb := Classical.choose_spec b
+            intro h
+            rw [← h] at hb
+            rw [← ha.2] at hb
+            have := hb.2
+            dsimp [y] at this
+            rw [Subtype.val_inj] at this
+            apply hf.1.injective at this
+            rw [Fin_downcast] at this
+            rw [Subtype.mk.injEq] at this
+            have hi := i.prop
+            rw [mem_Fin] at hi
+            obtain ⟨k, hk, hkm⟩ := hi
+            rw [hkm] at this
+            simp only [Object.natCast_inj] at this
+            linarith
+          by_cases ha1 : choose a < yN
+          . simp [ha1] at h
+            by_cases hd1 : choose d < yN
+            . simp [hd1] at h
+              rw [h] at ha
+              rw [← hd.2] at ha
+              have := ha.2
+              rw [Subtype.val_inj] at this
+              apply hf.1.injective at this
+              rw [Fin_downcast_inj] at this
+              exact this
+            . simp [hd1] at h
+              rw [h] at ha
+              rw [h] at ha1
+              simp at hd1
+              exfalso
+              have : yN < choose d := by exact Nat.lt_of_le_of_ne hd1 (id (Ne.symm hneqd))
+              exfalso
+              have : yN ≤ choose d - 1 := by exact Nat.le_sub_one_of_lt this
+              have := Nat.lt_of_lt_of_le ha1 this
+              exfalso
+              exact (lt_self_iff_false (choose d - 1)).mp this
+          . simp [ha1] at h
+            by_cases hd1 : choose d < yN
+            . simp [hd1] at h
+              simp at ha1
+              have : yN < choose a := by exact Nat.lt_of_le_of_ne ha1 (id (Ne.symm hneqa))
+              exfalso
+              rw [← h] at hd1
+              omega
+            . simp [hd1] at h
+              have ha2 : yN < choose a := by omega
+              have hd2 : yN < choose d := by omega
+              have ha_pos : 0 < choose a := Nat.lt_of_le_of_lt (Nat.zero_le _) ha2
+              have hd_pos : 0 < choose d := Nat.lt_of_le_of_lt (Nat.zero_le _) hd2
+              have had : choose a = choose d := by exact Nat.sub_one_cancel ha_pos hd_pos h
+              have := ha.2
+              rw [had] at this
+              rw [← hd.2] at this
+              rw [Subtype.val_inj] at this
+              apply hf.1.injective at this
+              rw [Fin_downcast_inj] at this
+              exact this
+        . intro y2
+          have hy2 := y2.property
+          rw [mem_Fin] at hy2
+          obtain ⟨k, hk, hkm⟩ := hy2
+          dsimp [g]
+          by_cases h1: k < yN
+          . obtain ⟨x, hx⟩ := hf.1.surjective (Fin_downcast (by omega) y2)
+            rw [Fin_downcast] at hx
+            simp [hkm] at hx
+            have xp := x.property
+            rw [mem_Fin] at xp
+            obtain ⟨k', hk', hkm'⟩ := xp
+            have hk'n : k' ≠ n := by
+              by_contra! h
+              subst k'
+              dsimp [yN] at h1
+              generalize_proofs a at h1
+              have ha := (Classical.choose_spec a).2
+              dsimp [y] at ha
+              conv_lhs at ha => simp [← hkm']
+              dsimp [f'] at ha
+              simp [hx] at ha
+              linarith
+            use ⟨k', by
+              rw [mem_Fin]
+              use k'
+              constructor
+              . omega
+              . rfl
+            ⟩
+            generalize_proofs _ _ a
+            have ha := Classical.choose_spec a
+            have := ha.2
+            dsimp [f'] at this
+            have : choose a = k := by
+              apply (Object.natCast_inj _ _).mp
+              rw [← this]
+              rw [← Subtype.val_inj] at hx
+              simp at hx
+              rw [← hx]
+              rw [Subtype.val_inj]
+              congr!
+              rw [Fin_downcast]
+              simp only
+              rw [← Subtype.val_inj]
+              simp only
+              exact hkm'.symm
+            simp [this, h1]
+            rw [Fin_mk]
+            rw [Subtype.mk.injEq]
+            exact hkm.symm
+          . -- very similar as above, just using n + 1 for the f' inverse
+            -- don't know how to refactor well yet so copy/paste with tweaks
+            obtain ⟨x, hx⟩ := hf.1.surjective (Fin_mk (n + 1) (k + 1) (by omega))
+            rw [Fin_mk] at hx
+            have xp := x.property
+            rw [mem_Fin] at xp
+            obtain ⟨k', hk', hkm'⟩ := xp
+            have hk'n : k' ≠ n := by
+              by_contra! h
+              subst k'
+              dsimp [yN] at h1
+              generalize_proofs a at h1
+              have ha := (Classical.choose_spec a).2
+              dsimp [y] at ha
+              conv_lhs at ha => simp [← hkm']
+              dsimp [f'] at ha
+              simp [hx] at ha
+              linarith
+            use ⟨k', by
+              rw [mem_Fin]
+              use k'
+              constructor
+              . omega
+              . rfl
+            ⟩
+            generalize_proofs _ _ a
+            have ha := Classical.choose_spec a
+            have := ha.2
+            dsimp [f'] at this
+            have : choose a = k + 1 := by
+              apply (Object.natCast_inj _ _).mp
+              rw [← this]
+              rw [← Subtype.val_inj] at hx
+              simp at hx
+              rw [← hx]
+              rw [Subtype.val_inj]
+              congr!
+              rw [Fin_downcast]
+              simp only
+              rw [← Subtype.val_inj]
+              simp only
+              exact hkm'.symm
+            have h3 : ¬ (k + 1 < yN) := by omega
+            simp [this, h3]
+            rw [Fin_mk]
+            rw [Subtype.mk.injEq]
+            exact hkm.symm
       . rfl
     mk_cart y ⟨G, hG⟩
   have hf : Function.Bijective f := by
-    sorry
+    constructor
+    . intro x1 x2 hxy
+      unfold f at hxy
+      rw [mk_cart_inj] at hxy
+      obtain ⟨y1, hy1⟩ := hxy
+      have x1p := x1.property
+      have x2p := x2.property
+      rw [mem_Permutations] at x1p x2p
+      obtain ⟨f1, hf1⟩ := x1p
+      obtain ⟨f2, hf2⟩ := x2p
+      suffices f1 = f2 by
+        sorry
+      ext i
+      sorry -- a lot of showing that choose _ from h are equal to f1 or f2
+    . intro p
+      have hp := p.property
+      rw [mem_cartesian] at hp
+      obtain ⟨x, y, h⟩ := hp
+      sorry
+      -- create new function from Fin n + 1 to Fin n + 1 by
+      -- setting f n to x, and g i to y (Fin_downcast (by omega) i)
+      -- add one for all values above x
+      -- then prove again it is a bijection.
   have e : EqualCard (Permutations (n + 1)) (Fin (n + 1) ×ˢ Permutations n) := by
     use f
   have h := EquivCard_to_card_eq e

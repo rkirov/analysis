@@ -2358,28 +2358,6 @@ theorem SetTheory.Set.card_union_add_card_inter {A B:Set} (hA: A.finite) (hB: B.
   rw [hBcard]
   exact Nat.add_right_comm _ _ B.card
 
-def SetTheory.Set.Fin_downcast {n m:ℕ} (h: n ≤ m) : Fin n → Fin m := fun x ↦
-  ⟨x.val, by
-    have hx := x.property
-    rw [mem_Fin] at hx ⊢
-    obtain ⟨k, hk, hkm⟩ := hx
-    use k
-    constructor
-    . exact Nat.lt_of_lt_of_le hk h
-    . exact hkm
-  ⟩
-
-theorem SetTheory.Set.Fin_downcast_inj {n m:ℕ} (h: n ≤ m) (x y: Fin n):
-    Fin_downcast h x = Fin_downcast h y ↔ x = y := by
-  constructor
-  . intro h
-    simp only [Fin_downcast] at h
-    rw [Subtype.mk.injEq] at h
-    rw [Subtype.val_inj] at h
-    exact h
-  . intro h
-    rw [h]
-
 lemma SetTheory.Set.iUnion_of_finite {n:ℕ} {A: Fin n → Set} (hA: ∀ i, (A i).finite): ((Fin n).iUnion A).finite := by
   induction' n with n ih
   . have := Fin_zero_empty
@@ -2388,10 +2366,10 @@ lemma SetTheory.Set.iUnion_of_finite {n:ℕ} {A: Fin n → Set} (hA: ∀ i, (A i
     specialize hempty A
     rw [hempty]
     exact Fin_finite 0
-  . let A' : Fin n → Set := fun i ↦ A (Fin_downcast (by omega) i)
+  . let A' : Fin n → Set := fun i ↦ A (Fin_embed _ _ (by omega) i)
     have hA' : ∀ i, (A' i).finite := by
       intro i
-      exact hA (Fin_downcast (by omega) i)
+      exact hA (Fin_embed _ _ (by omega) i)
     have hA'fin := ih hA'
     let n': Fin (n + 1) := ⟨n, by rw [mem_Fin]; use n; constructor; linarith; rfl⟩
     specialize hA n'
@@ -2405,7 +2383,7 @@ lemma SetTheory.Set.iUnion_of_finite {n:ℕ} {A: Fin n → Set} (hA: ∀ i, (A i
         rw [mem_iUnion] at hx ⊢
         cases' hx with h1 h2
         . obtain ⟨i, hi⟩ := h1
-          use Fin_downcast (by omega) i
+          use Fin_embed _ _ (by omega) i
         . use n'
       . intro h
         rw [mem_union]
@@ -2432,8 +2410,6 @@ lemma SetTheory.Set.iUnion_of_finite {n:ℕ} {A: Fin n → Set} (hA: ∀ i, (A i
               . omega
             . exact hkm
           ⟩
-          dsimp [A']
-          exact hi
     have := card_union hA'fin hA
     rw [hu] at this
     exact this.1
@@ -2449,10 +2425,10 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
       rw [Fin_zero_empty]
       simp [iUnion_of_empty]
   . let n' : Fin (n + 1) := ⟨n, by rw [mem_Fin]; use n; aesop⟩
-    let A': Fin n → Set := fun i ↦ A (Fin_downcast (by omega) i)
+    let A': Fin n → Set := fun i ↦ A (Fin_embed _ _ (by omega) i)
     have hA': (∀ (i : (Fin n).toSubtype), (A' i).finite) := by
       intro i
-      exact hA (Fin_downcast (by omega) i)
+      exact hA (Fin_embed _ _ (by omega) i)
     have hu: ((Fin n).iUnion A') ∪ A n' = (Fin (n + 1)).iUnion A := by
       apply ext
       intro x
@@ -2462,7 +2438,7 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
         rw [mem_iUnion] at hx ⊢
         cases' hx with h1 h2
         . obtain ⟨i, hi⟩ := h1
-          use Fin_downcast (by omega) i
+          use Fin_embed _ _ (by omega) i
         . use n'
       . intro h
         rw [mem_union]
@@ -2489,8 +2465,6 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
               . omega
             . exact hkm
           ⟩
-          dsimp [A']
-          exact hi
     have hA'fin : ((Fin n).iUnion A').finite := iUnion_of_finite hA'
     have hucard := card_union (X:=((Fin n).iUnion A')) (Y:= A n') hA'fin (hA n')
     rw [hu] at hucard
@@ -2507,7 +2481,7 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
       have ip := i.property
       rw [mem_Fin] at ip
       obtain ⟨k, hk, hkm⟩ := ip
-      use Fin_downcast (by omega) i
+      use Fin_embed _ _ (by omega) i
 
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
@@ -2656,7 +2630,7 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
     let y := f' ⟨n, by rw [mem_Fin]; use n; constructor; exact lt_add_one n; rfl⟩
     let yN := Classical.choose ((mem_Fin _ _).mp y.property)
     let g : Fin n → Fin n := fun i ↦
-      let yi := f' (Fin_downcast (by omega) i)
+      let yi := f' (Fin_embed _ _ (by omega) i)
       let yiN := Classical.choose ((mem_Fin _ _).mp yi.property)
       if h: yiN < yN then Fin_mk n yiN (by
         have hyiN := yi.property
@@ -2684,7 +2658,7 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
               dsimp [y, yi, f']
               intro h
               apply hf.1.injective at h
-              dsimp [Fin_downcast] at h
+              dsimp [Fin_embed] at h
               rw [Subtype.mk.injEq] at h
               have hi := i.prop
               rw [mem_Fin] at hi
@@ -2728,8 +2702,7 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
             dsimp [y] at this
             rw [Subtype.val_inj] at this
             apply hf.1.injective at this
-            rw [Fin_downcast] at this
-            rw [Subtype.mk.injEq] at this
+            simp at this
             have hj := j.prop
             rw [mem_Fin] at hj
             obtain ⟨k, hk, hkm⟩ := hj
@@ -2749,11 +2722,10 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
             dsimp [y] at this
             rw [Subtype.val_inj] at this
             apply hf.1.injective at this
-            rw [Fin_downcast] at this
-            rw [Subtype.mk.injEq] at this
             have hi := i.prop
             rw [mem_Fin] at hi
             obtain ⟨k, hk, hkm⟩ := hi
+            simp only [Subtype.mk.injEq] at this
             rw [hkm] at this
             simp only [Object.natCast_inj] at this
             linarith
@@ -2766,8 +2738,8 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
               have := ha.2
               rw [Subtype.val_inj] at this
               apply hf.1.injective at this
-              rw [Fin_downcast_inj] at this
-              exact this
+              simp only [Subtype.mk.injEq] at this
+              rwa [Subtype.val_inj] at this
             . simp [hd1] at h
               rw [h] at ha
               rw [h] at ha1
@@ -2798,16 +2770,15 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
               rw [← hd.2] at this
               rw [Subtype.val_inj] at this
               apply hf.1.injective at this
-              rw [Fin_downcast_inj] at this
-              exact this
+              rwa [Fin.Fin_embed_inj ] at this
         . intro y2
           have hy2 := y2.property
           rw [mem_Fin] at hy2
           obtain ⟨k, hk, hkm⟩ := hy2
           dsimp [g]
           by_cases h1: k < yN
-          . obtain ⟨x, hx⟩ := hf.1.surjective (Fin_downcast (by omega) y2)
-            rw [Fin_downcast] at hx
+          . obtain ⟨x, hx⟩ := hf.1.surjective (Fin_embed _ _ (by omega) y2)
+            rw [Fin_embed] at hx
             simp [hkm] at hx
             have xp := x.property
             rw [mem_Fin] at xp
@@ -2841,11 +2812,8 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
               simp at hx
               rw [← hx]
               rw [Subtype.val_inj]
+              simp [Fin_embed] at ⊢
               congr!
-              rw [Fin_downcast]
-              simp only
-              rw [← Subtype.val_inj]
-              simp only
               exact hkm'.symm
             simp [this, h1]
             rw [Fin_mk]
@@ -2887,11 +2855,8 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
               simp at hx
               rw [← hx]
               rw [Subtype.val_inj]
+              simp [Fin_embed] at ⊢
               congr!
-              rw [Fin_downcast]
-              simp only
-              rw [← Subtype.val_inj]
-              simp only
               exact hkm'.symm
             have h3 : ¬ (k + 1 < yN) := by omega
             simp [this, h3]

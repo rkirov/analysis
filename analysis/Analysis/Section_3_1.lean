@@ -1296,19 +1296,20 @@ theorem SetTheory.Set.specification_from_replacement {A:Set} {P: A → Prop} :
     )
     -- how to not have to copy/paste this?
     have h := replacement_axiom (P:= fun x y => x.val = y ∧ P x) (by
-      intro x y y' h
-      obtain ⟨h1, h2⟩ := h
-      obtain ⟨h1', _⟩ := h1
-      obtain ⟨h2', _⟩ := h2
-      rw [← h1', ← h2']
+        intro x y y' h
+        obtain ⟨h1, h2⟩ := h
+        obtain ⟨h1', _⟩ := h1
+        obtain ⟨h2', _⟩ := h2
+        rw [← h1', ← h2']
     )
     use B
     constructor
     . intro x
       rw [h]
       intro h1
-      obtain ⟨x1, rfl, h1'⟩ := h1
-      exact x1.prop
+      obtain ⟨x1, rfl, h1', h1''⟩ := h1
+      subst x
+      exact x1.property.prop
     . intro x
       rw [h]
       simp

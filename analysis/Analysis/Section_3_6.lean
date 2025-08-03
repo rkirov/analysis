@@ -305,6 +305,15 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
   have hg_def (x':X') : if (f (ι x'):ℕ) < m₀ then (g x':ℕ) = f (ι x') else (g x':ℕ) = f (ι x') - 1 := by
     split_ifs with h' <;> simp [g,h']
 
+  have hX'mem (y: X) (hy: y ≠ x): y.val ∈ X' := by
+    unfold X'
+    rw [mem_sdiff]
+    constructor
+    . exact y.property
+    . rw [mem_singleton]
+      rw [Subtype.val_inj]
+      exact hy
+
   have hι_inj : Function.Injective ι := by
     intro x y hxy
     rw [← Subtype.val_inj] at hxy
@@ -322,66 +331,105 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
     simp [h] at hx'
   have hg : Function.Bijective g := by
     constructor
-    . intro y1 y2 h
-      have hm1_ne : Fin.toNat (f (ι y1)) ≠ m₀ := by
-        by_contra! h
-        rw [← h] at hm₀f
-        simp only [Fin.coe_toNat] at hm₀f
-        rw [Subtype.val_inj] at hm₀f
-        apply hf.injective at hm₀f
-        specialize hι_neq y1
-        symm at hm₀f
-        contradiction
-      have hm2_ne : Fin.toNat (f (ι y2)) ≠ m₀ := by
-        by_contra! h
-        rw [← h] at hm₀f
-        simp only [Fin.coe_toNat] at hm₀f
-        rw [Subtype.val_inj] at hm₀f
-        apply hf.injective at hm₀f
-        specialize hι_neq y2
-        symm at hm₀f
-        contradiction
-      have h1e := hg_def y1
-      have h2e := hg_def y2
-      by_cases h1_lt : f (ι y1) < m₀
-      . by_cases h2_lt : f (ι y2) < m₀
-        . simp [h1_lt] at h1e
-          simp [h2_lt] at h2e
-          rw [h] at h1e
-          rw [h1e] at h2e
-          rw [Fin.toNat_inj] at h2e
-          apply hf.injective at h2e
-          apply hι_inj at h2e
-          exact h2e
-        . simp [h1_lt] at h1e
-          simp [h2_lt] at h2e
-          rw [h] at h1e
-          rw [h1e] at h2e
-          exfalso
-          omega
-      . by_cases h2_lt : f (ι y2) < m₀
-        . simp [h1_lt] at h1e
-          simp [h2_lt] at h2e
-          rw [h] at h1e
-          rw [h1e] at h2e
-          exfalso
-          omega
-        . simp [h1_lt] at h1e
-          simp [h2_lt] at h2e
-          rw [h] at h1e
-          rw [h1e] at h2e
-          rw [not_lt] at h1_lt
-          rw [not_lt] at h2_lt
-          have h1_gt : f (ι y1) > m₀ := by exact Nat.lt_of_le_of_ne h1_lt (id (Ne.symm hm1_ne))
-          have h2_gt : f (ι y2) > m₀ := by exact Nat.lt_of_le_of_ne h2_lt (id (Ne.symm hm2_ne))
-          have h1nz : Fin.toNat (f (ι y1)) > 0 := by exact Nat.zero_lt_of_lt h1_gt
-          have h2nz : Fin.toNat (f (ι y2)) > 0 := by exact Nat.zero_lt_of_lt h2_gt
-          have := Nat.sub_one_cancel h1nz h2nz h2e
-          rw [Fin.toNat_inj] at this
-          apply hf.injective at this
-          apply hι_inj at this
-          exact this
     . sorry
+      -- intro y1 y2 h
+      -- have hm1_ne : Fin.toNat (f (ι y1)) ≠ m₀ := by
+      --   by_contra! h
+      --   rw [← h] at hm₀f
+      --   simp only [Fin.coe_toNat] at hm₀f
+      --   rw [Subtype.val_inj] at hm₀f
+      --   apply hf.injective at hm₀f
+      --   specialize hι_neq y1
+      --   symm at hm₀f
+      --   contradiction
+      -- have hm2_ne : Fin.toNat (f (ι y2)) ≠ m₀ := by
+      --   by_contra! h
+      --   rw [← h] at hm₀f
+      --   simp only [Fin.coe_toNat] at hm₀f
+      --   rw [Subtype.val_inj] at hm₀f
+      --   apply hf.injective at hm₀f
+      --   specialize hι_neq y2
+      --   symm at hm₀f
+      --   contradiction
+      -- have h1e := hg_def y1
+      -- have h2e := hg_def y2
+      -- by_cases h1_lt : f (ι y1) < m₀
+      -- . by_cases h2_lt : f (ι y2) < m₀
+      --   . simp [h1_lt] at h1e
+      --     simp [h2_lt] at h2e
+      --     rw [h] at h1e
+      --     rw [h1e] at h2e
+      --     rw [Fin.toNat_inj] at h2e
+      --     apply hf.injective at h2e
+      --     apply hι_inj at h2e
+      --     exact h2e
+      --   . simp [h1_lt] at h1e
+      --     simp [h2_lt] at h2e
+      --     rw [h] at h1e
+      --     rw [h1e] at h2e
+      --     exfalso
+      --     omega
+      -- . by_cases h2_lt : f (ι y2) < m₀
+      --   . simp [h1_lt] at h1e
+      --     simp [h2_lt] at h2e
+      --     rw [h] at h1e
+      --     rw [h1e] at h2e
+      --     exfalso
+      --     omega
+      --   . simp [h1_lt] at h1e
+      --     simp [h2_lt] at h2e
+      --     rw [h] at h1e
+      --     rw [h1e] at h2e
+      --     rw [not_lt] at h1_lt
+      --     rw [not_lt] at h2_lt
+      --     have h1_gt : f (ι y1) > m₀ := by exact Nat.lt_of_le_of_ne h1_lt (id (Ne.symm hm1_ne))
+      --     have h2_gt : f (ι y2) > m₀ := by exact Nat.lt_of_le_of_ne h2_lt (id (Ne.symm hm2_ne))
+      --     have h1nz : Fin.toNat (f (ι y1)) > 0 := by exact Nat.zero_lt_of_lt h1_gt
+      --     have h2nz : Fin.toNat (f (ι y2)) > 0 := by exact Nat.zero_lt_of_lt h2_gt
+      --     have := Nat.sub_one_cancel h1nz h2nz h2e
+      --     rw [Fin.toNat_inj] at this
+      --     apply hf.injective at this
+      --     apply hι_inj at this
+      --     exact this
+    . intro y
+      by_cases h : y < m₀
+      . set hx := hf.surjective (Fin_mk _ y (by omega))
+        have hx' := hx.choose_spec
+        have hneq : hx.choose ≠ x := by
+          by_contra! he
+          rw [he] at hx'
+          rw [hx'] at hm₀f
+          simp only [Fin.coe_toNat] at hm₀f
+          have : Fin.toNat y = m₀ := by
+            rw [← Fin.coe_toNat] at hm₀f
+            rwa [Object.natCast_inj] at hm₀f
+          linarith
+        have hx'' : hx.choose.val ∈ X' := hX'mem hx.choose hneq
+        use ⟨hx.choose, hx''⟩
+        specialize hg_def ⟨hx.choose, hx''⟩
+        have : ι ⟨↑hx.choose, hx''⟩ = hx.choose := by rfl
+        simp [this, hx', h] at hg_def
+        rwa [Fin.toNat_inj] at hg_def
+      .
+        set hx := hf.surjective (Fin_mk _ (y + 1) (by
+          have hy := Fin.toNat_lt y
+          omega
+        ))
+        have hx' := hx.choose_spec
+        have hneq : hx.choose ≠ x := by
+          by_contra! he
+          rw [he] at hx'
+          rw [hx'] at hm₀f
+          simp only [Fin.coe_toNat] at hm₀f
+          have : (Fin.toNat y) + 1 = m₀ := by rwa [Object.natCast_inj] at hm₀f
+          linarith
+        have hx'': hx.choose.val ∈ X' := hX'mem hx.choose hneq
+        use ⟨hx.choose, hx''⟩
+        specialize hg_def ⟨hx.choose, hx''⟩
+        have : ι ⟨↑hx.choose, hx''⟩ = hx.choose := by rfl
+        have h': ¬ ((Fin.toNat y) + 1 < m₀) := by exact Mathlib.Tactic.Order.not_lt_of_not_le h
+        simp [this, hx', h'] at hg_def
+        rwa [Fin.toNat_inj] at hg_def
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/

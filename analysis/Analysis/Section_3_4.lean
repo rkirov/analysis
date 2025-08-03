@@ -143,12 +143,6 @@ theorem SetTheory.Set.preimage_eq {X Y:Set} (f:X → Y) (U: Set) :
 theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
     (preimage f U) ⊆ X := by intro x h; simp at h; tauto
 
-theorem SetTheory.Set.preimage_in_domain {X Y:Set} (f:X → Y) (U: Set) :
-    (preimage f U) ⊆ X := by
-  intro x h
-  rw [preimage] at h
-  exact specification_axiom h
-
 /-- Example 3.4.6 -/
 theorem SetTheory.Set.preimage_f_3_4_2 : preimage f_3_4_2 {2,4,6} = {1,2,3} := by
   ext x
@@ -273,6 +267,7 @@ theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
     . apply preimage_in_domain a.choose ({0}:Set)
   . intro h
     obtain ⟨Y, rfl, hY⟩ := h
+    rw [powerset]
     rw [replacement_axiom]
     let f: X → ({0,1}:Set) := fun x ↦ if x.val ∈ Y then ⟨0, by simp⟩ else ⟨1, by simp⟩
     use ⟨function_to_object X _ f, by
@@ -839,17 +834,13 @@ theorem SetTheory.Set.preimage_image_of_inj {X Y:Set} (f:X → Y) :
       exact hx''
     . exact preimage_of_image f S hS
 
-/-- Helper lemma for Exercise 3.4.7. -/
-@[simp]
-lemma SetTheory.Set.mem_powerset' {S S' : Set} : (S': Object) ∈ S.powerset ↔ S' ⊆ S := by
-  simp [mem_powerset]
-
 /-- Another helper lemma for Exercise 3.4.7. -/
 lemma SetTheory.Set.mem_union_powerset_replace_iff {S : Set} {P : S.powerset → Object → Prop} {hP : _} {x : Object} :
     x ∈ union (S.powerset.replace (P := P) hP) ↔
     ∃ (S' : S.powerset) (U : Set), P S' U ∧ x ∈ U := by
   simp only [union_axiom, replacement_axiom]; tauto
 
+open Classical in
 /-- Exercise 3.4.7 -/
 theorem SetTheory.Set.partial_functions {X Y:Set} :
     ∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ X' Y':Set, X' ⊆ X ∧ Y' ⊆ Y ∧ ∃ f: X' → Y', F = f := by

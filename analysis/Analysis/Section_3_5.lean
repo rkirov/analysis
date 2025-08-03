@@ -197,24 +197,6 @@ theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
   simp only [snd]
   exact this.symm
 
--- todo: find a shorter, more direct proof of this
-theorem SetTheory.Set.fst_eval {X Y: Set} (x: X) (y: Y) :
-    fst ⟨OrderedPair.toObject { fst := x, snd := y }, by
-    rw [mem_cartesian]
-    use x
-    use y
-  ⟩ = x := by
-  generalize_proofs a
-  rw [mem_cartesian] at a
-  have := a.choose_spec
-  obtain ⟨y', h⟩ := this
-  apply OrderedPair.toObject.inj' at h
-  simp only [OrderedPair.mk.injEq] at h
-  have := h.1
-  rw [coe_inj] at this
-  simp only [fst]
-  exact this.symm
-
 theorem SetTheory.Set.fst_eval' {X Y: Set} (z: X ×ˢ Y) (x: X) (y: Y) (h: z.val = OrderedPair.toObject { fst := x.val, snd := y.val }):
     fst z = x := by
   obtain ⟨val, property⟩ := z
@@ -271,25 +253,6 @@ theorem SetTheory.Set.snd_eval_snd_op {X Y: Set} (x: X) (p: OrderedPair) (h: p.t
   generalize_proofs a
   have := a.choose_spec
   rw [Subtype.mk.injEq]
-  exact this.symm
-
--- todo: find a shorter, more direct proof of this
-theorem SetTheory.Set.snd_eval {X Y:Set} (x: X) (y: Y) :
-    snd ⟨OrderedPair.toObject { fst := x, snd := y }, by
-    rw [SetTheory.Set.mem_cartesian]
-    use x
-    use y
-  ⟩ = y := by
-  generalize_proofs a
-  rw [mem_cartesian] at a
-  rw [exists_comm] at a -- key difference from fst
-  have := a.choose_spec
-  obtain ⟨y', h⟩ := this
-  apply OrderedPair.toObject.inj' at h
-  simp only [OrderedPair.mk.injEq] at h
-  have := h.2
-  rw [coe_inj] at this
-  simp only [snd]
   exact this.symm
 
 theorem SetTheory.Set.snd_eval' {X Y: Set} (z: X ×ˢ Y) (x: X) (y: Y) (h: z.val = OrderedPair.toObject { fst := x.val, snd := y.val }):
@@ -875,6 +838,16 @@ theorem SetTheory.Set.Fin.toNat_spec {n:ℕ} (i: Fin n) :
     ∃ h : i < n, i = Fin_mk n i h := (mem_Fin' i).choose_spec
 
 theorem SetTheory.Set.Fin.toNat_lt {n:ℕ} (i: Fin n) : i < n := (toNat_spec i).choose
+
+theorem SetTheory.Set.Fin.toNat_inj {n:ℕ} (i j: Fin n) : toNat i = toNat j ↔ i = j := by
+  constructor
+  . intro h
+    have ⟨_, hi⟩ := toNat_spec i
+    have ⟨_, hj⟩  := toNat_spec j
+    rw [hi, hj]
+    simp only [Subtype.mk.injEq, Object.natCast_inj]
+    exact h
+  . intro h; subst h; rfl
 
 @[simp]
 theorem SetTheory.Set.Fin.coe_toNat {n:ℕ} (i: Fin n) : ((i:ℕ):Object) = (i:Object) := by
@@ -1835,44 +1808,37 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
     . intro h
       obtain ⟨ T, hT ⟩ := h
       have : set_to_object (graph T) ∈ g := by
-        simp [g]
-        rw [specification_axiom'']
-        constructor
-        . intro y hy
-          apply existsUnique_of_exists_of_unique
-          . use T ⟨y, hy⟩
-            generalize_proofs a
-            have := Classical.choose_spec a
-            obtain ⟨ h1, h2 ⟩ := this
-            rw [EmbeddingLike.apply_eq_iff_eq] at h1
-            rw [← h1]
-            rw [graph]
-            rw [specification_axiom'']
-            constructor
-            . let y': Y := ⟨ y , hy ⟩
-              have : y = y'.val := by rfl
-              simp [this]
-            . rw [mem_cartesian]
-              use ⟨y, hy⟩
-              use T ⟨y, hy⟩
-          . intro x x' hx hx'
-            generalize_proofs a at hx hx'
-            have := Classical.choose_spec a
-            rw [EmbeddingLike.apply_eq_iff_eq] at this
-            rw [← this.1] at hx hx'
-            rw [graph] at hx hx'
-            rw [specification_axiom''] at hx hx'
-            obtain ⟨ h1, h2 ⟩ := hx
-            obtain ⟨ h1', h2' ⟩ := hx'
-            let y': Y := ⟨ y , hy ⟩
+        simp [g, graph]
+        have : ((Y ×ˢ X).specify fun p ↦ T (fst p) = snd p) ⊆ Y ×ˢ X := by
+          intro p hp
+          exact specification_axiom hp
+        use this
+        intro y hy
+        apply existsUnique_of_exists_of_unique
+        . use T ⟨y, hy⟩
+          generalize_proofs a
+          have := Classical.choose_spec a
+          obtain ⟨ h1, h2 ⟩ := this
+          rw [← h1]
+          rw [specification_axiom'']
+          constructor
+          . let y': Y := ⟨ y , hy ⟩
             have : y = y'.val := by rfl
-            simp [this] at h2 h2'
-            rw [← h2, ← h2']
-            . rw [mem_powerset]
-              use graph T
-              simp only [true_and]
-              rw [graph]
-              apply specification_axiom
+            simp [this]
+          . rw [mem_cartesian]
+            use ⟨y, hy⟩
+            use T ⟨y, hy⟩
+        . intro x x' hx hx'
+          generalize_proofs a at hx hx'
+          have := Classical.choose_spec a
+          rw [← this.1] at hx hx'
+          rw [specification_axiom''] at hx hx'
+          obtain ⟨ h1, h2 ⟩ := hx
+          obtain ⟨ h1', h2' ⟩ := hx'
+          let y': Y := ⟨ y , hy ⟩
+          have : y = y'.val := by rfl
+          simp [this] at h2 h2'
+          rw [← h2, ← h2']
       use ⟨ set_to_object (graph T), this⟩
       use T
       constructor

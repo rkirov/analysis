@@ -871,6 +871,16 @@ abbrev SetTheory.Set.Fin_embed (n N:ℕ) (h: n ≤ N) (i: Fin n) : Fin N := ⟨ 
   obtain ⟨ m, hm, im ⟩ := this; use m, by linarith
 ⟩
 
+@[simp]
+theorem SetTheory.Set.Fin.Fin_embed_inj (n N:ℕ) (h1 h2: n ≤ N) (i j: Fin n) :
+    Fin_embed n N h1 i = Fin_embed n N h2 j ↔ i = j := by
+  constructor
+  . intro h
+    repeat rw [Fin_embed] at h
+    rw [Subtype.mk.injEq] at h
+    rwa [Subtype.val_inj] at h
+  . intro h; subst h; rfl
+
 theorem SetTheory.Set.Fin_mk_ext {n x y: ℕ} {h1: x < n} {h2: y < n}:
     Fin_mk n x h1 = Fin_mk n y h2 → x = y := by
   intro h

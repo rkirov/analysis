@@ -2604,6 +2604,45 @@ theorem SetTheory.Set.mem_Permutations (n: ℕ) (F: Object): F ∈ Permutations 
     rw [ha]
     exact hf
 
+noncomputable def SetTheory.Set.eval (f: Permutations n) (i: Fin n): Fin n :=
+  let f' := Classical.choose ((mem_Permutations n f.val).mp f.prop)
+  f' i
+
+theorem SetTheory.Set.perm_ext (n: ℕ) (f g: Permutations n): (∀ i: Fin n, eval f i = eval g i) ↔ f = g := by
+  constructor
+  . intro h
+    have hf := (mem_Permutations n f.val).mp f.prop
+    have hg := (mem_Permutations n g.val).mp g.prop
+    obtain ⟨f', hf'⟩ := hf
+    obtain ⟨g', hg'⟩ := hg
+    rw [← Subtype.val_inj]
+    rw [hg'.2, hf'.2]
+    simp only [EmbeddingLike.apply_eq_iff_eq]
+    ext i
+    specialize h i
+    repeat rw [eval] at h
+    generalize_proofs a b at h
+    have ha := (Classical.choose_spec a).2
+    have hb := (Classical.choose_spec b).2
+    conv_lhs at ha => simp [hf']
+    conv_lhs at hb => simp [hg']
+    rw [EmbeddingLike.apply_eq_iff_eq] at ha
+    rw [EmbeddingLike.apply_eq_iff_eq] at hb
+    rw [ha, hb]
+    rw [Subtype.val_inj]
+    exact h
+  . intro h
+    rw [h]
+    intro i
+    rfl
+
+-- todo: move to ch3.5
+theorem SetTheory.Set.Fin.embed_mk_ofNat {n: ℕ} (i: Fin (n + 1)) (h: Fin.toNat i < n):
+    Fin_embed n (n + 1) (by omega) (Fin_mk n (toNat i) h) = i := by
+  rw [← Fin.toNat_inj]
+  rw [Fin_embed_toNat]
+  rw [toNat_mk]
+
 /-- Exercise 3.6.12 (i) -/
 theorem SetTheory.Set.Permutations_finite (n: ℕ): (Permutations n).finite := by
   have hpow_fin := card_pow (Fin_finite n) (Fin_finite n)
@@ -2622,263 +2661,252 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
   -- the basic idea is take f n as the first component
   -- construct a function g from `Fin n` to `Fin n` that
   -- skips f n in the image, by subtracting 1 from all images above f n.
-  let f : Permutations (n + 1) → Fin (n + 1) ×ˢ Permutations n := fun x ↦
-    have hfin := (mem_Permutations (n + 1) x).mp x.prop
-    let f' := Classical.choose hfin
-    have hf := Classical.choose_spec hfin
-    let y := f' ⟨n, by rw [mem_Fin]; use n; constructor; exact lt_add_one n; rfl⟩
-    let yN := Classical.choose ((mem_Fin _ _).mp y.property)
-    let g : Fin n → Fin n := fun i ↦
-      let yi := f' (Fin_embed _ _ (by omega) i)
-      let yiN := Classical.choose ((mem_Fin _ _).mp yi.property)
-      if h: yiN < yN then Fin_mk n yiN (by
-        have hyiN := yi.property
-        rw [mem_Fin] at hyiN
-        obtain ⟨k, hk, hkm⟩ := hyiN
-        have yNs := Classical.choose_spec ((mem_Fin _ _).mp y.property)
-        generalize_proofs a at yNs
-        have : choose a = yN := by rfl
-        rw [this] at yNs
+  let fP : Permutations (n + 1) → Fin (n + 1) ×ˢ Permutations n := fun F ↦
+    have hF := (mem_Permutations (n + 1) F).mp F.prop
+    let f := Classical.choose hF
+    have hf := Classical.choose_spec hF
+    let y₀ := f (Fin_mk _ n (by omega))
+    let f' : Fin n → Fin n := fun x ↦
+      let y := f (Fin_embed _ _ (by omega) x)
+      have yneq : y ≠ y₀ := by
+        intro h
+        apply hf.1.injective at h
+        dsimp [Fin_embed, Fin_mk] at h
+        simp [Subtype.mk.inj] at h
+        rw [Fin.val_eq_natCast] at h
+        have := Fin.toNat_lt x
+        omega
+      if h: Fin.toNat y < y₀ then Fin_mk n y (by
+        have h' := Fin.toNat_lt y₀
         linarith
+      ) else Fin_mk n (y - 1) (by
+        have h' := Fin.toNat_lt y
+        rwa [← Nat.sub_lt_iff_lt_add] at h'
+        simp only [not_lt] at h
+        have hl : Fin.toNat y₀ < Fin.toNat y := by
+          by_contra! hg
+          have := le_antisymm hg h
+          rw [Fin.toNat_inj] at this
+          contradiction
+        exact Nat.one_le_of_lt hl
       )
-      else Fin_mk n (yiN - 1) (by
-        have hyiN := yi.property
-        rw [mem_Fin] at hyiN
-        obtain ⟨k, hk, hkm⟩ := hyiN
-        have yiNs := Classical.choose_spec ((mem_Fin _ _).mp yi.property)
-        generalize_proofs a at yiNs
-        have : choose a = yiN := by rfl
-        rw [this] at yiNs
-        rw [Nat.sub_lt_iff_lt_add]
-        . exact yiNs.1
-        . simp at h
-          have hneq : yiN ≠ yN := by
-            have yne : y ≠ yi := by
-              dsimp [y, yi, f']
-              intro h
-              apply hf.1.injective at h
-              dsimp [Fin_embed] at h
-              rw [Subtype.mk.injEq] at h
-              have hi := i.prop
-              rw [mem_Fin] at hi
-              obtain ⟨k, hk, hkm⟩ := hi
-              rw [← h] at hkm
-              simp only [Object.natCast_inj] at hkm
-              linarith
-            dsimp [yiN, yN]
-            intro h
-            generalize_proofs b at h
-            have hb := Classical.choose_spec b
-            rw [this] at h
-            rw [← h] at hb
-            rw [← yiNs.2] at hb
-            have := hb.2
-            rw [Subtype.val_inj] at this
-            contradiction
-          have : yN < yiN := by exact Nat.lt_of_le_of_ne h (id (Ne.symm hneq))
-          linarith
-      )
-    let G := function_to_object (Fin n) (Fin n) g
+    have hf_def (x: Fin n) : if Fin.toNat (f (Fin_embed _ _ (by omega) x)) < y₀ then
+        Fin.toNat (f' x) = f (Fin_embed _ _ (by omega) x) else
+        Fin.toNat (f' x) = f (Fin_embed _ _ (by omega) x) - 1 := by
+      by_cases h : Fin.toNat (f (Fin_embed _ _ (by omega) x)) < y₀ <;> simp [f', h]
+
+    let G := function_to_object (Fin n) (Fin n) f'
+
     have hG : G ∈ Permutations n := by
       rw [mem_Permutations]
-      use g
+      use f'
+      -- will come useful later
+      have toNat_inj: Function.Injective (Fin.toNat (n := n + 1)) := by
+        intro x y hxy
+        rw [Fin.toNat_inj] at hxy
+        exact hxy
       constructor
       . constructor
+        -- injective
         . intro i j h
-          unfold g at h
-          simp at h
-          generalize_proofs _ a _ _ d e f at h
-          have ha := Classical.choose_spec a
-          have hd := Classical.choose_spec d
-          have hneqd : choose d ≠ yN := by
-            dsimp [yN]
-            generalize_proofs b
-            have hb := Classical.choose_spec b
-            intro h
-            rw [← h] at hb
-            rw [← hd.2] at hb
-            have := hb.2
-            dsimp [y] at this
-            rw [Subtype.val_inj] at this
-            apply hf.1.injective at this
-            simp at this
-            have hj := j.prop
-            rw [mem_Fin] at hj
-            obtain ⟨k, hk, hkm⟩ := hj
-            rw [hkm] at this
-            simp only [Object.natCast_inj] at this
-            linarith
-          -- more copy/pasta from above
-          -- todo: clean up
-          have hneqa : choose a ≠ yN := by
-            dsimp [yN]
-            generalize_proofs b
-            have hb := Classical.choose_spec b
-            intro h
-            rw [← h] at hb
-            rw [← ha.2] at hb
-            have := hb.2
-            dsimp [y] at this
-            rw [Subtype.val_inj] at this
-            apply hf.1.injective at this
-            have hi := i.prop
-            rw [mem_Fin] at hi
-            obtain ⟨k, hk, hkm⟩ := hi
-            simp only [Subtype.mk.injEq] at this
-            rw [hkm] at this
-            simp only [Object.natCast_inj] at this
-            linarith
-          by_cases ha1 : choose a < yN
-          . simp [ha1] at h
-            by_cases hd1 : choose d < yN
-            . simp [hd1] at h
-              rw [h] at ha
-              rw [← hd.2] at ha
-              have := ha.2
-              rw [Subtype.val_inj] at this
+          have hneqy (i: Fin n) : f (Fin_embed _ _ (by omega) i) ≠ y₀ := by
+            unfold y₀
+            rw [hf.1.injective.ne_iff]
+            simp only [ne_eq, Subtype.mk.injEq]
+            have := Fin.toNat_lt i
+            apply ne_of_lt at this
+            contrapose! this
+            rwa [Fin.val_eq_natCast] at this
+          have hi := hneqy i
+          have hj := hneqy j
+          rw [← Fin.toNat_inj] at h
+          set i' : Fin (n + 1) := Fin_embed _ _ (by omega) i
+          set j' : Fin (n + 1) := Fin_embed _ _ (by omega) j
+
+          by_cases hi_lt : Fin.toNat (f i') < y₀
+          . have hf_def_i := hf_def i
+            simp [hi_lt] at hf_def_i
+            simp [hf_def_i] at h
+            by_cases hj_ly : Fin.toNat (f j') < y₀
+            . have hf_def_j := hf_def j
+              simp [hj_ly] at hf_def_j
+              simp [hf_def_j] at h
+              rw [Fin.toNat_inj] at h
+              apply hf.1.injective at h
+              simp only [Subtype.mk.injEq] at h
+              rwa [Subtype.val_inj] at h
+            . have hf_def_j := hf_def j
+              simp [hj_ly] at hf_def_j
+              simp [hf_def_j] at h
+              simp only [not_lt] at hj_ly
+              apply_fun Fin.toNat (n := n + 1) at hj using toNat_inj
+              have hj_gt: Fin.toNat y₀ < Fin.toNat (f j') := by
+                exact Nat.lt_of_le_of_ne hj_ly (id (Ne.symm hj))
+              change Fin.toNat (f i') = Fin.toNat (f j') - 1 at h
+              omega  -- contradiction
+          . have hf_def_i := hf_def i
+            simp [hi_lt] at hf_def_i
+            simp [hf_def_i] at h
+            simp only [not_lt] at hi_lt
+            apply_fun Fin.toNat (n := n + 1) at hi using toNat_inj
+            have hi_gt: Fin.toNat y₀ < Fin.toNat (f i') := by
+              exact Nat.lt_of_le_of_ne hi_lt (id (Ne.symm hi))
+            by_cases hj_lt : Fin.toNat (f j') < y₀
+            . have hf_def_j := hf_def j
+              simp [hj_lt] at hf_def_j
+              simp [hf_def_j] at h
+              change Fin.toNat (f i') - 1 = Fin.toNat (f j') at h
+              omega  -- contradiction
+            . have hf_def_j := hf_def j
+              simp [hj_lt] at hf_def_j
+              simp [hf_def_j] at h
+              simp only [not_lt] at hj_lt
+              have hj_gt: Fin.toNat y₀ < Fin.toNat (f j') := by
+                exact Nat.lt_of_le_of_ne hj_lt fun a ↦ hneqy j (toNat_inj (id (Eq.symm a)))
+              have hi_nez : Fin.toNat (f i') ≠ 0 := by
+                exact Nat.ne_zero_of_lt hi_gt
+              have hj_nez : Fin.toNat (f j') ≠ 0 := by
+                exact Nat.ne_zero_of_lt hj_gt
+              change Fin.toNat (f i') - 1 = Fin.toNat (f j') - 1 at h
+              have : Fin.toNat (f i') = Fin.toNat (f j') := by omega
+              rw [Fin.toNat_inj] at this
               apply hf.1.injective at this
-              simp only [Subtype.mk.injEq] at this
+              simp only [i', j',Subtype.mk.injEq] at this
               rwa [Subtype.val_inj] at this
-            . simp [hd1] at h
-              rw [h] at ha
-              rw [h] at ha1
-              simp at hd1
-              exfalso
-              have : yN < choose d := by exact Nat.lt_of_le_of_ne hd1 (id (Ne.symm hneqd))
-              exfalso
-              have : yN ≤ choose d - 1 := by exact Nat.le_sub_one_of_lt this
-              have := Nat.lt_of_lt_of_le ha1 this
-              exfalso
-              exact (lt_self_iff_false (choose d - 1)).mp this
-          . simp [ha1] at h
-            by_cases hd1 : choose d < yN
-            . simp [hd1] at h
-              simp at ha1
-              have : yN < choose a := by exact Nat.lt_of_le_of_ne ha1 (id (Ne.symm hneqa))
-              exfalso
-              rw [← h] at hd1
+        -- surjective
+        . intro y
+          set y': Fin (n + 1) := Fin_embed _ _ (by omega) y
+          by_cases hy : Fin.toNat y' < y₀
+          . obtain ⟨x, hx⟩ := hf.1.surjective (Fin_embed _ _ (by omega) y)
+            have hxneq : x ≠ Fin_mk _ n (by omega) := by
+              intro h
+              apply_fun f at h using hf.1.injective
+              change f x = y' at hx
+              rw [hx] at h
+              change y' = y₀ at h
+              rw [← Fin.toNat_inj] at h
+              rw [← h] at hy
+              simp [y'] at hy
+            apply_fun Fin.toNat (n := n + 1) at hxneq using toNat_inj
+            simp at hxneq
+            have hx' : Fin.toNat x < n := by
+              have hfin := Fin.toNat_lt x
               omega
-            . simp [hd1] at h
-              have ha2 : yN < choose a := by omega
-              have hd2 : yN < choose d := by omega
-              have ha_pos : 0 < choose a := Nat.lt_of_le_of_lt (Nat.zero_le _) ha2
-              have hd_pos : 0 < choose d := Nat.lt_of_le_of_lt (Nat.zero_le _) hd2
-              have had : choose a = choose d := by exact Nat.sub_one_cancel ha_pos hd_pos h
-              have := ha.2
-              rw [had] at this
-              rw [← hd.2] at this
-              rw [Subtype.val_inj] at this
-              apply hf.1.injective at this
-              rwa [Fin.Fin_embed_inj ] at this
-        . intro y2
-          have hy2 := y2.property
-          rw [mem_Fin] at hy2
-          obtain ⟨k, hk, hkm⟩ := hy2
-          dsimp [g]
-          by_cases h1: k < yN
-          . obtain ⟨x, hx⟩ := hf.1.surjective (Fin_embed _ _ (by omega) y2)
-            rw [Fin_embed] at hx
-            simp [hkm] at hx
-            have xp := x.property
-            rw [mem_Fin] at xp
-            obtain ⟨k', hk', hkm'⟩ := xp
-            have hk'n : k' ≠ n := by
-              by_contra! h
-              subst k'
-              dsimp [yN] at h1
-              generalize_proofs a at h1
-              have ha := (Classical.choose_spec a).2
-              dsimp [y] at ha
-              conv_lhs at ha => simp [← hkm']
-              dsimp [f'] at ha
-              simp [hx] at ha
-              linarith
-            use ⟨k', by
-              rw [mem_Fin]
-              use k'
-              constructor
-              . omega
-              . rfl
-            ⟩
-            generalize_proofs _ _ a
-            have ha := Classical.choose_spec a
-            have := ha.2
-            dsimp [f'] at this
-            have : choose a = k := by
-              apply (Object.natCast_inj _ _).mp
-              rw [← this]
-              rw [← Subtype.val_inj] at hx
-              simp at hx
-              rw [← hx]
-              rw [Subtype.val_inj]
-              simp [Fin_embed] at ⊢
-              congr!
-              exact hkm'.symm
-            simp [this, h1]
-            rw [Fin_mk]
-            rw [Subtype.mk.injEq]
-            exact hkm.symm
-          . -- very similar as above, just using n + 1 for the f' inverse
-            -- don't know how to refactor well yet so copy/paste with tweaks
-            obtain ⟨x, hx⟩ := hf.1.surjective (Fin_mk (n + 1) (k + 1) (by omega))
-            rw [Fin_mk] at hx
-            have xp := x.property
-            rw [mem_Fin] at xp
-            obtain ⟨k', hk', hkm'⟩ := xp
-            have hk'n : k' ≠ n := by
-              by_contra! h
-              subst k'
-              dsimp [yN] at h1
-              generalize_proofs a at h1
-              have ha := (Classical.choose_spec a).2
-              dsimp [y] at ha
-              conv_lhs at ha => simp [← hkm']
-              dsimp [f'] at ha
-              simp [hx] at ha
-              linarith
-            use ⟨k', by
-              rw [mem_Fin]
-              use k'
-              constructor
-              . omega
-              . rfl
-            ⟩
-            generalize_proofs _ _ a
-            have ha := Classical.choose_spec a
-            have := ha.2
-            dsimp [f'] at this
-            have : choose a = k + 1 := by
-              apply (Object.natCast_inj _ _).mp
-              rw [← this]
-              rw [← Subtype.val_inj] at hx
-              simp at hx
-              rw [← hx]
-              rw [Subtype.val_inj]
-              simp [Fin_embed] at ⊢
-              congr!
-              exact hkm'.symm
-            have h3 : ¬ (k + 1 < yN) := by omega
-            simp [this, h3]
-            rw [Fin_mk]
-            rw [Subtype.mk.injEq]
-            exact hkm.symm
-      . rfl
-    mk_cart y ⟨G, hG⟩
-  have hf : Function.Bijective f := by
+            set x': Fin n := Fin_mk _ x hx'
+            use x'
+            -- todo: extract as a lemma for Fin
+            have hxx': Fin_embed n (n + 1) (by omega) x' = x := by
+              dsimp [x']
+              rw [← Fin.toNat_inj]
+              rw [Fin.Fin_embed_toNat _ (n + 1)]
+              simp only [Fin.toNat_mk]
+            specialize hf_def x'
+            change f x = y' at hx
+            simp [hxx', hx, hy] at hf_def
+            rw [← Fin.toNat_inj]
+            rw [hf_def]
+            simp [y']
+            rw [Fin.Fin_embed_toNat _ (n + 1)]
+
+          . obtain ⟨x, hx⟩ := hf.1.surjective (Fin_mk _ ((Fin.toNat y) + 1) (by
+              simp only [add_lt_add_iff_right]
+              exact Fin.toNat_lt y
+            ))
+            change f x = _ at hx
+            have hxneq : x ≠ Fin_mk _ n (by omega) := by
+              intro h
+              apply_fun f at h using hf.1.injective
+              change f x = _ at hx
+              rw [hx] at h
+              change _ = y₀ at h
+              rw [← Fin.toNat_inj] at h
+              simp [y'] at h
+              simp [y'] at hy
+              rw [Fin.Fin_embed_toNat n (n + 1)] at hy
+              rw [← h] at hy
+              omega
+            apply_fun Fin.toNat (n := n + 1) at hxneq using toNat_inj
+            simp at hxneq
+            have hx' : Fin.toNat x < n := by
+              have hfin := Fin.toNat_lt x
+              omega
+            set x': Fin n := Fin_mk _ x hx'
+            use x'
+            -- todo: extract as a lemma for Fin
+            have hxx': Fin_embed n (n + 1) (by omega) x' = x := by
+              dsimp [x']
+              rw [← Fin.toNat_inj]
+              rw [Fin.Fin_embed_toNat _ (n + 1)]
+              simp only [Fin.toNat_mk]
+            specialize hf_def x'
+            have : ¬ Fin.toNat (f x) < Fin.toNat y₀ := by
+              simp only [not_lt, x']
+              suffices h_lt : y₀ < Fin.toNat (f x) by omega
+              simp [hx]
+              simp [y'] at hy
+              rw [Fin.Fin_embed_toNat n (n + 1)] at hy
+              exact Order.lt_add_one_iff.mpr hy
+            simp [hxx'] at hf_def
+            simp [this] at hf_def
+            rw [hx] at hf_def
+            simp at hf_def
+            rwa [Fin.toNat_inj] at hf_def
+      . rfl -- where did this come from?
+    mk_cart y₀ ⟨G, hG⟩
+
+  have hf : Function.Bijective fP := by
     constructor
     . intro x1 x2 hxy
-      unfold f at hxy
+      unfold fP at hxy
       rw [mk_cart_inj] at hxy
-      obtain ⟨y1, hy1⟩ := hxy
-      have x1p := x1.property
-      have x2p := x2.property
-      rw [mem_Permutations] at x1p x2p
-      obtain ⟨f1, hf1⟩ := x1p
-      obtain ⟨f2, hf2⟩ := x2p
-      suffices f1 = f2 by
-        sorry
-      ext i
-      sorry -- a lot of showing that choose _ from h are equal to f1 or f2
+      obtain ⟨hx1, hy1⟩ := hxy
+      generalize_proofs a _ b at hx1
+      have ⟨hab, hae⟩ := Classical.choose_spec a
+      have ⟨hba, hbe⟩ := Classical.choose_spec b
+      rw [← perm_ext]
+      intro i
+      simp [eval]
+      generalize_proofs
+      set n' : Fin (n + 1) := Fin_mk _ n (by omega)
+      by_cases hi: i = n'
+      . rw [hi]
+        exact hx1
+      . simp at hy1
+        have := congrFun hy1 (Fin_mk _ i (by
+          have h := Fin.toNat_lt i
+          suffices Fin.toNat i ≠ n by omega
+          contrapose! hi
+          dsimp [n']
+          rw [← Fin.toNat_inj]
+          simp only [Fin.toNat_mk]
+          exact hi
+        ))
+        generalize_proofs at this
+        simp [SetTheory.Set.Fin.embed_mk_ofNat] at this
+        by_cases ha: Fin.toNat (choose a i) < Fin.toNat (choose a n')
+        .
+          by_cases hb: Fin.toNat (choose b i) < Fin.toNat (choose b n')
+          . simp [ha, hb] at this
+            rwa [Subtype.val_inj] at this
+          . simp [ha, hb] at this
+            rw [Fin.val_eq_natCast] at this
+            rw [hx1] at ha
+            simp at hb
+            have hb_le : Fin.toNat (choose b n') < Fin.toNat (choose b i) := by sorry
+            omega
+        . by_cases hb: Fin.toNat (choose b i) < Fin.toNat (choose b n')
+          . simp [ha, hb] at this
+            symm at this
+            rw [Fin.val_eq_natCast] at this
+            rw [hx1] at ha
+            simp at ha
+            have ha_le : Fin.toNat (choose b n') < Fin.toNat (choose a i) := by sorry
+            omega
+          . simp [ha, hb] at this
+            have ha_neq : Fin.toNat (choose a i) ≠ 0 := by sorry
+            have ha_neq : Fin.toNat (choose b i) ≠ 0 := by sorry
+            rw [← Fin.toNat_inj]
+            omega
     . intro p
       have hp := p.property
       rw [mem_cartesian] at hp
@@ -2889,9 +2917,8 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
       -- add one for all values above x
       -- then prove again it is a bijection.
   have e : EqualCard (Permutations (n + 1)) (Fin (n + 1) ×ˢ Permutations n) := by
-    use f
-  have h := EquivCard_to_card_eq e
-  rw [h]
+    use fP
+  rw [EquivCard_to_card_eq e]
   have hprod := card_prod (Fin_finite (n + 1)) (Permutations_finite n)
   rw [hprod.2]
   rw [Fin_card]

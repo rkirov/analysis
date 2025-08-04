@@ -833,6 +833,36 @@ theorem SetTheory.Set.Fin.Fin_embed_inj (n N:ℕ) (h1 h2: n ≤ N) (i j: Fin n) 
     rwa [Subtype.val_inj] at h
   . intro h; subst h; rfl
 
+
+theorem SetTheory.Set.Fin.val_eq_natCast {n: ℕ} (i: Fin n) (m: ℕ) :
+    i.val = (m:ℕ) ↔ toNat i = m := by
+  constructor
+  . intro h
+    rw [← coe_toNat i] at h
+    rwa [SetTheory.Object.natCast_inj] at h
+  . intro h
+    rw [← h]
+    exact Eq.symm (coe_toNat i)
+
+-- todo: cleanup, this shouldn't be so long
+theorem SetTheory.Set.Fin.Fin_embed_toNat (n N:ℕ) (h1: n ≤ N) (i: Fin n) :
+    toNat (Fin_embed n N h1 i) = toNat i := by
+  rw [Fin_embed]
+  have hi := i.property
+  rw [mem_Fin] at hi
+  obtain ⟨ m, hm, im ⟩ := hi
+  simp [im]
+  rw [toNat]
+  generalize_proofs a b
+  have := Classical.choose_spec b
+  obtain ⟨ h, h' ⟩ := this
+  rw [Fin_mk] at h'
+  rw [Subtype.mk.injEq] at h'
+  rw [Object.natCast_inj] at h'
+  rw [h'] at im
+  rw [val_eq_natCast] at im
+  exact im.symm
+
 theorem SetTheory.Set.Fin_mk_ext {n x y: ℕ} {h1: x < n} {h2: y < n}:
     Fin_mk n x h1 = Fin_mk n y h2 → x = y := by
   intro h

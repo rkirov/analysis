@@ -2891,20 +2891,49 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
           . simp [ha, hb] at this
             rw [Fin.val_eq_natCast] at this
             rw [hx1] at ha
-            simp at hb
-            have hb_le : Fin.toNat (choose b n') < Fin.toNat (choose b i) := by sorry
+            have hb_le : Fin.toNat (choose b n') ≠ Fin.toNat (choose b i) := by
+              intro h
+              rw [Fin.toNat_inj] at h
+              apply hba.injective at h
+              symm at h
+              contradiction
             omega
-        . by_cases hb: Fin.toNat (choose b i) < Fin.toNat (choose b n')
+        .
+          have ha_le : Fin.toNat (choose b n') ≠ Fin.toNat (choose a i) := by
+            intro h
+            rw [Fin.toNat_inj] at h
+            rw [← hx1] at h
+            apply hab.injective at h
+            symm at h
+            contradiction
+          by_cases hb: Fin.toNat (choose b i) < Fin.toNat (choose b n')
           . simp [ha, hb] at this
             symm at this
             rw [Fin.val_eq_natCast] at this
             rw [hx1] at ha
             simp at ha
-            have ha_le : Fin.toNat (choose b n') < Fin.toNat (choose a i) := by sorry
+
             omega
           . simp [ha, hb] at this
-            have ha_neq : Fin.toNat (choose a i) ≠ 0 := by sorry
-            have ha_neq : Fin.toNat (choose b i) ≠ 0 := by sorry
+            have hb_le : Fin.toNat (choose b n') ≠ Fin.toNat (choose b i) := by
+              intro h
+              rw [Fin.toNat_inj] at h
+              apply hba.injective at h
+              symm at h
+              contradiction
+            have ha_neq : Fin.toNat (choose a i) ≠ 0 := by
+              simp only [not_lt] at ha
+              rw [hx1] at ha
+              contrapose! ha
+              rw [ha]
+              rw [ha] at ha_le
+              exact Nat.zero_lt_of_ne_zero ha_le
+            have ha_neq : Fin.toNat (choose b i) ≠ 0 := by
+              simp only [not_lt] at hb
+              contrapose! hb
+              rw [hb]
+              rw [hb] at hb_le
+              exact Nat.zero_lt_of_ne_zero hb_le
             rw [← Fin.toNat_inj]
             omega
     . intro p

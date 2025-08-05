@@ -486,34 +486,34 @@ lemma SetTheory.Set.iUnion_singleton (i:Object) (X:Set): X = ({i}:Set).iUnion fu
   rw [mem_iUnion]
   simp only [nonempty_subtype, mem_singleton, exists_eq, exists_const]
 
+
+/-- Example 3.5.8. There is a bijection between `(X ×ˢ Y) ×ˢ Z` and `X ×ˢ (Y ×ˢ Z)`. -/
+noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ Z ≃ X ×ˢ (Y ×ˢ Z) where
+  toFun p := mk_cartesian (fst (fst p)) (mk_cartesian (snd (fst p)) (snd p))
+  invFun p := mk_cartesian (mk_cartesian (fst p) (fst (snd p))) (snd (snd p))
+  left_inv _ := by simp
+  right_inv _ := by simp
+
 /--
   Example 3.5.10. I suspect most of the equivalences will require classical reasoning and only be
   defined non-computably, but would be happy to learn of counterexamples.
 -/
 noncomputable abbrev SetTheory.Set.singleton_iProd_equiv (i:Object) (X:Set) :
     iProd (fun _:({i}:Set) ↦ X) ≃ X where
-  toFun := fun x ↦
-    have h := (mem_iProd _).mp x.property
-    (Classical.choose h) ⟨i, by simp⟩
-  invFun := fun x ↦
-    ⟨ tuple (fun _ ↦ x), by
-      rw [mem_iProd]
-      use fun _:({i}:Set) ↦ x
-    ⟩
+  toFun := fun t ↦ ((mem_iProd _).mp t.property).choose ⟨i, by simp⟩
+  invFun := fun x ↦ ⟨tuple fun _ ↦ x, by rw [mem_iProd]; tauto⟩
   left_inv := by
-    intro x
-    simp only
-    have h := (mem_iProd _).mp x.property
-    have hp := Classical.choose_spec h
-    apply Subtype.ext
-    generalize_proofs a b
-    symm
-    rw [tuple] at hp
-    simp only [hp]
-    congr! with x1 x2
-    have := x2.property
-    rw [mem_singleton] at this
-    exact this
+    intro t
+    have h := ((mem_iProd _).mp t.property)
+    have hx := h.choose_spec
+    unfold tuple at *
+    ext
+    simp_rw [hx] -- This works
+    -- rw [hx]
+    -- simp only
+    congr! with i'
+    have hi' := (mem_singleton _ _).mp i'.property
+    rw [hi']
   right_inv := by
     intro h
     simp only
@@ -819,6 +819,16 @@ theorem SetTheory.Set.Fin.toNat_mk {n:ℕ} (m:ℕ) (h: m < n) : (Fin_mk n m h : 
   have := coe_toNat (Fin_mk n m h)
   rwa [Object.natCast_inj] at this
 
+@[simp]
+theorem SetTheory.Set.Fin.mk_toNat {n:ℕ} (i: Fin n) : Fin_mk n (toNat i) (toNat_lt i) = i := by
+  rw [Fin_mk]
+  simp
+
+@[simp]
+theorem SetTheory.Set.Fin.mk_toNat {n:ℕ} (i: Fin n) : Fin_mk n (toNat i) (toNat_lt i) = i := by
+  rw [Fin_mk]
+  simp
+
 abbrev SetTheory.Set.Fin_embed (n N:ℕ) (h: n ≤ N) (i: Fin n) : Fin N := ⟨ i.val, by
   have := i.property; rw [mem_Fin] at *; grind
 ⟩
@@ -833,6 +843,15 @@ theorem SetTheory.Set.Fin.Fin_embed_inj (n N:ℕ) (h1 h2: n ≤ N) (i j: Fin n) 
     rwa [Subtype.val_inj] at h
   . intro h; subst h; rfl
 
+theorem SetTheory.Set.Fin.toFin_eq_of_val_eq {n m: ℕ} (i: Fin n) (j: Fin m)
+  (h: toNat i = toNat j) : i.val = j.val := by
+  have hi := toNat_spec i
+  have hj := toNat_spec j
+  obtain ⟨hi1, hi2⟩ := hi
+  obtain ⟨hj1, hj2⟩ := hj
+  simp [h] at hi2
+  rw [hi2]
+  simp [mk_toNat j]
 
 theorem SetTheory.Set.Fin.val_eq_natCast {n: ℕ} (i: Fin n) (m: ℕ) :
     i.val = (m:ℕ) ↔ toNat i = m := by
@@ -869,6 +888,12 @@ theorem SetTheory.Set.Fin_mk_ext {n x y: ℕ} {h1: x < n} {h2: y < n}:
   repeat rw [Fin_mk] at h
   simp only [Subtype.mk.injEq, Object.natCast_inj] at h
   exact h
+
+theorem SetTheory.Set.Fin.embed_mk_ofNat {n: ℕ} (i: Fin (n + 1)) (h: Fin.toNat i < n):
+    Fin_embed n (n + 1) (by omega) (Fin_mk n (toNat i) h) = i := by
+  rw [← Fin.toNat_inj]
+  rw [Fin_embed_toNat]
+  rw [toNat_mk]
 
 /-- Connections with Mathlib's `Fin n` -/
 noncomputable abbrev SetTheory.Set.Fin.Fin_equiv_Fin (n:ℕ) : Fin n ≃ _root_.Fin n where

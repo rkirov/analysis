@@ -7,7 +7,7 @@ Currently, I am not optimizing for readability or style of the proofs, but rathe
 
 Completed
 - Chapter 2 - all 
-- Chapter 3 - 1, 2, 3, parts of 4
+- Chapter 3 - all
 
 # Lean formalization of _Analysis I_
 

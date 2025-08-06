@@ -38,8 +38,12 @@ structure PreInt where
 instance PreInt.instSetoid : Setoid PreInt where
   r a b := a.minuend + b.subtrahend = b.minuend + a.subtrahend
   iseqv := {
-    refl := by sorry
-    symm := by sorry
+    refl := by
+     intro a
+     rfl
+    symm := by
+      intro a b h
+      exact h.symm
     trans := by
       -- This proof is written to follow the structure of the original text.
       intro ⟨ a,b ⟩ ⟨ c,d ⟩ ⟨ e,f ⟩ h1 h2; simp_all
@@ -148,11 +152,17 @@ example : 3 = 3 —— 0 := rfl
 example : 3 = 4 —— 1 := by rw [Int.ofNat_eq, Int.eq]
 
 /-- (Not from textbook) 0 is the only natural whose cast is 0 -/
-lemma Int.cast_eq_0_iff_eq_0 (n : ℕ) : (n : Int) = 0 ↔ n = 0 := by sorry
+lemma Int.cast_eq_0_iff_eq_0 (n : ℕ) : (n : Int) = 0 ↔ n = 0 := by exact ofNat_inj n 0
 
 /-- Definition 4.1.4 (Negation of integers) / Exercise 4.1.2 -/
 instance Int.instNeg : Neg Int where
-  neg := Quotient.lift (fun ⟨ a, b ⟩ ↦ b —— a) (by sorry)
+  neg := Quotient.lift (fun ⟨ a, b ⟩ ↦ b —— a) (by
+    intro ⟨ a, b ⟩ ⟨ c, d ⟩ h; simp at h ⊢
+    dsimp [Setoid.r]
+    calc _ = c + b := by rw [add_comm]
+      _ = a + d := by rw [h]
+      _ = _ := by rw [add_comm]
+  )
 
 theorem Int.neg_eq (a b:ℕ) : -(a —— b) = b —— a := rfl
 
@@ -190,15 +200,39 @@ theorem Int.not_pos_neg (x:Int) : x.IsPos ∧ x.IsNeg → False := by
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instAddGroup : AddGroup Int :=
-  AddGroup.ofLeftAxioms (by sorry) (by sorry) (by sorry)
+  AddGroup.ofLeftAxioms (by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩ ⟨c1, c2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    abel
+  ) (by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+  ) (by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    rw [add_comm]
+  )
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instAddCommGroup : AddCommGroup Int where
-  add_comm := by sorry
+  add_comm := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    abel
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instCommMonoid : CommMonoid Int where
-  mul_comm := by sorry
+  mul_comm := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    -- abel needs some help
+    repeat rw [mul_comm a1, mul_comm a2]
+    abel
   mul_assoc := by
     -- This proof is written to follow the structure of the original text.
     intro x y z
@@ -206,15 +240,39 @@ instance Int.instCommMonoid : CommMonoid Int where
     obtain ⟨ c, d, rfl ⟩ := eq_diff y
     obtain ⟨ e, f, rfl ⟩ := eq_diff z
     simp_rw [mul_eq]; congr 1 <;> ring
-  one_mul := by sorry
-  mul_one := by sorry
+  one_mul := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+  mul_one := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instCommRing : CommRing Int where
-  left_distrib := by sorry
-  right_distrib := by sorry
-  zero_mul := by sorry
-  mul_zero := by sorry
+  left_distrib := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩ ⟨c1, c2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    -- abel needs some help
+    repeat rw [mul_add]
+    abel
+  right_distrib := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩ ⟨c1, c2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    -- abel needs some help
+    repeat rw [add_mul]
+    abel
+  zero_mul := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+  mul_zero := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
 
 /-- Definition of subtraction -/
 theorem Int.sub_eq (a b:Int) : a - b = a + (-b) := by rfl

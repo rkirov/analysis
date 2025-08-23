@@ -227,12 +227,12 @@ theorem dist_nonneg (x y:ℚ) : dist x y ≥ 0 := by
 theorem dist_eq_zero_iff (x y:ℚ) : dist x y = 0 ↔ x = y := by
   rw [dist]
   rw [abs_eq_zero_iff]
-  exact Lean.Grind.CommRing.sub_eq_zero_iff
+  exact sub_eq_zero
 
 /-- Proposition 4.3.3(f) / Exercise 4.3.1 -/
 theorem dist_symm (x y:ℚ) : dist x y = dist y x := by
   repeat rw [dist]
-  have : x - y = - (y - x) := by exact Eq.symm (Lean.Grind.CommRing.neg_sub y x)
+  have : x - y = - (y - x) := by exact Eq.symm (neg_sub y x)
   rw [this]
   exact abs_neg _
 
@@ -317,7 +317,7 @@ theorem eq_if_close (x y:ℚ) : x = y ↔ ∀ ε:ℚ, ε > 0 → ε.Close x y :=
 /-- Proposition 4.3.7(b) / Exercise 4.3.2 -/
 theorem close_symm (ε x y:ℚ) : ε.Close x y ↔ ε.Close y x := by
   repeat rw [close_iff]
-  have : x - y = - (y - x) := by exact Eq.symm (Lean.Grind.CommRing.neg_sub y x)
+  have : x - y = - (y - x) := by exact Eq.symm (neg_sub y x)
   rw [this]
   rw [abs_neg]
 
@@ -381,7 +381,7 @@ theorem close_between {ε x y z w:ℚ} (hxy: ε.Close x y) (hxz: ε.Close x z)
   rw [h3, h4] at h12
   simp at h12
   sorry
-  linarith
+  -- linarith
 
 /-- Proposition 4.3.7(g) / Exercise 4.3.2 -/
 theorem close_mul_right {ε x y z:ℚ} (hxy: ε.Close x y) :
@@ -426,7 +426,8 @@ theorem close_mul_mul' {ε δ x y z w:ℚ} (hxy: ε.Close x y) (hzw: δ.Close z 
   have hδ : δ ≥ 0 := by
     sorry
   suffices |y| ≥ |x| + ε by
-    linarith
+    sorry
+    -- linarith
   rw [close_iff] at hxy
   have := abs_sub x y
   have h2 : |y| ≥ |x - y| - |x| := by linarith

@@ -116,8 +116,7 @@ instance Rat.decidableEq : DecidableEq Rat := by
   have : ∀ (n:PreRat) (m: PreRat),
       Decidable (Quotient.mk PreRat.instSetoid n = Quotient.mk PreRat.instSetoid m) := by
     intro ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩
-    -- why rw doesn't work here but simp does?
-    simp [eq a c h1 h2]
+    rw [Quotient.eq]
     exact decEq _ _
   exact Quotient.recOnSubsingleton₂ a b this
 
@@ -222,10 +221,10 @@ instance Rat.instInv : Inv Rat where
     intro ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ h
     simp_all [Setoid.r]
     by_cases ha : a = 0
-    . simp_all [ha]
+    . simp_all only [ne_eq, zero_mul, zero_eq_mul, or_false, ↓reduceDIte, mul_one]
     . by_cases hc : c = 0
-      . simp_all [ha, hc]
-      . simp_all [ha, hc]
+      . simp_all only [ne_eq, zero_mul, mul_eq_zero, or_self]
+      . simp_all only [ne_eq, ↓reduceDIte]
         symm at h
         rw [mul_comm c, mul_comm a] at h
         exact h
@@ -450,6 +449,8 @@ instance Rat.instCommRing : CommRing Rat where
     . exact h3
     . exact h1
     . exact h2
+  -- need to manually write a proof, because the generated one doesn't work.
+  natCast_succ := sorry
 
 instance Rat.instRatCast : RatCast Rat where
   ratCast q := q.num // q.den

@@ -338,7 +338,7 @@ theorem Int.neg_mul (a b: Int) : (-a) * b = -(a * b) := by
 
 /-- Corollary 4.1.9 (Cancellation law) / Exercise 4.1.6 -/
 theorem Int.mul_right_cancel₀ (a b c:Int) (h: a*c = b*c) (hc: c ≠ 0) : a = b := by
-  have h1: a * c - b * c = 0 := by exact Lean.Grind.CommRing.sub_eq_zero_iff.mpr h -- is this cheating?
+  have h1: a * c - b * c = 0 := by exact sub_eq_zero_of_eq h -- is this cheating?
   have h2: (a - b) * c = 0 := by
     rw [Int.sub_eq]
     rw [right_distrib]
@@ -696,14 +696,15 @@ abbrev Int.equivInt : Int ≃ ℤ where
     obtain ⟨a1, a2⟩ := a
     obtain ⟨b1, b2⟩ := b
     rw [PreInt.eq] at h
-    simp only
+    simp only []
     omega
   )
   -- because we showed Int is a group, we picked up automatically IntCast
-  -- but it is a bit harder to use
+  -- but it is a bit harder to use. Instead we use the existing ℕ to Int map
+  -- todo: replace with | | notation
   invFun := fun i ↦ if h: 0 ≤ i then Int.natAbs i else -Int.natAbs (-i)
   left_inv n := by
-    simp only
+    simp only []
     obtain ⟨ a, b, rfl ⟩ := eq_diff n
     simp only [Quotient.lift_mk, Int.sub_nonneg, Nat.cast_le, neg_sub, dite_eq_ite]
     by_cases h: b ≤ a
@@ -711,23 +712,25 @@ abbrev Int.equivInt : Int ≃ ℤ where
       rw [natCast_eq]
       rw [eq]
       omega
-    . simp [h]
+    . simp only [h, ↓reduceIte]
       rw [natCast_eq]
       rw [neg_eq]
       rw [eq]
       omega
   right_inv x := by
-    simp
+    simp only [Nat.cast_natAbs, Int.natAbs_neg, dite_eq_ite]
     by_cases h: 0 ≤ x
-    . simp [h]
+    . simp only [h, ↓reduceIte]
       obtain ⟨a, b, hab⟩ := eq_diff ↑x.natAbs
+      rw [← Nat.cast_natAbs]
       rw [hab]
       simp only [Quotient.lift_mk]
       rw [natCast_eq] at hab
       rw [eq] at hab
       omega
-    . simp [h]
+    . simp only [h, ↓reduceIte]
       obtain ⟨a, b, hab⟩ := eq_diff ↑x.natAbs
+      rw [← Nat.cast_natAbs]
       rw [hab]
       rw [neg_eq]
       simp only [Quotient.lift_mk]

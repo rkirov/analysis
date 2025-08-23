@@ -515,8 +515,7 @@ theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ 
     intro x x'
     dsimp [M', M, S, f']
     apply Finset.le_max'
-    simp only [Finset.mem_image, Finset.mem_univ, EmbeddingLike.apply_eq_iff_eq, true_and, S, M',
-      f', M]
+    simp only [Finset.mem_image, Finset.mem_univ, EmbeddingLike.apply_eq_iff_eq, true_and]
     rw [mem_Fin] at x'
     obtain ⟨ m, hm, hmn ⟩ := x'
     use ⟨m, hm⟩
@@ -549,17 +548,19 @@ noncomputable def SetTheory.Set.card (X:Set) : ℕ := if h:X.finite then h.choos
 theorem SetTheory.Set.has_card_card {X:Set} (hX: X.finite) : X.has_card (SetTheory.Set.card X) := by
   simp [card, hX, hX.choose_spec]
 
-theorem SetTheory.Set.has_card_to_card {X:Set} {n: ℕ}: X.has_card n → X.card = n := by
-  intro h; simp [card, card_uniq (⟨ n, h ⟩:X.finite).choose_spec h]; aesop
+theorem SetTheory.Set.has_card_to_card (X:Set) (n: ℕ): X.has_card n → X.card = n := by
+  intro h; have hf : X.finite := ⟨ n, h ⟩
+  simp [card, hf, card_uniq hf.choose_spec h]
 
-theorem SetTheory.Set.card_to_has_card {X:Set} {n: ℕ} (hn: n ≠ 0): X.card = n → X.has_card n
-  := by grind [card, has_card_card]
+theorem SetTheory.Set.card_to_has_card (X:Set) {n: ℕ} (hn: n ≠ 0): X.card = n → X.has_card n := by
+  rintro rfl; apply has_card_card
+  contrapose! hn; simp [card, hn]
 
-theorem SetTheory.Set.card_fin_eq (n:ℕ): (Fin n).has_card n := (has_card_iff _ _).mp ⟨ id, Function.bijective_id ⟩
+theorem SetTheory.Set.Fin_card (n:ℕ) : (Fin n).card = n := by
+  exact has_card_to_card _ _ (card_fin_eq n)
 
-theorem SetTheory.Set.Fin_card (n:ℕ): (Fin n).card = n := has_card_to_card (card_fin_eq n)
-
-theorem SetTheory.Set.Fin_finite (n:ℕ): (Fin n).finite := ⟨n, card_fin_eq n⟩
+theorem SetTheory.Set.Fin_finite (n:ℕ) : (Fin n).finite := by
+  exact ⟨n, card_fin_eq n⟩
 
 theorem SetTheory.Set.EquivCard_to_has_card_eq {X Y:Set} {n: ℕ} (h: X ≈ Y): X.has_card n ↔ Y.has_card n := by
   choose f hf using h; let e := Equiv.ofBijective f hf
@@ -575,6 +576,7 @@ theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.ca
   . choose nX hXn using hX; rw [EquivCard_to_has_card_eq h] at hXn; tauto
   . choose nY hYn using hY; rw [←EquivCard_to_has_card_eq h] at hYn; tauto
   simp [card, hX, hY]
+
 
 /-- Exercise 3.6.2 -/
 theorem SetTheory.Set.empty_iff_card_eq_zero {X:Set} : X = ∅ ↔ X.finite ∧ X.card = 0 := by
@@ -614,66 +616,7 @@ theorem SetTheory.Set.card_singleton (x:Object) : ({x}:Set).card = 1 := by
 
 theorem SetTheory.Set.singleton_finite (x:Object) : ({x}:Set).finite := by
   use 1
-  exact card_to_has_card _ 1 (by omega) (card_singleton x)
-
-theorem SetTheory.Set.Fin_card (n:ℕ) : (Fin n).card = n := by
-  exact has_card_to_card _ _ (card_fin_eq n)
-
-
-theorem SetTheory.Set.Fin_finite (n:ℕ) : (Fin n).finite := by
-  exact ⟨n, card_fin_eq n⟩
-
-theorem SetTheory.Set.EquivCard_to_has_card_eq {X Y:Set} (h: X ≈ Y) (n: ℕ): X.has_card n ↔ Y.has_card n := by
-  obtain ⟨f, hf⟩ := h
-  let e := Equiv.ofBijective f hf
-  constructor
-  . intro hX
-    rw [has_card_iff] at hX
-    obtain ⟨g, hg⟩ := hX
-    let e' := Equiv.ofBijective g hg
-    rw [has_card_iff]
-    let ec := e.symm.trans e'
-    use ec
-    exact ec.bijective
-  . intro hY
-    rw [has_card_iff] at hY
-    obtain ⟨g, hg⟩ := hY
-    let e' := Equiv.ofBijective g hg
-    rw [has_card_iff]
-    let ec := e.trans e'
-    use ec
-    exact ec.bijective
-
-theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.card := by
-  by_cases hX: X.finite
-  . by_cases hY: Y.finite
-    . rw [finite] at hX hY
-      obtain ⟨nX, hXn⟩ := hX
-      obtain ⟨nY, hYn⟩ := hY
-      have hcX := has_card_to_card _ _ hXn
-      have hcY := has_card_to_card _ _ hYn
-      rw [hcX, hcY]
-      rw [EquivCard_to_has_card_eq h nX] at hXn
-      exact card_uniq hXn hYn
-    . rw [finite] at hX hY
-      obtain ⟨nX, hXn⟩ := hX
-      push_neg at hY
-      have := EquivCard_to_has_card_eq h
-      specialize this nX
-      rw [this] at hXn
-      specialize hY nX
-      contradiction
-  . by_cases hY: Y.finite
-    . rw [finite] at hX hY
-      obtain ⟨nY, hYn⟩ := hY
-      push_neg at hX
-      have := EquivCard_to_has_card_eq h
-      specialize this nY
-      rw [← this] at hYn
-      specialize hX nY
-      contradiction
-    . simp [card, hX, hY]
-
+  exact Example_3_6_7a x
 
 /-- Proposition 3.6.14 (a) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X) :
@@ -1417,9 +1360,9 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
       have yeq := h_mod
       rw [yeq] at h
       simp at h
-      rw [← mk_cart_eq a]
-      rw [← mk_cart_eq b]
-      rw [mk_cart_inj]
+      rw [← mk_cartesian_fst_snd_eq a]
+      rw [← mk_cartesian_fst_snd_eq b]
+      rw [mk_cartesian_inj]
       constructor
       . apply hfX.injective
         rw [Subtype.mk.injEq]
@@ -1457,8 +1400,8 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
           contradiction
         . dsimp [y]
       ⟩
-      use mk_cart x' y'
-      simp only [mk_cart_fst, mk_cart_snd, x, y]
+      use mk_cartesian x' y'
+      simp
       rw [Subtype.mk.injEq]
       rw [hkm]
       simp only [Object.natCast_inj, x, y]
@@ -1809,12 +1752,20 @@ theorem SetTheory.Set.card_eq_zero {X:Set} (hX: X.finite) :
 
 /-- Exercise 3.6.5. You might find `SetTheory.Set.prod_commutator` useful. -/
 theorem SetTheory.Set.prod_EqualCard_prod (A B:Set) :
-    EqualCard (A ×ˢ B) (B ×ˢ A) := by sorry
+    EqualCard (A ×ˢ B) (B ×ˢ A) := by
+  rw [EqualCard]
+  use fun p: A ×ˢ B ↦ mk_cartesian (snd p) (fst p)
+  constructor
+  . intro p q h
+    simp only at h
+    rw [mk_cartesian_inj] at h
+    rw [← cart_fst_snd_ext]
+    tauto
+  . intro p
+    use mk_cartesian (snd p) (fst p)
+    simp only [snd_of_mk_cartesian, fst_of_mk_cartesian, mk_cartesian_fst_snd_eq]
 
-noncomputable abbrev SetTheory.Set.pow_fun_equiv' (A B : Set) : ↑(A ^ B) ≃ (B → A) :=
-  pow_fun_equiv (A:=A) (B:=B)
-
-/-- Exercise 3.6.6. You may find `SetTheory.Set.curry_equiv` useful. -/
+/-- Exercise 3.6.6 -/
 theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
     EqualCard ((A ^ B) ^ C) (A ^ (B ×ˢ C)) := by
   rw [EqualCard]
@@ -1848,20 +1799,20 @@ theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
       rw [Subtype.val_inj] at this
       exact this
     ext b'
-    specialize b (mk_cart b' c')
-    specialize d (mk_cart b' c')
+    specialize b (mk_cartesian b' c')
+    specialize d (mk_cartesian b' c')
     obtain ⟨b'', hb''⟩ := b
     obtain ⟨d'', hd''⟩ := d
     simp at hb'' hd''
     repeat rw [fn_to_powerset] at h
     simp only [Subtype.mk.injEq, coe_of_fun_inj] at h
-    have := congrFun h (mk_cart b' c')
+    have := congrFun h (mk_cartesian b' c')
     simp at this
     generalize_proofs sa sb at this
     have hsa := Classical.choose_spec sa
     have hsb := Classical.choose_spec sb
-    conv_rhs at hsa => simp only [mk_cart_snd]
-    conv_rhs at hsb => simp only [mk_cart_snd]
+    conv_rhs at hsa => simp only [snd_of_mk_cartesian]
+    conv_rhs at hsb => simp only [snd_of_mk_cartesian]
     rw [← hsa] at hf
     rw [← hsb] at hf'
     rw [coe_of_fun_inj] at hf hf'
@@ -1872,7 +1823,7 @@ theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
     have hF := F.property
     rw [powerset_axiom] at hF
     obtain ⟨g, hg⟩ := hF
-    use fn_to_powerset (fun c ↦ (fn_to_powerset fun b ↦ g (mk_cart b c)))
+    use fn_to_powerset (fun c ↦ (fn_to_powerset fun b ↦ g (mk_cartesian b c)))
     unfold f
     simp
     rw [Subtype.mk.injEq]
@@ -1884,18 +1835,17 @@ theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
     generalize_proofs h1 h2
     have hc1 := Classical.choose_spec h1
     have hc2 := Classical.choose_spec h2
-    simp [fn_to_powerset_inj] at hc1 hc2
     -- ughh, I guessed that there is some rewriting possible and had exact? find it
     -- can this be done with a simpler rw?
-    have : choose h1 = fun c ↦ fn_to_powerset fun b ↦ g (mk_cart b c) := by exact
-      (coe_of_fun_inj (choose h1) fun c ↦ fn_to_powerset fun b ↦ g (mk_cart b c)).mp hc1
+    have : choose h1 = fun c ↦ fn_to_powerset fun b ↦ g (mk_cartesian b c) := by exact
+      (coe_of_fun_inj (choose h1) fun c ↦ fn_to_powerset fun b ↦ g (mk_cartesian b c)).mp hc1
     conv_rhs at hc2 => rw [this]
     simp at hc2
     -- same trick
-    have : choose h2 = fun b ↦ g (mk_cart b (snd bc)) := by exact
-      (coe_of_fun_inj (choose h2) fun b ↦ g (mk_cart b (snd bc))).mp hc2
+    have : choose h2 = fun b ↦ g (mk_cartesian b (snd bc)) := by exact
+      (coe_of_fun_inj (choose h2) fun b ↦ g (mk_cartesian b (snd bc))).mp hc2
     rw [this]
-    simp only [mk_cart_eq]
+    simp only [mk_cartesian_fst_snd_eq]
 
 example (a b c:ℕ): (a^b)^c = a^(b*c) := by
   let A := SetTheory.Set.Fin a
@@ -1978,7 +1928,7 @@ theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint
     have hF := F.property
     rw [powerset_axiom] at hF
     obtain ⟨g, hg⟩ := hF
-    use mk_cart (fn_to_powerset fun b ↦ g ⟨b, by aesop⟩)
+    use mk_cartesian (fn_to_powerset fun b ↦ g ⟨b, by aesop⟩)
       (fn_to_powerset fun c ↦ g ⟨c, by aesop⟩)
     simp
     rw [Subtype.mk.injEq]
@@ -2074,7 +2024,7 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
   have hB'card := SetTheory.Set.Fin_card b
   rw [hB'card] at hB
   have hBfin : B.finite := by
-    have := SetTheory.Set.EquivCard_to_has_card_eq Beq b
+    have := SetTheory.Set.EquivCard_to_has_card_eq b Beq
     rw [SetTheory.Set.finite]
     use b
     rw [this]
@@ -2151,7 +2101,7 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
   have hC'card := SetTheory.Set.Fin_card c
   rw [hC'card] at hC
   have hCfin : C.finite := by
-    have := SetTheory.Set.EquivCard_to_has_card_eq Ceq c
+    have := SetTheory.Set.EquivCard_to_has_card_eq c Ceq
     rw [SetTheory.Set.finite]
     use c
     rw [this]
@@ -2511,7 +2461,7 @@ theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective 
     have him_finite : S.finite := by
       rw [finite]
       use 2
-      exact card_to_has_card _ 2 (by omega) hcard
+      exact card_to_has_card _ (by omega) hcard
     rw [card_image_inj him_finite hf']
     exact hcard
   . intro h
@@ -2847,14 +2797,14 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
             simp at hf_def
             rwa [Fin.toNat_inj] at hf_def
       . rfl -- where did this come from?
-    mk_cart y₀ ⟨G, hG⟩
+    mk_cartesian y₀ ⟨G, hG⟩
 
   have hf : Function.Bijective fP := by
     constructor
     .
       intro x1 x2 hxy
       unfold fP at hxy
-      rw [mk_cart_inj] at hxy
+      rw [SetTheory.Set.mk_cartesian_inj] at hxy
       obtain ⟨hx1, hy1⟩ := hxy
       generalize_proofs a _ b at hx1
       have ⟨hab, hae⟩ := Classical.choose_spec a
@@ -3112,8 +3062,8 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
         . rfl
       use ⟨F', hF'⟩
       dsimp [fP, F']
-      conv_rhs => rw [← mk_cart_eq p]
-      rw [mk_cart_inj]
+      conv_rhs => rw [← mk_cartesian_fst_snd_eq p]
+      rw [mk_cartesian_inj]
       constructor
       . generalize_proofs a b
         have ha := Classical.choose_spec a

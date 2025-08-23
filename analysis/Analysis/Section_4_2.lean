@@ -1230,8 +1230,8 @@ abbrev Rat.equivRat : Rat ≃ ℚ where
     suffices h: (a.numerator : ℚ) * ↑b.denominator = ↑b.numerator * ↑a.denominator by
       have ha' := a.nonzero
       have hb' := b.nonzero
-      -- field tactic?
-      sorry
+      field_simp
+      exact h
     have := congrArg (@Int.cast ℚ _root_.Rat.instIntCast .) h
     simp at this
     exact this
@@ -1258,6 +1258,54 @@ abbrev Rat.equivRat : Rat ≃ ℚ where
     . exact hab.symm
     . exact hb
 
+lemma div_lt_div_iff_same_sign {a b c d: ℚ} (hbd : 0 < b * d) : a / b < c / d ↔ a * d < c * b := by
+  have hbn : b ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  have hdn : d ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  by_cases hb : b > 0
+  . have hd : d > 0 := by exact (pos_iff_pos_of_mul_pos hbd).mp hb
+    exact div_lt_div_iff₀ hb hd
+  . simp at hb
+    rw [le_iff_lt_or_eq] at hb
+    simp [hbn] at hb
+    have hd: d < 0 := by exact (neg_iff_neg_of_mul_pos hbd).mp hb
+    have := div_lt_div_iff₀ (a:=c) (b:=-d) (c:=a) (d:=-b)
+    simp at this
+    have := this hd hb
+    rw [← this]
+    have h' : c / (-d) < a / (-b) ↔ c / d > a / b := by
+      rw [div_neg, div_neg, neg_lt_neg_iff]
+    rw [h']
+
+lemma div_lt_div_iff_diff_sign {a b c d: ℚ} (hbd : 0 > b * d) : a / b < c / d ↔ a * d > c * b := by
+  have hbn : b ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  have hdn : d ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  by_cases hb : b > 0
+  . have hd : d < 0 := by exact (pos_iff_neg_of_mul_neg hbd).mp hb
+    have := div_lt_div_iff₀ (a:=a) (b:=b) (c:=-c) (d:=-d)
+    simp at this
+    have := this hb hd
+    rw [this]
+  . simp at hb
+    rw [le_iff_lt_or_eq] at hb
+    simp [hbn] at hb
+    have hd : d > 0 := by exact (neg_iff_pos_of_mul_neg hbd).mp hb
+    have := div_lt_div_iff₀ (a:=-a) (b:=-b) (c:=c) (d:=d)
+    simp at this
+    have := this hb hd
+    rw [this]
+
 /-- Not in textbook: equivalence preserves order -/
 abbrev Rat.equivRat_order : Rat ≃o ℚ where
   toEquiv := equivRat
@@ -1278,7 +1326,10 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
         by_cases hbd : b * d > 0
         . use b * c - a * d, b * d
           constructor
-          . sorry -- need a field tactic to get Z equality form h
+          . rw [div_lt_div_iff_same_sign] at h1
+            . norm_cast at h1
+              linarith
+            . exact_mod_cast hbd
           . constructor
             . exact hbd
             . repeat rw [coe_Int_eq]
@@ -1294,9 +1345,12 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
           simp only [gt_iff_lt, not_lt] at hbd
           rw [le_iff_lt_or_eq] at hbd
           simp [hbdneq] at hbd
-          use (-b) * c + a * d, -b * d
+          use -b * c + a * d, -b * d
           constructor
-          . sorry
+          . rw [div_lt_div_iff_diff_sign] at h1
+            . norm_cast at h1
+              linarith
+            . exact_mod_cast hbd
           . constructor
             . linarith
             . repeat rw [coe_Int_eq]
@@ -1315,7 +1369,9 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
               repeat omega
       . right
         rw [eq]
-        . sorry
+        . field_simp at h2
+          norm_cast at h2
+          exact h2.symm
         . exact hd
         . exact hb
     . intro h
@@ -1327,13 +1383,42 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
         rw [coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq] at hxy
         rw [eq] at hxy
         simp at hxy
-        -- cases b * d > 0 and otherwise
-        . sorry
+        . by_cases hbd : b * d > 0
+          . rw [div_lt_div_iff_same_sign]
+            . norm_cast
+              have : (c * b - d * a) > 0 := by
+                suffices h': (c * b - d * a) * y > 0 by
+                  exact (pos_iff_pos_of_mul_pos h').mpr hy
+                rw [hxy]
+                -- needed to flip a bunch of < before linarith works
+                simp_all
+                linarith
+              linarith
+            . norm_cast
+          . simp only [gt_iff_lt, not_lt] at hbd
+            have hbdneq : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
+            rw [le_iff_lt_or_eq] at hbd
+            simp only [hbdneq, or_false] at hbd
+            rw [div_lt_div_iff_diff_sign]
+            . norm_cast
+              have : (c * b - d * a) < 0 := by
+                suffices h': (c * b - d * a) * y < 0 by
+                  exact (neg_iff_pos_of_mul_neg h').mpr hy
+                rw [hxy]
+                -- needed to flip a bunch of < before linarith works
+                simp_all
+                rw [mul_comm d]
+                -- still can't linarith
+                exact Int.mul_neg_of_pos_of_neg hx hbd
+              linarith
+            . norm_cast
         . exact Int.mul_ne_zero hd hb
         repeat omega
       . right
         rw [eq] at h2
-        . sorry
+        . field_simp
+          norm_cast
+          exact h2.symm
         . exact hd
         . exact hb
 
@@ -1348,8 +1433,9 @@ abbrev Rat.equivRat_ring : Rat ≃+* ℚ where
     rw [add_eq _ _ hb hd]
     have : ¬b = 0 ∧ ¬d = 0 := by exact And.intro hb hd
     simp [this]
-    -- field
-    . sorry
+    . field_simp
+      norm_cast
+      exact Int.mul_comm b c
   map_mul' := by
     intro p q
     obtain ⟨a, b, hb, rfl⟩ := eq_diff p
@@ -1358,9 +1444,7 @@ abbrev Rat.equivRat_ring : Rat ≃+* ℚ where
     rw [mul_eq _ _ hb hd]
     have : ¬b = 0 ∧ ¬d = 0 := by exact And.intro hb hd
     simp [this]
-    -- field
-    sorry
-
+    field_simp
 
 /--
   Moved from earlier in original text.

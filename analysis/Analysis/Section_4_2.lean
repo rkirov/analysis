@@ -790,8 +790,6 @@ theorem Rat.ge_iff (x y:Rat) : x ≥ y ↔ (x > y) ∨ (x = y) := by
     . left; exact h1
     . right; exact h2.symm
 
--- z is needed otherwise x < y gets stuck?
--- todo: ask on Zulip why
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
 theorem Rat.trichotomous' (x y:Rat) : x > y ∨ x < y ∨ x = y := by
   have := Rat.trichotomous (x - y)
@@ -915,7 +913,7 @@ theorem Rat.gt_of_neq_le (a b: Rat): (¬ a ≤ b) ↔ a > b := by
   . intro h
     rw [le_iff] at h
     push_neg at h
-    have := Rat.trichotomous' a b a
+    have := Rat.trichotomous' a b
     tauto
   . intro h
     rw [le_iff]
@@ -1111,7 +1109,7 @@ instance Rat.instLinearOrder : LinearOrder Rat where
       simp [h]
       have : b ≠ a := by tauto
       simp [this]
-      have := Rat.trichotomous' a b a
+      have := Rat.trichotomous' a b
       simp [h] at this
       tauto
   toDecidableLE := decidableRel

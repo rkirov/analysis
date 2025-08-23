@@ -605,7 +605,7 @@ def SetTheory.Set.image_of_inter' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A
     aesop
   rw [this]
   by_contra h
-  rw [ext_iff] at h
+  rw [Set.ext_iff] at h
   specialize h 0
   rw [mem_inter] at h
   repeat rw [mem_image] at h
@@ -631,7 +631,7 @@ def SetTheory.Set.image_of_diff' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A 
     aesop
   rw [this]
   by_contra h
-  rw [ext_iff] at h
+  rw [Set.ext_iff] at h
   specialize h 0
   rw [mem_sdiff] at h
   repeat rw [mem_image] at h
@@ -766,7 +766,7 @@ theorem SetTheory.Set.image_preimage_of_surj {X Y:Set} (f:X → Y) :
       rw [hx]
       exact hy
     have h2 := h this
-    rw [ext_iff] at h2
+    rw [Set.ext_iff] at h2
     specialize h2 y
     rw [mem_singleton] at h2
     simp only [iff_true] at h2

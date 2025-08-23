@@ -304,7 +304,7 @@ theorem SetTheory.Set.pair_self (a:Object) : ({a,a}:Set) = {a} := by
 /-- Exercise 3.1.1 -/
 theorem SetTheory.Set.pair_eq_pair {a b c d:Object} (h: ({a,b}:Set) = {c,d}) :
     a = c ∧ b = d ∨ a = d ∧ b = c := by
-  rw [ext_iff] at h
+  rw [SetTheory.Set.ext_iff] at h
   simp [mem_pair] at h
   have h1 := h a
   have h2 := h b
@@ -342,7 +342,7 @@ abbrev SetTheory.Set.pair_empty : Set := {(empty: Object), (singleton_empty: Obj
 /-- Exercise 3.1.2 -/
 theorem SetTheory.Set.emptyset_neq_singleton : empty ≠ singleton_empty := by
   dsimp [empty, singleton_empty]
-  rw [ext_iff]
+  rw [SetTheory.Set.ext_iff]
   intro h
   have h1 := h empty
   simp at h1
@@ -350,7 +350,7 @@ theorem SetTheory.Set.emptyset_neq_singleton : empty ≠ singleton_empty := by
 /-- Exercise 3.1.2 -/
 theorem SetTheory.Set.emptyset_neq_pair : empty ≠ pair_empty := by
   dsimp [empty, pair_empty]
-  rw [ext_iff]
+  rw [SetTheory.Set.ext_iff]
   intro h
   have h1 := h empty
   simp at h1
@@ -358,7 +358,7 @@ theorem SetTheory.Set.emptyset_neq_pair : empty ≠ pair_empty := by
 /-- Exercise 3.1.2 -/
 theorem SetTheory.Set.singleton_empty_neq_pair : singleton_empty ≠ pair_empty := by
   dsimp [singleton_empty, pair_empty]
-  rw [ext_iff]
+  rw [SetTheory.Set.ext_iff]
   intro h
   have h1 := h singleton_empty
   simp at h1

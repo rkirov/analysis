@@ -450,7 +450,13 @@ instance Rat.instCommRing : CommRing Rat where
     . exact h1
     . exact h2
   -- need to manually write a proof, because the generated one doesn't work.
-  natCast_succ := sorry
+  natCast_succ := by
+    intro n
+    simp [coe_Nat_eq]
+    rw [of_Nat_eq]
+    rw [add_eq]
+    rw [eq]
+    repeat omega
 
 instance Rat.instRatCast : RatCast Rat where
   ratCast q := q.num // q.den
@@ -459,8 +465,8 @@ theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by sorry
 
 theorem Rat.coe_Rat_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a/b:ℚ) = a // b := by
   set q := (a/b:ℚ)
-  set num :ℤ := q.num
-  set den :ℤ := (q.den:ℤ)
+  set num: ℤ := q.num
+  set den: ℤ := (q.den:ℤ)
   have hden : den ≠ 0 := by simp [den, q.den_nz]
   change num // den = a // b
   rw [eq _ _ hden hb]

@@ -187,6 +187,18 @@ theorem Int.trichotomous (x:Int) : x = 0 ∨ x.IsPos ∨ x.IsNeg := by
   right; left; refine ⟨ c+1, by linarith, ?_ ⟩
   simp_rw [natCast_eq, eq]; abel
 
+/-- (Not from textbook) I use this a lot in ch4.3 -/
+theorem Int.eq_nat_or_neg (a : Int) : ∃ n: ℕ, a = ↑n ∨ a = -↑n := by
+  have := trichotomous a
+  obtain rfl | ⟨ n, hn, rfl ⟩ | ⟨ n, hn, rfl ⟩ := this
+  . use 0; left; rfl
+  . use n
+    left
+    rfl
+  . use n
+    right
+    rfl
+
 /-- Lemma 4.1.5 (trichotomy of integers)-/
 theorem Int.not_pos_zero (x:Int) : x = 0 ∧ x.IsPos → False := by
   rintro ⟨ rfl, ⟨ n, _, _ ⟩ ⟩; simp_all [←natCast_ofNat]

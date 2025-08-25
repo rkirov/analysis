@@ -208,6 +208,19 @@ theorem abs_mul (x y:ℚ) : |x * y| = |x| * |y| := by
     rw [_root_.abs_of_pos hxy]
     simp only [mul_neg, neg_mul, neg_neg]
 
+theorem abs_div (x y:ℚ) : |x / y| = |x| / |y| := by
+  by_cases hy: y = 0
+  . subst y
+    simp only [div_zero, abs_zero]
+  . have hy': |y| ≠ 0 := by
+      contrapose hy
+      simp only [Decidable.not_not]
+      simp only [ne_eq, Decidable.not_not] at hy
+      exact (abs_eq_zero_iff y).mp hy
+    field_simp
+    rw [← abs_mul]
+    field_simp
+
 /-- Proposition 4.3.3(d) / Exercise 4.3.1 -/
 theorem abs_neg (x:ℚ) : |-x| = |x| := by
   have := abs_mul x (-1)
@@ -363,25 +376,72 @@ theorem close_mono {ε ε' x y:ℚ} (hxy: ε.Close x y) (hε: ε' ≥ ε) :
   . exact hxy
   . exact hε
 
--- todo: rename hxz
 /-- Proposition 4.3.7(f) / Exercise 4.3.2 -/
+theorem close_between {ε x y z w:ℚ} (hxy: ε.Close x y) (hxz: ε.Close x z)
 theorem close_between {ε x y z w:ℚ} (hxy: ε.Close x y) (hxz: ε.Close x z)
   (hbetween: (y ≤ w ∧ w ≤ z) ∨ (z ≤ w ∧ w ≤ y)) : ε.Close x w := by
   wlog h: y ≤ w ∧ w ≤ z
   . have hb2 := Or.symm hbetween
     simp [h] at hbetween
-    exact this hyz hxy hb2 hbetween
-  have h1 := abs_add (x - w) (w - y)
-  have h2 := abs_add (x - w) (w - z)
-  simp at h1 h2
-  have h12 := add_le_add h1 h2
-  rw [close_iff] at hxy hyz ⊢
-  have h3: |w - y| = w - y := by sorry
-  have h4: |w - z| = -(z - w) := by sorry
-  rw [h3, h4] at h12
-  simp at h12
-  sorry
-  -- linarith
+    exact this hxz hxy hb2 hbetween
+  have ⟨hyw, hwz⟩ := h
+  rw [close_iff] at hxy hxz ⊢
+  have hε: ε ≥ 0 := by
+    by_contra he
+    simp at he
+    have := abs_nonneg (x - y)
+    linarith
+  by_cases hn: z = y
+  . have : w = y := by linarith
+    subst w
+    exact hxy
+  set t := (w - y) / (z - y)
+  have hyz : y ≤ z := by exact Rat.le_trans hyw hwz
+  have ht: 0 ≤ t := by
+    unfold t
+    apply Rat.div_nonneg
+    . linarith
+    . linarith
+  have ht' : 0 ≤ 1 - t := by
+    unfold t
+    field_simp
+    rw [div_le_one₀]
+    linarith
+    rw [sub_pos]
+    rw [le_iff_lt_or_eq] at hyz
+    cases' hyz with h h
+    . exact h
+    . symm at h
+      contradiction
+  have ht'': (1 - t) * y + t * z = w := by
+    unfold t
+    -- help field_simp
+    have hn': z - y ≠ 0 := by exact sub_ne_zero_of_ne hn
+    field_simp [hn']
+    ring
+  rw [← ht'']
+  have : x = (1 - t) * x + t * x := by ring
+  rw [this]
+  calc |(1 - t) * x + t * x - ((1 - t) * y + t * z)| = |(1 - t) * (x - y) + t * (x - z)| := by ring_nf
+    _ ≤ |(1 - t) * (x - y)| + |t * (x - z)| := abs_add _ _
+    _ ≤ |(1 - t)| * |x - y| + |t| * |x - z| := by repeat rw [abs_mul]
+    _ ≤ |(1 - t)| * ε + |t| * |x - z| := by
+      simp only [add_le_add_iff_right]
+      apply mul_le_mul_of_nonneg_left hxy (by exact (abs_nonneg _))
+    _ ≤ |(1 - t)| * ε + |t| * ε := by
+      simp only [add_le_add_iff_left]
+      apply mul_le_mul_of_nonneg_left hxz (by exact (abs_nonneg _))
+    _ ≤ |(1 - t)| * ε + t * ε := by
+      simp only [add_le_add_iff_left]
+      apply mul_le_mul_of_nonneg_right
+      . rw [abs_of_nonneg ht]
+      . linarith
+     _ ≤ (1 - t) * ε + t * ε := by
+      simp only [add_le_add_iff_right]
+      apply mul_le_mul_of_nonneg_right
+      . rw [abs_of_nonneg ht']
+      . linarith
+    _ = ε := by ring
 
 /-- Proposition 4.3.7(g) / Exercise 4.3.2 -/
 theorem close_mul_right {ε x y z:ℚ} (hxy: ε.Close x y) :
@@ -419,30 +479,26 @@ theorem close_mul_mul {ε δ x y z w:ℚ} (hxy: ε.Close x y) (hzw: δ.Close z w
 in some later exercises. -/
 theorem close_mul_mul' {ε δ x y z w:ℚ} (hxy: ε.Close x y) (hzw: δ.Close z w) :
     (ε*|z|+δ*|y|).Close (x * z) (y * w) := by
-  have := close_mul_mul hε hxy hzw
-  apply close_mono this
-  suffices h: δ * |y| ≥ δ * |x| + ε * δ by
-    linarith
-  have hδ : δ ≥ 0 := by
-    sorry
-  suffices |y| ≥ |x| + ε by
-    sorry
-    -- linarith
-  rw [close_iff] at hxy
-  have := abs_sub x y
-  have h2 : |y| ≥ |x - y| - |x| := by linarith
-  trans
-  . exact h2
-  . simp
-
-
-
-
-
-
-
-
-
+  set a := y-x
+  have ha : y = x + a := by simp only [add_sub_cancel, a]
+  have haε: |a| ≤ ε := by rwa [close_symm, close_iff] at hxy
+  set b := w-z
+  have hb : w = z + b := by simp only [add_sub_cancel, b]
+  have hbδ: |b| ≤ δ := by rwa [close_symm, close_iff] at hzw
+  have : y*w = x * z + a * z + x * b + a * b := by rw [ha, hb]; ring
+  rw [close_symm, close_iff]
+  rw [this]
+  calc
+    _ = |a * z + b * (x + a)| := by ring_nf
+    _ ≤ |a * z + b * y| := by rw [ha]
+    _ ≤ |a * z| + |b * y| := by exact abs_add _ _
+    _ ≤ |a| * |z| + |b| * |y| := by simp only [abs_mul, le_refl]
+    _ ≤ ε * |z| + |b| * |y| := by
+      simp only [add_le_add_iff_right]
+      exact mul_le_mul_of_nonneg_right haε (abs_nonneg z)
+    _ ≤ _ := by
+      simp only [add_le_add_iff_left]
+      exact mul_le_mul_of_nonneg_right hbδ (abs_nonneg y)
 
 /-- Definition 4.3.9 (exponentiation).  Here we use the Mathlib definition.-/
 lemma pow_zero (x:ℚ) : x^0 = 1 := rfl
@@ -451,6 +507,11 @@ example : (0:ℚ)^0 = 1 := pow_zero 0
 
 /-- Definition 4.3.9 (exponentiation).  Here we use the Mathlib definition.-/
 lemma pow_succ (x:ℚ) (n:ℕ) : x^(n+1) = x^n * x := _root_.pow_succ x n
+
+lemma pow_one (x:ℚ) : x^1 = x := by
+  rw [pow_succ]
+  rw [pow_zero]
+  rw [one_mul]
 
 /-- Proposition 4.3.10(a) (Properties of exponentiation, I) / Exercise 4.3.3 -/
 theorem pow_add (x:ℚ) (m n:ℕ) : x^n * x^m = x^(n+m) := by
@@ -469,28 +530,149 @@ theorem pow_add (x:ℚ) (m n:ℕ) : x^n * x^m = x^(n+m) := by
     rw [← add_assoc]
 
 /-- Proposition 4.3.10(a) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_mul (x:ℚ) (m n:ℕ) : (x^n)^m = x^(n*m) := by sorry
+theorem pow_mul (x:ℚ) (m n:ℕ) : (x^n)^m = x^(n*m) := by
+  induction' m with m ih
+  . rw [pow_zero]
+    rw [mul_zero]
+    rw [pow_zero]
+  . rw [pow_succ]
+    rw [ih]
+    rw [pow_add]
+    rw [mul_add]
+    rw [mul_one]
 
 /-- Proposition 4.3.10(a) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem mul_pow (x y:ℚ) (n:ℕ) : (x*y)^n = x^n * y^n := by sorry
+theorem mul_pow (x y:ℚ) (n:ℕ) : (x*y)^n = x^n * y^n := by
+  induction' n with n ih
+  . repeat rw [pow_zero]
+    rw [mul_one]
+  . rw [pow_succ]
+    rw [ih]
+    have : x ^ n * y ^ n * (x * y) = x ^ n * x ^ 1 * y ^ n * y ^ 1 := by
+      repeat rw [pow_one]
+      ring
+    rw [this]
+    rw [pow_add]
+    rw [mul_assoc]
+    rw [pow_add]
 
 /-- Proposition 4.3.10(b) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_eq_zero (x:ℚ) (n:ℕ) (hn : 0 < n) : x^n = 0 ↔ x = 0 := by sorry
+theorem pow_eq_zero (x:ℚ) (n:ℕ) (hn : 0 < n) : x^n = 0 ↔ x = 0 := by
+  constructor
+  . intro h
+    induction' n with n ih
+    . contradiction
+    . rw [pow_succ] at h
+      by_cases hz : n = 0
+      . rw [hz] at h
+        rw [pow_zero] at h
+        rw [one_mul] at h
+        exact h
+      . have : 0 < n := by exact Nat.zero_lt_of_ne_zero hz
+        specialize ih this
+        have h' : x ^ n = 0 ∨ x = 0 := by exact mul_eq_zero.mp h
+        cases' h' with h h
+        . exact ih h
+        . exact h
+  . intro h
+    rw [h]
+    induction' n with n ih
+    . contradiction
+    . rw [pow_succ]
+      by_cases hz: n = 0
+      . rw [hz]
+        ring
+      . have : 0 < n := by exact Nat.zero_lt_of_ne_zero hz
+        specialize ih this
+        rw [ih]
+        rw [mul_zero]
 
 /-- Proposition 4.3.10(c) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_nonneg {x:ℚ} (n:ℕ) (hx: x ≥ 0) : x^n ≥ 0 := by sorry
+theorem pow_nonneg {x:ℚ} (n:ℕ) (hx: x ≥ 0) : x^n ≥ 0 := by
+  induction' n with n ih
+  . rw [pow_zero]
+    rfl
+  . rw [pow_succ]
+    exact mul_nonneg ih hx
 
 /-- Proposition 4.3.10(c) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_pos {x:ℚ} (n:ℕ) (hx: x > 0) : x^n > 0 := by sorry
+theorem pow_pos {x:ℚ} (n:ℕ) (hx: x > 0) : x^n > 0 := by
+  have hx': x ≥ 0 := by exact le_of_lt hx
+  have := pow_nonneg n hx'
+  rw [ge_iff_le] at this
+  rw [gt_iff_lt]
+  rw [le_iff_lt_or_eq] at this
+  cases' this with h h
+  . exact h
+  . by_cases hn : n = 0
+    . subst n
+      rw [pow_zero] at h
+      contradiction
+    . have hn' : 0 < n := by exact Nat.zero_lt_of_ne_zero hn
+      have := (pow_eq_zero x _ hn').mp h.symm
+      subst x
+      contradiction
 
 /-- Proposition 4.3.10(c) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_ge_pow (x y:ℚ) (n:ℕ) (hxy: x ≥ y) (hy: y ≥ 0) : x^n ≥ y^n := by sorry
+theorem pow_ge_pow (x y:ℚ) (n:ℕ) (hxy: x ≥ y) (hy: y ≥ 0) : x^n ≥ y^n := by
+  induction' n with n ih
+  . rw [pow_zero]
+    rw [pow_zero]
+  . rw [pow_succ]
+    rw [pow_succ]
+    apply mul_le_mul ih hxy hy
+    have hx : x ≥ 0 := by exact Rat.le_trans hy hxy
+    exact pow_nonneg n hx
 
-/-- Proposition 4.3.10(c) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_gt_pow (x y:ℚ) (n:ℕ) (hxy: x > y) (hy: y ≥ 0) (hn: n > 0) : x^n > y^n := by sorry
+theorem pow_gt_pow (x y:ℚ) (n:ℕ) (hxy: x > y) (hy: y > 0) (hn: n ≠ 0) : x^n > y^n := by
+  induction' n with n ih
+  . contradiction
+  . rw [pow_succ]
+    rw [pow_succ]
+    by_cases hz: n = 0
+    . subst n
+      simp only [pow_zero, one_mul, gt_iff_lt]
+      exact hxy
+    . specialize ih hz
+      have hx' : x ^ n > 0 := by
+        apply pow_pos
+        exact lt_trans hy hxy
+      have hy' : y ^ n > 0 := by exact pow_pos n hy
+      exact mul_lt_mul_of_pos' ih hxy hy hx'
 
 /-- Proposition 4.3.10(d) (Properties of exponentiation, I) / Exercise 4.3.3 -/
-theorem pow_abs (x:ℚ) (n:ℕ) : |x|^n = |x^n| := by sorry
+theorem pow_abs (x:ℚ) (n:ℕ) : |x|^n = |x^n| := by
+  induction' n with n ih
+  . rw [pow_zero]
+    rw [pow_zero]
+    rfl
+  . rw [pow_succ]
+    rw [pow_succ]
+    rw [ih]
+    rw [abs_mul]
+
+theorem eq_zero_of_pow_eq_zero (x: ℚ) (n: ℕ) (h: x ^ n = 0): x = 0 ∧ n > 0 := by
+  have hn : n > 0 := by
+    by_contra hz
+    simp only [gt_iff_lt, not_lt, nonpos_iff_eq_zero] at hz
+    subst n
+    rw [pow_zero] at h
+    contradiction
+  constructor
+  . exact (pow_eq_zero x n hn).mp h
+  . exact hn
+
+theorem zero_pow (m: ℕ) (h: m > 0) : (0:ℚ) ^ m = 0 := by
+  have h' := pow_eq_zero 0 m h
+  exact h'.mpr rfl
+
+theorem pow_sub (x:ℚ) (m n:ℕ) (h: n ≥ m) (hx: x ≠ 0): x ^ n / x ^ m = x ^ (n - m) := by
+  by_cases hm : x ^ m = 0
+  . apply eq_zero_of_pow_eq_zero at hm
+    tauto
+  . field_simp [hm]
+    rw [pow_add]
+    rw [Nat.sub_add_cancel h]
 
 /--
   Definition 4.3.11 (Exponentiation to a negative number).
@@ -504,30 +686,193 @@ example (x:ℚ): x^(-3:ℤ) = 1/(x*x*x) := by convert zpow_neg x 3; ring
 
 theorem pow_eq_zpow (x:ℚ) (n:ℕ): x^(n:ℤ) = x^n := zpow_natCast x n
 
-/-- Proposition 4.3.12(a) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_add (x:ℚ) (n m:ℤ) (hx: x ≠ 0): x^n * x^m = x^(n+m) := by sorry
+lemma cast_add (a b:ℕ): (a + b: ℕ) = (a: ℤ) + (b: ℤ) := by rfl
+lemma cast_mul (a b:ℕ): (a * b: ℕ) = (a: ℤ) * (b: ℤ) := by rfl
+lemma cast_sub (a b:ℕ) (h: b ≤ a): (a - b: ℕ) = (a: ℤ) - (b: ℤ) := by exact Int.ofNat_sub h
+
+example : ¬ ∀ x:ℚ, ∀ n m:ℤ, x^n * x^m = x^(n+m) := by
+  push_neg
+  use 0, 1, -1
+  simp
 
 /-- Proposition 4.3.12(a) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_mul (x:ℚ) (n m:ℤ) : (x^n)^m = x^(n*m) := by sorry
+theorem zpow_add (x:ℚ) (n m:ℤ) (hx: x ≠ 0) : x^n * x^m = x^(n+m) := by
+  wlog hnm : n ≥ m
+  . simp only [ge_iff_le, not_le] at hnm
+    have := this x m n hx (by exact Int.le_of_lt hnm)
+    rwa [mul_comm, add_comm]
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  obtain ⟨m', hm'⟩ := Int.eq_nat_or_neg m
+  rcases hn' with ⟨rfl | rfl⟩
+  . rcases hm' with ⟨rfl | rfl⟩
+    . repeat rw [pow_eq_zpow]
+      have : (n':ℤ) + (m':ℤ) = (((n' + m'):ℕ): ℤ) := by rfl
+      rw [this]
+      rw [pow_eq_zpow]
+      exact pow_add _ _ _
+    . subst m -- why didn't rfl do it
+      rw [zpow_neg, pow_eq_zpow]
+      field_simp
+      by_cases h2: n' ≥ m'
+      . have : (n': ℤ) + -(m':ℤ) = n' - m' := by rfl
+        rw [this]
+        rw [← cast_sub n' m' h2]
+        rw [pow_eq_zpow]
+        rw [pow_add]
+        congr
+        omega
+      . have : (n': ℤ) + -(m':ℤ) = -(m' - n') := by omega
+        rw [this]
+        rw [← cast_sub m' n' _]
+        rw [zpow_neg]
+        field_simp
+        rw [pow_add]
+        congr
+        omega
+        linarith
+  . subst n -- why didn't rfl do it
+    rw [zpow_neg]
+    rcases hm' with ⟨rfl | rfl⟩
+    . field_simp
+      by_cases h2: n' ≥ m'
+      . have : -(n': ℤ) + (m':ℤ) = m' - n' := by omega
+        rw [this]
+        rw [← cast_sub]
+        rw [pow_eq_zpow]
+        rw [pow_add]
+        congr
+        omega
+        linarith
+      . have : -(n': ℤ) + (m':ℤ) = -(n' - m') := by omega
+        rw [this]
+        rw [← cast_sub]
+        rw [zpow_neg]
+        field_simp
+        rw [pow_add]
+        congr
+        omega
+        linarith
+    . subst m
+      rw [zpow_neg]
+      field_simp
+      have : -(n': ℤ) + (-(m':ℤ)) = -(n' + m') := by omega
+      rw [this]
+      rw [← cast_add]
+      rw [zpow_neg]
+      field_simp
+      rw [pow_add]
 
 /-- Proposition 4.3.12(a) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem mul_zpow (x y:ℚ) (n:ℤ) : (x*y)^n = x^n * y^n := by sorry
+theorem mul_zpow (x y:ℚ) (n:ℤ) : (x*y)^n = x^n * y^n := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . repeat rw [pow_eq_zpow]
+    rw [mul_pow]
+  . subst n
+    repeat rw [zpow_neg]
+    field_simp
+    rw [mul_pow]
 
 /-- Proposition 4.3.12(b) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_pos {x:ℚ} (n:ℤ) (hx: x > 0) : x^n > 0 := by sorry
+theorem zpow_pos {x:ℚ} (n:ℤ) (hx: x > 0) : x^n > 0 := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . rw [pow_eq_zpow]
+    exact pow_pos n' hx
+  . subst n
+    rw [zpow_neg]
+    field_simp
 
 /-- Proposition 4.3.12(b) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_ge_zpow {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by sorry
+theorem zpow_ge_zpow {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . repeat rw [pow_eq_zpow]
+    apply pow_ge_pow _ _ _ hxy
+    exact le_of_lt hy
+  . exfalso
+    linarith
 
 theorem zpow_ge_zpow_ofneg {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n < 0) : x^n ≤ y^n := by
-  sorry
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . exfalso
+    linarith
+  . subst n
+    repeat rw [zpow_neg]
+    have := pow_ge_pow _ _ n' hxy (le_of_lt hy)
+    simp only [Int.neg_neg_iff_pos, Int.natCast_pos] at hn
+    have hyp : y ^ n' > 0 := by exact pow_pos n' hy
+    exact one_div_le_one_div_of_le hyp this
+
+theorem zpow_nat_inj {x y:ℚ} {n:ℕ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
+  wlog h: x ≤ y
+  . have hxy' : y ≤ x := by exact le_of_not_ge h
+    exact (this hy hx hn hxy.symm hxy').symm
+  . by_contra hneq
+    have h': x < y := by exact lt_of_le_of_ne h hneq
+    have := pow_gt_pow _ _ n h' hx hn
+    linarith
 
 /-- Proposition 4.3.12(c) (Properties of exponentiation, II) / Exercise 4.3.4 -/
 theorem zpow_inj {x y:ℚ} {n:ℤ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
-  sorry
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . repeat rw [pow_eq_zpow] at hxy
+    norm_cast at hn
+    exact zpow_nat_inj hx hy hn hxy
+  . subst n
+    rw [zpow_neg, zpow_neg] at hxy
+    norm_cast at hn
+    simp only [and_true] at hn
+    apply zpow_nat_inj hx hy hn
+    simp only [one_div, inv_inj] at hxy
+    exact hxy
+
+theorem zpow_nat_abs (x:ℚ) (n:ℕ): |x|^n = |x^n| := by
+  induction' n with n ih
+  . rw [pow_zero, pow_zero]
+    rfl
+  . rw [← pow_add, ← pow_add]
+    rw [abs_mul]
+    rw [ih]
+    rw [pow_one, pow_one]
+
+theorem abs_one_div(x:ℚ): 1 / |x| = |1 / x| := by
+  have : (1:ℚ) = |1| := by rfl
+  conv_lhs => rw [this]
+  exact Eq.symm (abs_div 1 x)
 
 /-- Proposition 4.3.12(d) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_abs (x:ℚ) (n:ℤ) : |x|^n = |x^n| := by sorry
+theorem zpow_abs (x:ℚ) (n:ℤ): |x|^n = |x^n| := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . repeat rw [pow_eq_zpow]
+    exact zpow_nat_abs x n'
+  . subst n
+    rw [zpow_neg, zpow_neg]
+    rw [zpow_nat_abs]
+    rw [abs_one_div]
 
 /-- Exercise 4.3.5 -/
-theorem two_pow_geq (N:ℕ) : 2^N ≥ N := by sorry
+theorem two_pow_geq (N:ℕ) : 2^N ≥ N := by
+  induction' N with N ih
+  . qify
+    rw [pow_zero]
+    rfl
+  . by_cases hz: N = 0
+    . subst hz
+      rw [zero_add]
+      decide
+    have hz' : 0 < N := by exact Nat.zero_lt_of_ne_zero hz
+    qify
+    rw [pow_succ]
+    suffices h: ↑N * 1 < 2 ^ N * 2 by
+      rw [mul_one] at h
+      norm_cast
+    rw [mul_comm _ 1, mul_comm _ 2]
+    apply mul_lt_mul_of_lt_of_le_of_pos_of_nonneg
+    . decide
+    . exact ih
+    . exact hz'
+    . decide

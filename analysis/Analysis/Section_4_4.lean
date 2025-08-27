@@ -26,10 +26,63 @@ Users of the companion who have completed the exercises in this section are welc
 
 /-- Proposition 4.4.1 (Interspersing of integers by rationals) / Exercise 4.4.1 -/
 theorem Rat.between_int (x:ℚ) : ∃! n:ℤ, n ≤ x ∧ x < n+1 := by
-  sorry
+  apply existsUnique_of_exists_of_unique
+  use x.num / x.den
+  . constructor
+    . have hnz :(x.den : ℤ) ≠ 0 := by
+        norm_cast
+        exact x.den_nz
+      have hdiv := Int.mul_ediv_self_le (x:=x.num) hnz
+      apply le_of_mul_le_mul_right (a := (x.den:ℚ))
+      . simp only [mul_den_eq_num]
+        rw [mul_comm]
+        qify at hdiv
+        exact hdiv
+      . have := Nat.zero_le x.den
+        rw [le_iff_lt_or_eq] at this
+        norm_cast at hnz
+        cases' this with h h
+        . norm_cast
+        . tauto
+    . have hden: 0 < (x.den:ℤ) := by
+        norm_cast
+        exact den_pos x
+      have hdiv' := Int.lt_mul_ediv_self_add (x:=x.num) hden
+      have den_pos': 0 < (x.den:ℤ) := by norm_cast; exact den_pos x
+      qify at hdiv'
+      apply lt_of_mul_lt_mul_right (a := (x.den:ℚ))
+      . simp only [mul_den_eq_num]
+        rw [add_mul, mul_comm, one_mul]
+        exact hdiv'
+      . norm_cast
+        exact Nat.zero_le x.den
+  . intro n n' ih ih'
+    wlog h: n ≤ n'
+    . specialize this x n' n ih' ih
+      symm
+      apply this
+      simp only [not_le] at h
+      exact Int.le_of_lt h
+    have : n' < n + 1 := by
+      qify
+      apply lt_of_le_of_lt
+      . exact ih'.1
+      . exact ih.2
+    linarith
 
 theorem Nat.exists_gt (x:ℚ) : ∃ n:ℕ, n > x := by
-  sorry
+  obtain ⟨n, ⟨h1, h2⟩, _⟩ := Rat.between_int x
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . simp_all
+    use ↑n' + 1
+    simp only [cast_add, cast_one]
+    exact h2
+  . subst n
+    use 1
+    simp at h2
+    have :0 ≤ (n':ℚ) := by positivity
+    exact lt_of_add_lt_of_nonneg_right h2 this
 
 /-- Proposition 4.4.3 (Interspersing of rationals) -/
 theorem Rat.exists_between_rat {x y:ℚ} (h: x < y) : ∃ z:ℚ, x < z ∧ z < y := by
@@ -46,12 +99,29 @@ theorem Rat.exists_between_rat {x y:ℚ} (h: x < y) : ∃ z:ℚ, x < z ∧ z < y
 
 /-- Exercise 4.4.2 (a) -/
 theorem Nat.no_infinite_descent : ¬ ∃ a:ℕ → ℕ, ∀ n, a (n+1) < a n := by
-  sorry
+  intro h
+  obtain ⟨a, ha⟩ := h
+  have : ∀ n k, a n ≥ k := by
+    intro n k
+    induction' k with k hk generalizing n
+    . exact zero_le (a n)
+    . specialize hk (n + 1)
+      specialize ha n
+      have : k < a n := by exact Nat.lt_of_le_of_lt hk ha
+      exact this -- turns out it is a > k is rfl a >= k + 1
+  specialize this 0
+  have hne := Nat.exists_gt (a 0)
+  obtain ⟨n, hn⟩ := hne
+  specialize this n
+  norm_cast at hn
+  linarith
 
 /-- Exercise 4.4.2 (b) -/
 def Int.infinite_descent : Decidable (∃ a:ℕ → ℤ, ∀ n, a (n+1) < a n) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  use fun n ↦ -n
+  intro n
+  simp
 
 /-- Exercise 4.4.2 (b) -/
 def Rat.pos_infinite_descent : Decidable (∃ a:ℕ → {x: ℚ // 0 < x}, ∀ n, a (n+1) < a n) := by
@@ -62,10 +132,27 @@ def Rat.pos_infinite_descent : Decidable (∃ a:ℕ → {x: ℚ // 0 < x}, ∀ n
 #check odd_iff_exists_bit1
 
 theorem Nat.even_or_odd'' (n:ℕ) : Even n ∨ Odd n := by
-  sorry
+  induction' n with n ih
+  . left
+    exact ⟨0, by ring⟩
+  rcases ih with (he | ho)
+  . right
+    rw [even_iff_exists_two_mul] at he
+    obtain ⟨k, rfl⟩ := he
+    use k
+  . left; rw [odd_iff_exists_bit1] at ho
+    obtain ⟨k, rfl⟩ := ho
+    use k + 1
+    ring
 
 theorem Nat.not_even_and_odd (n:ℕ) : ¬ (Even n ∧ Odd n) := by
-  sorry
+  rintro ⟨he, ho⟩
+  rw [even_iff_exists_two_mul] at he
+  rw [odd_iff_exists_bit1] at ho
+  obtain ⟨k, ne⟩ := he
+  obtain ⟨m, no⟩ := ho
+  rw [ne] at no
+  omega
 
 #check Nat.rec
 
@@ -93,10 +180,17 @@ theorem Rat.not_exist_sqrt_two : ¬ ∃ x:ℚ, x^2 = 2 := by
       choose q hpos hq using hPp.2
       have : q^2 = 2 * k^2 := by linarith
       use q; constructor
-      . sorry
+      . have hl: q ^ 2 < (2 * k) ^ 2 := by
+          rw [this]
+          aesop
+        exact lt_of_pow_lt_pow_left' 2 hl
       exact ⟨ hpos, k, by linarith [hPp.1], this ⟩
     have h1 : Odd (p^2) := by
-      sorry
+      rw [odd_iff_exists_bit1] at hp ⊢
+      obtain ⟨ k, rfl ⟩ := hp
+      ring_nf
+      use 2 * (k^2 + k)
+      ring_nf
     have h2 : Even (p^2) := by
       choose q hpos hq using hPp.2
       rw [even_iff_exists_two_mul]

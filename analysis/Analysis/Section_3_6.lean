@@ -556,6 +556,10 @@ theorem SetTheory.Set.card_to_has_card (X:Set) {n: ℕ} (hn: n ≠ 0): X.card = 
   rintro rfl; apply has_card_card
   contrapose! hn; simp [card, hn]
 
+theorem SetTheory.Set.card_to_has_card_fin (X:Set) {n: ℕ} (hfin: X.finite): X.card = n → X.has_card n := by
+  rintro rfl
+  exact has_card_card hfin
+
 theorem SetTheory.Set.Fin_card (n:ℕ) : (Fin n).card = n := by
   exact has_card_to_card _ _ (card_fin_eq n)
 
@@ -708,8 +712,8 @@ theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X
           rw [← h] at hx
           have hc := z'.property
           contradiction
-        simp only [hzneqx, ↓reduceDIte, f']
-        simp only [hz', Subtype.coe_eta, f']
+        simp only [hzneqx, ↓reduceDIte]
+        simp only [hz', Subtype.coe_eta]
   have : (X ∪ {x}) ≈  (Fin (n + 1)) := by use f'
   have fin : (X ∪ {x}).finite := by
     rw [finite]

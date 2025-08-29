@@ -1,5 +1,6 @@
 import Mathlib.Tactic
 import Analysis.Section_4_3
+import Analysis.Section_4_4
 
 /-!
 # Analysis I, Section 5.1: Cauchy sequences
@@ -171,11 +172,45 @@ example : (0.1:ℚ).Steady ((fun n:ℕ ↦ (10:ℚ) ^ (-(n:ℤ)-1) ):Sequence) :
 /--
 Example 5.1.5: The sequence 0.1, 0.01, 0.001, ... is not 0.01-steady. Left as an exercise.
 -/
-example : ¬(0.01:ℚ).Steady ((fun n:ℕ ↦ (10:ℚ) ^ (-(n:ℤ)-1) ):Sequence) := by sorry
+example : ¬(0.01:ℚ).Steady ((fun n:ℕ ↦ (10:ℚ) ^ (-(n:ℤ)-1) ):Sequence) := by
+  rw [Rat.Steady.coe]
+  by_contra h
+  specialize h 0 1
+  simp [Rat.Close] at h
+  norm_num at h
+  have : |(9:ℚ) / (100:ℚ)| = 9 / 100 := by norm_num
+  rw [this] at h
+  linarith
+
+lemma two_pow_gt (n: ℕ) : 2 ^ (n + 1) ≥ n + 1 := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    have : 2 ^ (n + 1 + 1) = 2 ^ (n + 1) * 2 := by ring
+    rw [this]
+    calc
+      2 ^ (n + 1) * 2 ≥ (n + 1) * 2 := by simp [ih]
+      _ > 2 * n + 1 := by linarith
+      _ ≥ n + 1 := by linarith
 
 /-- Example 5.1.5: The sequence 1, 2, 4, 8, ... is not ε-steady for any ε. Left as an exercise.
 -/
-example (ε:ℚ) : ¬ ε.Steady ((fun n:ℕ ↦ (2 ^ (n+1):ℚ) ):Sequence) := by sorry
+example (ε:ℚ) : ¬ ε.Steady ((fun n:ℕ ↦ (2 ^ (n+1):ℚ) ):Sequence) := by
+  rw [Rat.Steady.coe]
+  by_contra h
+  let n := (Nat.exists_gt ε).choose
+  have hn := (Nat.exists_gt ε).choose_spec
+  specialize h (n + 1) n
+  rw [Rat.Close] at h
+  -- not only norm_cast proves it? norm_num fails
+  rw [show (2:ℚ) ^ (n + 1 + 1) = (2:ℚ) ^ (n + 1) * (2:ℚ) by ring] at h
+  rw [show |(2:ℚ) ^ (n + 1) * 2 - (2:ℚ) ^ (n + 1)| = |(2:ℚ) ^ (n + 1)| by ring_nf] at h
+  rw [show |(2:ℚ) ^ (n + 1)| = (2:ℚ) ^ (n + 1) by exact IsAbsoluteValue.abv_pow abs 2 (n + 1)] at h
+  change ε < n at hn
+  have : (2:ℚ) ^ (n + 1) < n := by exact lt_of_le_of_lt h hn
+  norm_cast at this
+  have := two_pow_gt n
+  linarith
 
 /-- Example 5.1.5:The sequence 2, 2, 2, ... is ε-steady for any ε > 0.
 -/
@@ -254,7 +289,19 @@ Example 5.1.7
 The sequence 10, 0, 0, ... is eventually ε-steady for every ε > 0. Left as an exercise.
 -/
 lemma Sequence.ex_5_1_7_d {ε:ℚ} (hε:ε>0) :
-    ε.EventuallySteady ((fun n:ℕ ↦ if n=0 then (10:ℚ) else (0:ℚ) ):Sequence) := by sorry
+    ε.EventuallySteady ((fun n:ℕ ↦ if n=0 then (10:ℚ) else (0:ℚ) ):Sequence) := by
+  use 1
+  simp
+  rw [Rat.Steady]
+  intro n hn m hm
+  simp at hn hm
+  lift n to ℕ using (by omega)
+  lift m to ℕ using (by omega)
+  simp_all [Rat.Close]
+  have hne: n ≠ 0 := by omega
+  have hme : m ≠ 0 := by omega
+  simp [hne, hme]
+  exact le_of_lt hε
 
 abbrev Sequence.IsCauchy (a:Sequence) : Prop := ∀ ε > (0:ℚ), ε.EventuallySteady a
 
@@ -296,10 +343,74 @@ lemma Sequence.IsCauchy.mk {n₀:ℤ} (a: {n // n ≥ n₀} → ℚ) :
 
 noncomputable def Sequence.sqrt_two : Sequence := (fun n:ℕ ↦ ((⌊ (Real.sqrt 2)*10^n ⌋ / 10^n):ℚ))
 
+lemma floor_abs (r: ℝ) : |r - ⌊r⌋| < 1 := by
+  have : ⌊r⌋ ≤ r := Int.floor_le r
+  have : r < ⌊r⌋ + 1 := Int.lt_floor_add_one _
+  have : |r - ⌊r⌋| = r - ⌊r⌋ := by
+    apply abs_of_nonneg (by linarith)
+  rw [this]
+  linarith
+
+lemma sqrt_approx (n: ℕ): |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2| < 1 / 10 ^ n := by
+   have := floor_abs (√2 * 10 ^ n)
+   -- divide both sides of this by 10 ^n
+   calc |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2|
+    = |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2 * 10 ^ n / 10 ^ n| := by simp
+  _ = |(↑⌊√2 * 10 ^ n⌋ - √2 * 10 ^ n) / 10 ^ n| := by rw [sub_div]
+  _ = |↑⌊√2 * 10 ^ n⌋ - √2 * 10 ^ n| / 10 ^ n := by
+      rw [abs_div, abs_of_pos (pow_pos (by norm_num : (0 : ℝ) < 10) n)]
+  _ = |√2 * 10 ^ n - ↑⌊√2 * 10 ^ n⌋| / 10 ^ n := by
+      rw [abs_sub_comm]
+  _ < 1 / 10 ^ n := by
+    apply div_lt_div₀ this <;> norm_num
+
+
+lemma pow_te_lt (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n < 0.5 := by
+  calc
+    1 / (10:ℝ) ^ n ≤ 1 / 10 ^ 1 := by
+      apply div_le_div_of_nonneg_left (a:=1)
+      . linarith
+      · norm_num
+      · sorry
+    _ = 1 / 10 := by norm_num
+    _ < 0.5 := by norm_num
+
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
 -/
-theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by sorry
+theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
+  rw [Rat.Steady, sqrt_two]
+  intro n hn m hm; simp at hn hm
+  lift n to ℕ using (by omega)
+  lift m to ℕ using (by omega)
+  simp [Rat.Close]
+  -- later proof doesn't work for m or n = 0 so we treat those separately here
+  by_cases hmn : m = n
+  . simp [hmn]
+  by_cases hm: m = 0
+  . subst m
+    simp
+    have := sqrt_approx n
+    have := floor_abs √2
+    have : n > 0 := by omega
+    have := pow_te_lt n (by omega)
+    sorry
+  by_cases hn: n = 0
+  . sorry
+  have := calc
+    |(⌊√2 * 10 ^ n⌋:ℚ) / 10 ^ n - (⌊√2 * 10 ^ m⌋:ℚ) / 10 ^ m| =
+      |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - (⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m| := by simp
+    _ = |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2 - ((⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m - √2)| := by ring_nf
+    _ ≤ |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2| + |(⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m - √2| := by exact abs_sub _ _
+    _ ≤ 1 / 10 ^ n + 1 / 10 ^ m := by
+      have := sqrt_approx n
+      have := sqrt_approx m
+      linarith
+    _ ≤ (1:ℝ) := by
+      have hm := pow_te_lt m (by exact Nat.zero_lt_of_ne_zero hm)
+      have hn := pow_te_lt n (by exact Nat.zero_lt_of_ne_zero hn)
+      linarith
+  exact_mod_cast this
 
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
@@ -364,7 +475,42 @@ lemma Sequence.isBounded_def (a:Sequence) : a.IsBounded ↔ ∃ M ≥ 0, a.Bound
 example : BoundedBy ![1,-2,3,-4] 4 := by intro i; fin_cases i <;> norm_num
 
 /-- Example 5.1.13 -/
-example : ¬((fun n:ℕ ↦ (-1)^n * (n+1:ℚ)):Sequence).IsBounded := by sorry
+example : ¬((fun n:ℕ ↦ (-1)^n * (n+1:ℚ)):Sequence).IsBounded := by
+  rw [Sequence.isBounded_def]
+  push_neg
+  intro M hM
+  rw [Sequence.boundedBy_def]
+  push_neg
+  simp
+  obtain ⟨ N, hN⟩ := exists_nat_gt M
+  by_cases h: (-1) ^ N = 1
+  . use N
+    qify at h
+    simp [h]
+    have : (N:ℚ) + 1 ≥ 0 := by linarith
+    have : |(N:ℚ) + 1| = (N:ℚ) + 1 := by simp [this]
+    rw [this]
+    exact lt_add_of_lt_of_pos hN rfl
+  .
+    have : (-1) ^ N = -1 := by
+      cases' Nat.even_or_odd N with heven hodd
+      · have : (-1) ^ N = 1 := Even.neg_one_pow heven
+        contradiction
+      · rw [Odd.neg_one_pow hodd]
+    have h': (-1) ^ (N + 1) = 1 := by
+      calc (-1) ^ (N + 1) = (-1) ^ N * (-1) := by ring
+        _ = -1 * (-1) := by rw [this]
+        _ = 1 := by ring
+    use (N + 1)
+    -- repeat above
+    have h'pos : 0 ≤ (N:ℤ) + 1 := by linarith
+    qify at h'
+    simp [h'pos, h']
+    ring_nf
+    have : 2 + (N:ℚ) ≥ 0 := by linarith
+    have : |2 + (N:ℚ)| = 2 + (N:ℚ) := by simp [this]
+    rw [this]
+    exact lt_add_of_pos_of_lt rfl hN
 
 /-- Example 5.1.13 -/
 example : ((fun n:ℕ ↦ (-1:ℚ)^n):Sequence).IsBounded := by

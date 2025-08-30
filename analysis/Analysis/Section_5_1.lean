@@ -530,7 +530,7 @@ example : ¬((fun n:ℕ ↦ (-1:ℚ)^n):Sequence).IsCauchy := by
   norm_num at h
 
 /-- Lemma 5.1.14 -/
-lemma IsBounded.finite {n:ℕ} (a: Fin n → ℚ) : ∃ M ≥ 0,  BoundedBy a M := by
+lemma IsBounded.finite {n:ℕ} (a: Fin n → ℚ) : ∃ M ≥ 0, BoundedBy a M := by
   -- this proof is written to follow the structure of the original text.
   induction' n with n hn
   . use 0; simp
@@ -545,7 +545,130 @@ lemma IsBounded.finite {n:ℕ} (a: Fin n → ℚ) : ∃ M ≥ 0,  BoundedBy a M 
 
 /-- Lemma 5.1.15 (Cauchy sequences are bounded) / Exercise 5.1.1 -/
 lemma Sequence.isBounded_of_isCauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded := by
-  sorry
+  rw [Sequence.isCauchy_def] at h
+  rw [Sequence.isBounded_def]
+  specialize h 1 (by norm_num)
+  simp [Rat.eventuallySteady_def] at h
+  obtain ⟨N, hN, h⟩ := h
+  have := IsBounded.finite (n:= (N - a.n₀).toNat) (fun n ↦ a (a.n₀ + n))
+  obtain ⟨M, hM, h'⟩ := this
+  use max M (|(a N)| + 1)
+  constructor
+  . exact le_sup_of_le_left hM
+  . rw [Sequence.boundedBy_def]
+    intro n
+    by_cases hn: n < N
+    . rw [Chapter5.BoundedBy] at h'
+      by_cases hnn : n ≥ a.n₀
+      .
+        simp only [le_sup_iff]
+        left
+        let n': Fin (N - a.n₀).toNat := ⟨(n - a.n₀).toNat, by omega⟩
+        specialize h' n'
+        unfold n' at h'
+        have : (n - a.n₀).toNat + a.n₀ = n := by omega
+        rw [← this]
+        rw [add_comm]
+        exact h'
+      . simp only [le_sup_iff]
+        right
+        simp only [ge_iff_le, not_le] at hnn
+        rw [a.vanish n hnn]
+        simp only [abs_zero]
+        positivity
+    . simp at hn
+      rw [Rat.steady_def] at h
+      simp at h
+      specialize h n (by linarith) hn N hN (by rfl)
+      rw [Rat.Close] at h
+      have hn': a.n₀ ≤ n := by linarith
+      simp [hN, hn', hn] at h
+      have : |a.seq n| ≤ 1 + |a.seq N| := by
+        calc
+          |a.seq n| = |a.seq N - (a.seq N - a.seq n)| := by ring_nf
+          _ ≤ |a.seq N| + |a.seq N - a.seq n| := by exact abs_sub _ _
+          _ ≤ |a.seq N| + |a.seq n - a.seq N| := by rw [abs_sub_comm]
+          _ ≤ |a.seq N| + 1 := by linarith [h]
+          _ = 1 + |a.seq N| := by ring
+      rw [add_comm] at this
+      apply le_trans this
+      exact le_max_right _ _
+
+/-- Exercise 5.1.2 -/
+theorem Sequence.isBounded_of_add {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
+    (Sequence.mk' (min a.n₀ b.n₀) (fun n ↦ a n + b n)).IsBounded := by
+  rw [Sequence.isBounded_def] at ha hb ⊢
+  obtain ⟨Ma, ha0, ha'⟩ := ha
+  obtain ⟨Mb, hb0, hb'⟩ := hb
+  use Ma + Mb
+  constructor
+  . positivity
+  . rw [Sequence.boundedBy_def] at ha' hb' ⊢
+    intro n
+    by_cases hn: n < min a.n₀ b.n₀
+    . rw [vanish]
+      . simp
+        linarith
+      . simp only
+        exact hn
+    specialize ha' n
+    specialize hb' n
+    rw [eval_mk _ (by omega)]
+    simp only
+    apply le_trans
+    . exact abs_add _ _
+    . exact add_le_add ha' hb'
+
+theorem Sequence.isBounded_of_sub {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
+    (Sequence.mk' (min a.n₀ b.n₀)  (fun n ↦ a n - b n)).IsBounded := by
+  -- same proof as above, todo - refactor
+  rw [Sequence.isBounded_def] at ha hb ⊢
+  obtain ⟨Ma, ha0, ha'⟩ := ha
+  obtain ⟨Mb, hb0, hb'⟩ := hb
+  use Ma + Mb
+  constructor
+  . positivity
+  . rw [Sequence.boundedBy_def] at ha' hb' ⊢
+    intro n
+    by_cases hn: n < min a.n₀ b.n₀
+    . rw [vanish]
+      . simp
+        linarith
+      . simp only
+        exact hn
+    specialize ha' n
+    specialize hb' n
+    rw [eval_mk _ (by omega)]
+    simp only
+    apply le_trans
+    . exact abs_sub _ _
+    . exact add_le_add ha' hb'
+
+theorem Sequence.isBounded_of_mul {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
+    (Sequence.mk' (min a.n₀ b.n₀)  (fun n ↦ a n * b n)).IsBounded := by
+    -- same proof as above, todo - refactor
+  rw [Sequence.isBounded_def] at ha hb ⊢
+  obtain ⟨Ma, ha0, ha'⟩ := ha
+  obtain ⟨Mb, hb0, hb'⟩ := hb
+  use Ma * Mb
+  constructor
+  . positivity
+  . rw [Sequence.boundedBy_def] at ha' hb' ⊢
+    intro n
+    by_cases hn: n < min a.n₀ b.n₀
+    . rw [vanish]
+      . simp
+        positivity
+      . simp only
+        exact hn
+    specialize ha' n
+    specialize hb' n
+    rw [eval_mk _ (by omega)]
+    simp only
+    rw [abs_mul]
+    apply mul_le_mul ha' hb'
+    exact abs_nonneg (b.seq n)
+    exact ha0
 
 /-- Exercise 5.1.2 -/
 theorem Sequence.isBounded_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):

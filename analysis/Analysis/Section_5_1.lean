@@ -438,54 +438,59 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
       have := sqrt_approx n
       have := sqrt_approx m
       linarith
-    _ ≤ (1:ℝ) := by
+    _ ≤ 1 := by
       have hm := pow_te_lt m (by exact Nat.zero_lt_of_ne_zero hm)
       have hn := pow_te_lt n (by exact Nat.zero_lt_of_ne_zero hn)
       linarith
   exact_mod_cast this
+
+
+lemma abs_cast (a: ℚ) (b: ℝ) : (|a| : ℝ) ≤ b → |a| ≤ b := by norm_cast; intro x; exact x
 
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
 -/
 theorem Sequence.ex_5_1_10_b : (0.1:ℚ).Steady (sqrt_two.from 1) := by
   rw [Rat.Steady, sqrt_two]
-  simp
-  have := Sequence.ex_5_1_10_a
-  rw [Rat.Steady, sqrt_two] at this
-  simp at this
+  simp only [n0_coe, zero_le_one, sup_of_le_right, ge_iff_le, eval_coe_at_int, dite_eq_ite]
   intro n hn m hm
-  set n' := n - 1
-  set m' := m - 1
-  have hm' : m' ≥ 0 := by linarith
-  have hn' : n' ≥ 0 := by linarith
-  specialize this n' hn' m' hm'
-  simp_all
-  simp [show 0 ≤ n by linarith]
-  simp [show 0 ≤ m by linarith]
-  rw [Rat.Close] at this ⊢
-  have := div_le_div_of_nonneg_right (c:=10) this (by norm_num)
-  conv at this =>
-    lhs
-    arg 2
-    rw [show (10:ℚ) = |10^1| by norm_num]
-  rw [← abs_div] at this
-  rw [sub_div] at this
-  repeat rw [div_div] at this
-  repeat rw [← pow_add] at this
-  have hm'' : m'.toNat + 1 = m.toNat := by dsimp [m']; omega
-  have hn'' : n'.toNat + 1 = n.toNat := by dsimp [n']; omega
-  rw [hm'', hn''] at this
-  simp at this
-  have : 10 ^ n'.toNat < 10 ^ n.toNat := by sorry
-  have : 10 ^ m'.toNat < 10 ^ m.toNat := by sorry
-  sorry
-
-theorem Sequence.ex_5_1_10_c : (0.1:ℚ).EventuallySteady sqrt_two := by
-  rw [Rat.eventuallySteady_def]
-  use 1
-  constructor
-  . simp [sqrt_two]
-  . exact Sequence.ex_5_1_10_b
+  lift n to ℕ using (by omega)
+  lift m to ℕ using (by omega)
+  rw [Rat.Close] at ⊢
+  by_cases hmn: m = n
+  . simp [hmn]
+    norm_num
+  wlog hmn': m < n
+  . specialize this m hm n hn (by exact fun a ↦ hmn (id (Eq.symm a)))
+    have hmn'' : n < m := by
+      simp at hmn'
+      rw [le_iff_lt_or_eq] at hmn'
+      aesop
+    specialize this hmn''
+    rwa [abs_sub_comm]
+  simp [hm, hn]
+  norm_cast at hn hm
+  by_cases hn': m = 1
+  . subst m
+    sorry
+  -- same as above
+  have := calc
+    |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - (⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m| = |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2 - ((⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m - √2)| := by ring_nf
+    _ ≤ |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2| + |(⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m - √2| := by exact abs_sub _ _
+    _ ≤ 1 / 10 ^ n + 1 / 10 ^ m := by
+      have := sqrt_approx n
+      have := sqrt_approx m
+      linarith
+    _ ≤ 1 / 10 ^ 2 + 1 / 10 ^ 2 := by
+      gcongr <;> try norm_num <;> omega
+    _ ≤ 1 / 10 := by norm_num
+  suffices h: (|↑⌊√2 * 10 ^ n⌋ / 10 ^ n - ↑⌊√2 * 10 ^ m⌋ / 10 ^ m| : ℝ) ≤ (0.1 : ℝ) by
+    norm_cast at h ⊢
+    sorry
+    -- exact_mod_cast h
+  calc
+    _ ≤ 1 / 10 := by exact this
+    _ = (0.1 : ℝ) := by norm_num
 
 
 /-- Proposition 5.1.11. The harmonic sequence, defined as a₁ = 1, a₂ = 1/2, ... is a Cauchy sequence. -/
@@ -663,9 +668,19 @@ lemma Sequence.isBounded_of_isCauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded 
       apply le_trans this
       exact le_max_right _ _
 
+-- todo generalize further
+lemma op_add {a b: ℕ → ℚ} (n: ℤ): (a: Sequence).seq n + (b: Sequence).seq n = ((a + b): Sequence).seq n := by
+  by_cases hn: 0 ≤ n <;> simp [hn]
+
+lemma op_sub {a b: ℕ → ℚ} (n: ℤ): (a: Sequence).seq n - (b: Sequence).seq n = ((a - b): Sequence).seq n := by
+  by_cases hn: 0 ≤ n <;> simp [hn]
+
+lemma op_mul {a b: ℕ → ℚ} (n: ℤ): (a: Sequence).seq n * (b: Sequence).seq n = ((a * b): Sequence).seq n := by
+  by_cases hn: 0 ≤ n <;> simp [hn]
+
 /-- Exercise 5.1.2 -/
-theorem Sequence.isBounded_of_add {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
-    (Sequence.mk' (min a.n₀ b.n₀) (fun n ↦ a n + b n)).IsBounded := by
+theorem Sequence.isBounded_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
+    (a + b:Sequence).IsBounded := by
   rw [Sequence.isBounded_def] at ha hb ⊢
   obtain ⟨Ma, ha0, ha'⟩ := ha
   obtain ⟨Mb, hb0, hb'⟩ := hb
@@ -674,24 +689,17 @@ theorem Sequence.isBounded_of_add {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBoun
   . positivity
   . rw [Sequence.boundedBy_def] at ha' hb' ⊢
     intro n
-    by_cases hn: n < min a.n₀ b.n₀
-    . rw [vanish]
-      . simp
-        linarith
-      . simp only
-        exact hn
     specialize ha' n
     specialize hb' n
-    rw [eval_mk _ (by omega)]
-    simp only
-    apply le_trans
-    . exact abs_add _ _
-    . exact add_le_add ha' hb'
+    have := add_le_add ha' hb'
+    have := le_trans (abs_add _ _) this
+    rwa [op_add n] at this
 
-theorem Sequence.isBounded_of_sub {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
-    (Sequence.mk' (min a.n₀ b.n₀)  (fun n ↦ a n - b n)).IsBounded := by
+theorem Sequence.isBounded_sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
+    (a - b:Sequence).IsBounded := by
   -- same proof as above, except last 3 lines
-  -- todo - refactor  rw [Sequence.isBounded_def] at ha hb ⊢
+  -- todo - refactor
+  rw [Sequence.isBounded_def] at ha hb ⊢
   obtain ⟨Ma, ha0, ha'⟩ := ha
   obtain ⟨Mb, hb0, hb'⟩ := hb
   use Ma + Mb
@@ -699,22 +707,13 @@ theorem Sequence.isBounded_of_sub {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBoun
   . positivity
   . rw [Sequence.boundedBy_def] at ha' hb' ⊢
     intro n
-    by_cases hn: n < min a.n₀ b.n₀
-    . rw [vanish]
-      . simp
-        linarith
-      . simp only
-        exact hn
     specialize ha' n
     specialize hb' n
-    rw [eval_mk _ (by omega)]
-    simp only
-    apply le_trans
-    . exact abs_sub _ _
-    . exact add_le_add ha' hb'
+    rw [← op_sub n]
+    exact le_trans (abs_sub _ _) (add_le_add ha' hb')
 
-theorem Sequence.isBounded_of_mul {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
-    (Sequence.mk' (min a.n₀ b.n₀)  (fun n ↦ a n * b n)).IsBounded := by
+theorem Sequence.isBounded_mul {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
+    (a * b:Sequence).IsBounded := by
   -- same proof as above, except last 3 lines
   -- todo - refactor
   rw [Sequence.isBounded_def] at ha hb ⊢
@@ -725,20 +724,11 @@ theorem Sequence.isBounded_of_mul {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBoun
   . positivity
   . rw [Sequence.boundedBy_def] at ha' hb' ⊢
     intro n
-    by_cases hn: n < min a.n₀ b.n₀
-    . rw [vanish]
-      . simp
-        positivity
-      . simp only
-        exact hn
     specialize ha' n
     specialize hb' n
-    rw [eval_mk _ (by omega)]
-    simp only
-    rw [abs_mul]
-    apply mul_le_mul ha' hb'
-    exact abs_nonneg (b.seq n)
-    exact ha0
+    have := mul_le_mul ha' hb' (by exact abs_nonneg _) (by exact ha0)
+    rw [← abs_mul] at this
+    rwa [op_mul n] at this
 
 /-- Exercise 5.1.2 -/
 theorem Sequence.isBounded_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):

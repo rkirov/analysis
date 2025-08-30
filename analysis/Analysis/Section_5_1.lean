@@ -365,15 +365,30 @@ lemma sqrt_approx (n: ℕ): |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2| < 1 / 10 ^ 
     apply div_lt_div₀ this <;> norm_num
 
 
-lemma pow_te_lt (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n < 0.5 := by
+lemma pow_te_lt (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n ≤ 1 / 10 := by
   calc
     1 / (10:ℝ) ^ n ≤ 1 / 10 ^ 1 := by
       apply div_le_div_of_nonneg_left (a:=1)
       . linarith
       · norm_num
-      · sorry
+      · norm_cast
+        exact Nat.le_pow h
     _ = 1 / 10 := by norm_num
-    _ < 0.5 := by norm_num
+
+
+lemma int_frac_sqrt : Int.fract √2 < 0.5 := by
+  norm_num
+  sorry
+
+lemma sqrt_two_floor' : |√2 - ↑⌊√2⌋| < 0.9 := by
+  have : √2 > 0 := by norm_num
+  have : Int.fract √2 ≥ 0 := by exact Int.fract_nonneg √2
+  norm_num
+  have : |Int.fract √2| = Int.fract √2 := by
+    apply abs_of_nonneg this
+  rw [this]
+  calc _ < 0.5 := int_frac_sqrt
+    _ < _ := by norm_num
 
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
@@ -387,16 +402,33 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
   -- later proof doesn't work for m or n = 0 so we treat those separately here
   by_cases hmn : m = n
   . simp [hmn]
+  wlog hmn': m < n
+  . specialize this m n (by exact fun a ↦ hmn (id (Eq.symm a)))
+    simp at hmn'
+    rw [le_iff_lt_or_eq] at hmn'
+    cases' hmn' with hmn' hmn'
+    . specialize this hmn'
+      rw [abs_sub_comm]
+      exact this
+    . symm at hmn'
+      contradiction
   by_cases hm: m = 0
   . subst m
     simp
-    have := sqrt_approx n
-    have := floor_abs √2
-    have : n > 0 := by omega
-    have := pow_te_lt n (by omega)
-    sorry
-  by_cases hn: n = 0
-  . sorry
+    have h1 := sqrt_approx n
+    have h2 := sqrt_two_floor'
+    have hn : n > 0 := by omega
+    have h3 := pow_te_lt n (by omega)
+    have h12 := add_lt_add h1 h2
+    qify at h12 h3 ⊢
+    have := calc
+      |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - (⌊√2⌋:ℝ)| = |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2 + (√2 - (⌊√2⌋:ℝ))| := by ring_nf
+      _ ≤ |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2| + |√2 - (⌊√2⌋:ℝ)| := by exact abs_add _ _
+      _ < 1 / 10 ^ n + 0.9 := h12
+      _ ≤ 1 / 10 + 0.9 := by exact add_le_add_right h3 0.9
+      _ = 1 := by norm_num
+    exact_mod_cast (le_of_lt this)
+  have hn : n ≠ 0 := by linarith
   have := calc
     |(⌊√2 * 10 ^ n⌋:ℚ) / 10 ^ n - (⌊√2 * 10 ^ m⌋:ℚ) / 10 ^ m| =
       |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - (⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m| := by simp
@@ -415,9 +447,46 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
 -/
-theorem Sequence.ex_5_1_10_b : (0.1:ℚ).Steady (sqrt_two.from 1) := by sorry
+theorem Sequence.ex_5_1_10_b : (0.1:ℚ).Steady (sqrt_two.from 1) := by
+  rw [Rat.Steady, sqrt_two]
+  simp
+  have := Sequence.ex_5_1_10_a
+  rw [Rat.Steady, sqrt_two] at this
+  simp at this
+  intro n hn m hm
+  set n' := n - 1
+  set m' := m - 1
+  have hm' : m' ≥ 0 := by linarith
+  have hn' : n' ≥ 0 := by linarith
+  specialize this n' hn' m' hm'
+  simp_all
+  simp [show 0 ≤ n by linarith]
+  simp [show 0 ≤ m by linarith]
+  rw [Rat.Close] at this ⊢
+  have := div_le_div_of_nonneg_right (c:=10) this (by norm_num)
+  conv at this =>
+    lhs
+    arg 2
+    rw [show (10:ℚ) = |10^1| by norm_num]
+  rw [← abs_div] at this
+  rw [sub_div] at this
+  repeat rw [div_div] at this
+  repeat rw [← pow_add] at this
+  have hm'' : m'.toNat + 1 = m.toNat := by dsimp [m']; omega
+  have hn'' : n'.toNat + 1 = n.toNat := by dsimp [n']; omega
+  rw [hm'', hn''] at this
+  simp at this
+  have : 10 ^ n'.toNat < 10 ^ n.toNat := by sorry
+  have : 10 ^ m'.toNat < 10 ^ m.toNat := by sorry
+  sorry
 
-theorem Sequence.ex_5_1_10_c : (0.1:ℚ).EventuallySteady sqrt_two := by sorry
+theorem Sequence.ex_5_1_10_c : (0.1:ℚ).EventuallySteady sqrt_two := by
+  rw [Rat.eventuallySteady_def]
+  use 1
+  constructor
+  . simp [sqrt_two]
+  . exact Sequence.ex_5_1_10_b
+
 
 /-- Proposition 5.1.11. The harmonic sequence, defined as a₁ = 1, a₂ = 1/2, ... is a Cauchy sequence. -/
 theorem Sequence.IsCauchy.harmonic : (mk' 1 (fun n ↦ (1:ℚ)/n)).IsCauchy := by
@@ -621,8 +690,8 @@ theorem Sequence.isBounded_of_add {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBoun
 
 theorem Sequence.isBounded_of_sub {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
     (Sequence.mk' (min a.n₀ b.n₀)  (fun n ↦ a n - b n)).IsBounded := by
-  -- same proof as above, todo - refactor
-  rw [Sequence.isBounded_def] at ha hb ⊢
+  -- same proof as above, except last 3 lines
+  -- todo - refactor  rw [Sequence.isBounded_def] at ha hb ⊢
   obtain ⟨Ma, ha0, ha'⟩ := ha
   obtain ⟨Mb, hb0, hb'⟩ := hb
   use Ma + Mb
@@ -646,7 +715,8 @@ theorem Sequence.isBounded_of_sub {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBoun
 
 theorem Sequence.isBounded_of_mul {a b:Sequence} (ha: a.IsBounded) (hb: b.IsBounded) :
     (Sequence.mk' (min a.n₀ b.n₀)  (fun n ↦ a n * b n)).IsBounded := by
-    -- same proof as above, todo - refactor
+  -- same proof as above, except last 3 lines
+  -- todo - refactor
   rw [Sequence.isBounded_def] at ha hb ⊢
   obtain ⟨Ma, ha0, ha'⟩ := ha
   obtain ⟨Mb, hb0, hb'⟩ := hb

@@ -190,28 +190,53 @@ example {X Y Z:Prop} (hXY: X ↔ Y) (hXZ: X ↔ Z) : [X,Y,Z].TFAE := by
 example {X Y Z:Prop} (h: [X,Y,Z].TFAE) : X ↔ Y := by
   exact h.out 0 1
 
+-- ¬X ~~~~> (X) -> ⊥
+example (X Y: Prop): ¬ (X ∨ Y) ↔ ¬ X ∧ ¬ Y := by exact not_or
+example (X Y: Prop): ¬ (X ∧ Y) ↔ ¬ X ∨ ¬ Y := Classical.not_and_iff_not_or_not
+
 /-- Exercise A.1.1.  Fill in the first `sorry` with something reasonable. -/
-example {X Y:Prop} : ¬ ((X ∨ Y) ∧ ¬ (X ∧ Y)) ↔ sorry := by sorry
+example {X Y:Prop} : ¬ ((X ∨ Y) ∧ ¬ (X ∧ Y)) ↔ (¬ X ∧ ¬ Y) ∨ (X ∧ Y) := by
+  tauto
 
 /-- Exercise A.1.2.  Fill in the first `sorry` with something reasonable. -/
-example {X Y:Prop} : ¬ (X ↔ Y) ↔ sorry := by sorry
+example {X Y:Prop} : ¬ (X ↔ Y) ↔ (¬ X ∧ Y) ∨ (¬ Y ∧ X) := by tauto
 
 /-- Exercise A.1.3. -/
 def Exercise_A_1_3 : Decidable (∀ (X Y: Prop), (X → Y) → (¬X → ¬ Y) → (X ↔ Y)) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`, depending on whether you believe the given statement to be true or false.
-  sorry
+  apply isTrue
+  intro X Y h1 h2
+  constructor
+  . exact h1
+  . intro hY
+    by_contra hX
+    apply h2
+    . exact hX
+    . exact hY
 
 /-- Exercise A.1.4. -/
 def Exercise_A_1_4 : Decidable (∀ (X Y: Prop), (X → Y) → (¬Y → ¬ X) → (X ↔ Y)) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use false, true
+  simp
 
 /-- Exercise A.1.5. -/
 def Exercise_A_1_5 : Decidable (∀ (X Y Z: Prop), (X ↔ Y) → (Y ↔ Z) → [X,Y,Z].TFAE) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intros X Y Z hXY hYZ
+  tfae_have 1 ↔ 2 := by exact hXY
+  tfae_have 2 ↔ 3 := by exact hYZ
+  tfae_finish
 
 /-- Exercise A.1.6. -/
 def Exercise_A_1_6 : Decidable (∀ (X Y Z: Prop), (X → Y) → (Y → Z) → (Z → X) → [X,Y,Z].TFAE) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intros X Y Z hXY hYZ hZX
+  tfae_have 1 → 2 := by exact hXY
+  tfae_have 2 → 3 := by exact hYZ
+  tfae_have 3 → 1 := by exact hZX
+  tfae_finish

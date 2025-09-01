@@ -375,18 +375,39 @@ lemma pow_te_lt (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n ≤ 1 / 10 := by
         exact Nat.le_pow h
     _ = 1 / 10 := by norm_num
 
+lemma floor_sq: ⌊√2⌋ = 1 := by
+  rw [Int.floor_eq_iff]
+  constructor
+  . rw [Real.le_sqrt] <;> norm_num
+  . rw [Real.sqrt_lt] <;> norm_num
+
+lemma floor_sq': ⌊√2 * 10⌋ = 14 := by
+  rw [Int.floor_eq_iff]
+  constructor
+  . suffices 14 / 10 ≤ √2 by
+      simp
+      linarith
+    rw [Real.le_sqrt] <;> norm_num
+  . suffices √2 < 15 / 10 by
+      simp
+      linarith
+    rw [Real.sqrt_lt] <;> norm_num
 
 lemma int_frac_sqrt : √2 - ⌊√2⌋ < 0.9 := by
-  norm_num
-  sorry
+  rw [floor_sq]
+  simp
+  suffices √2 < 1.9 by linarith
+  rw [Real.sqrt_lt] <;> norm_num
 
 lemma int_frac_sqrt': √2 - ⌊√2 * 10⌋ / 10  < 0.09 := by
-  norm_num
-  sorry
+  rw [floor_sq']
+  simp
+  suffices √2 < 1.49 by linarith
+  rw [Real.sqrt_lt] <;> norm_num
 
 lemma sqrt_two_floor : |√2 - ↑⌊√2⌋| < 0.9 := by
   calc
-     _ = √2 - ↑⌊√2⌋ := by simp
+    _ = √2 - ↑⌊√2⌋ := by simp
     _ < 0.9 := int_frac_sqrt
 
 lemma sqrt_two_floor' : |√2 - ↑⌊√2 * 10⌋ / 10| < 0.09 := by

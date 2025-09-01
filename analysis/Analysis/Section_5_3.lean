@@ -65,15 +65,40 @@ theorem CauchySequence.coe_coe {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) : mk'
 
 /-- Proposition 5.3.3 / Exercise 5.3.1 -/
 theorem Sequence.equiv_trans {a b c:ℕ → ℚ} (hab: Equiv a b) (hbc: Equiv b c) :
-  Equiv a c := by sorry
+  Equiv a c := by
+  rw [Sequence.equiv_def] at *
+  intro ε hε
+  specialize hab (ε / 2) (by linarith)
+  specialize hbc (ε / 2) (by linarith)
+  simp [Rat.eventuallyClose_iff] at *
+  obtain ⟨N1, hN1⟩ := hab
+  obtain ⟨N2, hN2⟩ := hbc
+  use max N1 N2
+  intro n hn
+  specialize hN1 n (by aesop)
+  specialize hN2 n (by aesop)
+  calc
+    |a n - c n| = |(a n - b n) + (b n - c n)| := by ring_nf
+    _ ≤ |a n - b n| + |b n - c n| := by exact abs_add _ _
+    _ ≤ |a n - b n| + ε / 2 := by gcongr
+    _ ≤ ε / 2 + ε / 2 := by gcongr
+    _ = ε := by ring_nf
 
 /-- Proposition 5.3.3 / Exercise 5.3.1 -/
 instance CauchySequence.instSetoid : Setoid CauchySequence where
   r := fun a b ↦ Sequence.Equiv a b
   iseqv := {
-     refl := sorry
-     symm := sorry
-     trans := sorry
+    refl := by
+      intro x
+      rw [Sequence.equiv_def]
+      intro ε hε
+      rw [Rat.eventuallyClose_iff]
+      simp
+      use 0
+      intro n hn
+      exact le_of_lt hε
+    symm := Sequence.equiv_symm.mp
+    trans := Sequence.equiv_trans
   }
 
 theorem CauchySequence.equiv_iff (a b: CauchySequence) : a ≈ b ↔ Sequence.Equiv a b := by rfl

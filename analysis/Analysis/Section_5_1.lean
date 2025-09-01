@@ -365,7 +365,7 @@ lemma sqrt_approx (n: ℕ): |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2| < 1 / 10 ^ 
     apply div_lt_div₀ this <;> norm_num
 
 
-lemma pow_te_lt (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n ≤ 1 / 10 := by
+lemma div_pow_ten_lt_div (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n ≤ 1 / 10 := by
   calc
     1 / (10:ℝ) ^ n ≤ 1 / 10 ^ 1 := by
       apply div_le_div_of_nonneg_left (a:=1)
@@ -451,7 +451,7 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
     have h1 := sqrt_approx n
     have h2 := sqrt_two_floor
     have hn : n > 0 := by omega
-    have h3 := pow_te_lt n (by omega)
+    have h3 := div_pow_ten_lt_div n (by omega)
     have h12 := add_lt_add h1 h2
     qify at h12 h3 ⊢
     have := calc
@@ -472,8 +472,8 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
       have := sqrt_approx m
       linarith
     _ ≤ 1 := by
-      have hm := pow_te_lt m (by exact Nat.zero_lt_of_ne_zero hm)
-      have hn := pow_te_lt n (by exact Nat.zero_lt_of_ne_zero hn)
+      have hm := div_pow_ten_lt_div m (by exact Nat.zero_lt_of_ne_zero hm)
+      have hn := div_pow_ten_lt_div n (by exact Nat.zero_lt_of_ne_zero hn)
       linarith
   exact_mod_cast this
 

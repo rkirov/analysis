@@ -376,19 +376,31 @@ lemma pow_te_lt (n: ℕ) (h: n > 0): 1 / (10:ℝ) ^ n ≤ 1 / 10 := by
     _ = 1 / 10 := by norm_num
 
 
-lemma int_frac_sqrt : Int.fract √2 < 0.5 := by
+lemma int_frac_sqrt : √2 - ⌊√2⌋ < 0.9 := by
   norm_num
   sorry
 
-lemma sqrt_two_floor' : |√2 - ↑⌊√2⌋| < 0.9 := by
-  have : √2 > 0 := by norm_num
-  have : Int.fract √2 ≥ 0 := by exact Int.fract_nonneg √2
+lemma int_frac_sqrt': √2 - ⌊√2 * 10⌋ / 10  < 0.09 := by
   norm_num
-  have : |Int.fract √2| = Int.fract √2 := by
-    apply abs_of_nonneg this
-  rw [this]
-  calc _ < 0.5 := int_frac_sqrt
-    _ < _ := by norm_num
+  sorry
+
+lemma sqrt_two_floor : |√2 - ↑⌊√2⌋| < 0.9 := by
+  calc
+     _ = √2 - ↑⌊√2⌋ := by simp
+    _ < 0.9 := int_frac_sqrt
+
+lemma sqrt_two_floor' : |√2 - ↑⌊√2 * 10⌋ / 10| < 0.09 := by
+  calc
+    _ = √2 - ↑⌊√2 * 10⌋ / 10 := by
+      apply abs_of_nonneg
+      simp
+      conv =>
+        rhs
+        rw [show √2 = √2 * 10 / 10 by ring_nf]
+      suffices ⌊√2 * 10⌋ ≤ √2 * 10 by
+        gcongr
+      exact Int.floor_le _
+    _ < 0.09 := int_frac_sqrt'
 
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
@@ -416,7 +428,7 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
   . subst m
     simp
     have h1 := sqrt_approx n
-    have h2 := sqrt_two_floor'
+    have h2 := sqrt_two_floor
     have hn : n > 0 := by omega
     have h3 := pow_te_lt n (by omega)
     have h12 := add_lt_add h1 h2
@@ -444,9 +456,6 @@ theorem Sequence.ex_5_1_10_a : (1:ℚ).Steady sqrt_two := by
       linarith
   exact_mod_cast this
 
-
-lemma abs_cast (a: ℚ) (b: ℝ) : (|a| : ℝ) ≤ b → |a| ≤ b := by norm_cast; intro x; exact x
-
 /--
   Example 5.1.10. (This requires extensive familiarity with Mathlib's API for the real numbers.)
 -/
@@ -472,7 +481,36 @@ theorem Sequence.ex_5_1_10_b : (0.1:ℚ).Steady (sqrt_two.from 1) := by
   norm_cast at hn hm
   by_cases hn': m = 1
   . subst m
-    sorry
+    simp
+    have hten: 1 / (10:ℝ) ^ n ≤ 0.01 := by
+      norm_num
+      field_simp
+      suffices (10:ℝ) ^ n ≥ (100:ℝ) by
+        field_simp
+        apply div_le_div_of_nonneg_left
+        . norm_num
+        . norm_num
+        . exact this
+      norm_cast
+      rw [show 100 = 10^2 by rfl]
+      apply Nat.pow_le_pow_right
+      . omega
+      . omega
+    have := calc
+      |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - ↑⌊√2 * 10⌋ / 10| = |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2 + (√2 - ↑⌊√2 * 10⌋ / 10)| := by ring_nf
+      _ ≤ |↑⌊√2 * 10 ^ n⌋ / 10 ^ n - √2| + |√2 - ↑⌊√2 * 10⌋ / 10| := by exact abs_add _ _
+      _ ≤ 1 / 10 ^ n + |√2 - ↑⌊√2 * 10⌋ / 10| := by
+        gcongr
+        linarith [sqrt_approx n]
+      _ ≤ 1 / 10 ^ n + 0.09 := by
+        gcongr
+        linarith [sqrt_two_floor']
+      _ ≤ 0.01 + 0.09 := by
+        gcongr
+      _ = 0.1 := by norm_num
+    rw [show (0.1:ℝ) = (0.1:ℚ) by norm_cast] at this
+    norm_cast at this ⊢
+
   -- same as above
   have := calc
     |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - (⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m| = |(⌊√2 * 10 ^ n⌋:ℝ) / 10 ^ n - √2 - ((⌊√2 * 10 ^ m⌋:ℝ) / 10 ^ m - √2)| := by ring_nf
@@ -485,9 +523,8 @@ theorem Sequence.ex_5_1_10_b : (0.1:ℚ).Steady (sqrt_two.from 1) := by
       gcongr <;> try norm_num <;> omega
     _ ≤ 1 / 10 := by norm_num
   suffices h: (|↑⌊√2 * 10 ^ n⌋ / 10 ^ n - ↑⌊√2 * 10 ^ m⌋ / 10 ^ m| : ℝ) ≤ (0.1 : ℝ) by
+    rw [show (0.1:ℝ) = (0.1:ℚ) by norm_cast] at h
     norm_cast at h ⊢
-    sorry
-    -- exact_mod_cast h
   calc
     _ ≤ 1 / 10 := by exact this
     _ = (0.1 : ℝ) := by norm_num

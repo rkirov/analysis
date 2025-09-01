@@ -110,4 +110,4 @@ example {X:Type} {f:ℤ → X} (hf: f 12 = f 2) (n:ℤ) : NewInt.quot hf (n:NewI
 
 /-- Exercise A.7.1 -/
 example {a b c d:ℝ} (hab: a = b) (hcd : c = d) : a + d = b + c := by
-  sorry
+  rw [hab, hcd]

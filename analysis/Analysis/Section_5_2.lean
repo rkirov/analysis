@@ -237,7 +237,7 @@ lemma Sequence.close_seq_symm (ε: ℚ) (a b: Sequence) : ε.CloseSeq a b ↔ ε
     rw [abs_sub_comm]
     exact h
 
-lemma Sequence.eventually_close_symm (ε: ℚ) (a b: Sequence) :
+lemma Sequence.eventuallyClose_symm (ε: ℚ) (a b: Sequence) :
     ε.EventuallyClose a b ↔ ε.EventuallyClose b a := by
   repeat rw [Rat.eventuallyClose_def]
   constructor
@@ -250,12 +250,18 @@ lemma Sequence.eventually_close_symm (ε: ℚ) (a b: Sequence) :
     rw [Sequence.close_seq_symm]
     exact hN
 
-lemma Sequence.equiv_symm {a b: ℕ → ℚ}: Equiv a b → Equiv b a := by
-  intro hab ε hε
-  rw [equiv_def] at hab
-  specialize hab ε hε
-  rw [eventually_close_symm]
-  exact hab
+lemma Sequence.equiv_symm {a b: ℕ → ℚ}: Equiv a b ↔ Equiv b a := by
+  constructor
+  . intro hab ε hε
+    rw [equiv_def] at hab
+    specialize hab ε hε
+    rw [Sequence.eventuallyClose_symm]
+    exact hab
+  . intro hab ε hε
+    rw [equiv_def] at hab
+    specialize hab ε hε
+    rw [Sequence.eventuallyClose_symm]
+    exact hab
 
 theorem Sequence.isCauchy_of_equiv_one_d {a b: ℕ → ℚ} (hab: Equiv a b) :
     (a:Sequence).IsCauchy → (b:Sequence).IsCauchy := by
@@ -291,10 +297,59 @@ theorem Sequence.isCauchy_of_equiv {a b: ℕ → ℚ} (hab: Equiv a b) :
     (a:Sequence).IsCauchy ↔ (b:Sequence).IsCauchy := by
   constructor
   . exact isCauchy_of_equiv_one_d hab
-  . exact isCauchy_of_equiv_one_d (equiv_symm hab)
+  . rw [equiv_symm] at hab
+    exact isCauchy_of_equiv_one_d hab
+
+theorem Sequence.isBounded_of_eventuallyClose_one_dir {ε:ℚ} {a b: ℕ → ℚ} (hab: ε.EventuallyClose a b) :
+    (a:Sequence).IsBounded → (b:Sequence).IsBounded := by
+  intro h
+  rw [Sequence.isBounded_def] at h ⊢
+  rw [Rat.eventuallyClose_iff] at hab
+  obtain ⟨N, hN⟩ := hab
+  obtain ⟨M, hMp, hM⟩ := h
+  simp [boundedBy_def] at ⊢ hN
+  obtain ⟨M', hM'p, hM'⟩ := IsBounded.finite (fun n ↦ b n : Fin N → ℚ)
+  use (max M' M) + |ε|
+  constructor
+  . positivity
+  . intro n
+    by_cases hn: n < N
+    . by_cases hn': n < 0
+      . have : ¬ 0 ≤ n := by exact not_le_of_gt hn'
+        simp [this]
+        positivity
+      have : 0 ≤ n := by linarith
+      lift n to ℕ using this
+      norm_cast at hn
+      lift n to Fin N using hn
+      simp
+      rw [Chapter5.BoundedBy] at hM'
+      specialize hM' n
+      calc
+        |b n| ≤ M' := hM'
+        _ ≤ max M' M := by apply le_max_left
+        _ ≤ (max M' M) + |ε| := by simp
+    simp at hn
+    have : 0 ≤ n := by linarith
+    lift n to ℕ using this
+    simp
+    norm_cast at hn
+    calc
+      |b n| = |b n - a n + a n| := by ring_nf
+      _ = |(b n - a n) + a n| := by ring_nf
+      _ ≤ |b n - a n| + |a n| := abs_add _ _
+      _ ≤ ε + |a n| := by gcongr; rw [abs_sub_comm]; exact hN n hn
+      _ ≤ |ε| + |a n| := by gcongr; exact le_abs_self ε
+      _ ≤ |ε| + M := by gcongr; exact hM n
+      _ ≤ |ε| + max M' M := by gcongr; exact le_max_right M' M
+      _ = _ := by ring_nf
 
 /-- Exercise 5.2.2 -/
 theorem Sequence.isBounded_of_eventuallyClose {ε:ℚ} {a b: ℕ → ℚ} (hab: ε.EventuallyClose a b) :
-    (a:Sequence).IsBounded ↔ (b:Sequence).IsBounded := by sorry
+    (a:Sequence).IsBounded ↔ (b:Sequence).IsBounded := by
+  constructor
+  . exact isBounded_of_eventuallyClose_one_dir hab
+  . rw [Sequence.eventuallyClose_symm] at hab
+    exact isBounded_of_eventuallyClose_one_dir hab
 
 end Chapter5

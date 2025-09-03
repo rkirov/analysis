@@ -220,8 +220,6 @@ theorem Real.LIM_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Seque
   convert Quotient.liftOn₂_mk _ _ _ _
   rw [dif_pos]
 
--- why so slow
-set_option maxHeartbeats 2000000 in
 /-- Proposition 5.3.10 (Product of Cauchy sequences is Cauchy) -/
 theorem Sequence.IsCauchy.mul {a b:ℕ → ℚ}  (ha: (a:Sequence).IsCauchy) (hb: (b:Sequence).IsCauchy) :
     (a * b:Sequence).IsCauchy := by
@@ -409,6 +407,10 @@ instance Real.instNatCast : NatCast Real where
 @[simp]
 theorem Real.LIM.zero : LIM (fun _ ↦ (0:ℚ)) = 0 := by rw [←ratCast_def 0]; rfl
 
+theorem Real.LIM.one : LIM (fun _ ↦ (1:ℚ)) = 1 := by
+  rw [←ratCast_def 1]
+  rfl
+
 instance Real.instIntCast : IntCast Real where
   intCast n := ((n:ℚ):Real)
 
@@ -505,7 +507,22 @@ AddGroup.ofLeftAxioms Real.add_assoc Real.zero_add Real.neg_add_eq_zero
 theorem Real.sub_eq_add_neg (x y:Real) : x - y = x + (-y) := rfl
 
 theorem Sequence.IsCauchy.sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Sequence).IsCauchy) :
-    ((a-b:ℕ → ℚ):Sequence).IsCauchy := by sorry
+    ((a-b:ℕ → ℚ):Sequence).IsCauchy := by
+  rw [coe] at ha hb ⊢
+  simp [Section_4_3.dist_eq] at ha hb ⊢
+  intro ε hε
+  specialize ha (ε / 2) (by positivity)
+  specialize hb (ε / 2) (by positivity)
+  obtain ⟨N1, h1⟩ := ha
+  obtain ⟨N2, h2⟩ := hb
+  use max N1 N2
+  intro j hj k hk
+  specialize h1 j (le_of_max_le_left hj) k (le_of_max_le_left hk)
+  specialize h2 j (le_of_max_le_right hj) k (le_of_max_le_right hk)
+  calc _ = |a j - a k - (b j - b k)| := by ring_nf
+    _ ≤ |a j - a k| + |(b j - b k)| := by exact abs_sub _ _
+    _ ≤ ε / 2 + ε / 2 := by gcongr
+    _ = _ := by ring_nf
 
 /-- LIM distributes over subtraction -/
 theorem Real.LIM_sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Sequence).IsCauchy) :
@@ -516,14 +533,47 @@ theorem Real.ratCast_sub (a b:ℚ) : (a:Real) - (b:Real) = (a-b:ℚ) := by sorry
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.instAddCommGroup : AddCommGroup Real where
-  add_comm := by sorry
+  add_comm := by
+    intro a b
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    obtain ⟨b, hb, rfl⟩ := eq_lim b
+    rw [Real.LIM_add ha hb]
+    rw [Real.LIM_add hb ha]
+    rw [_root_.add_comm a b]
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.instCommMonoid : CommMonoid Real where
-  mul_comm := by sorry
-  mul_assoc := by sorry
-  one_mul := by sorry
-  mul_one := by sorry
+  mul_comm := by
+    intro a b
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    obtain ⟨b, hb, rfl⟩ := eq_lim b
+    rw [Real.LIM_mul ha hb]
+    rw [Real.LIM_mul hb ha]
+    rw [_root_.mul_comm a b]
+  mul_assoc := by
+    intro a b c
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    obtain ⟨b, hb, rfl⟩ := eq_lim b
+    obtain ⟨c, hc, rfl⟩ := eq_lim c
+    rw [Real.LIM_mul ha hb]
+    rw [Real.LIM_mul (Sequence.IsCauchy.mul ha hb) hc]
+    rw [Real.LIM_mul hb hc]
+    rw [Real.LIM_mul ha (Sequence.IsCauchy.mul hb hc)]
+    rw [_root_.mul_assoc a b c]
+  one_mul := by
+    intro a
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    rw [← Real.LIM.one]
+    rw [Real.LIM_mul (Sequence.IsCauchy.const 1) ha]
+    have : (fun (x:ℕ) ↦ 1) * a = a := by funext; simp
+    rw [this]
+  mul_one := by
+    intro a
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    rw [← Real.LIM.one]
+    rw [Real.LIM_mul ha (Sequence.IsCauchy.const 1)]
+    have : a * (fun (x:ℕ) ↦ 1) = a := by funext; simp
+    rw [this]
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.instCommRing : CommRing Real where

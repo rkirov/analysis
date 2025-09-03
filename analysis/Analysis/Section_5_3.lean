@@ -404,6 +404,10 @@ instance Real.instOfNat {n:ℕ} : OfNat Real n where
 instance Real.instNatCast : NatCast Real where
   natCast n := ((n:ℚ):Real)
 
+theorem natCast_def (n:ℕ) : (n:Real) = LIM (fun _ ↦ (n:ℚ)) := by
+  rw [LIM_def (Sequence.IsCauchy.const n)]
+  rfl
+
 @[simp]
 theorem Real.LIM.zero : LIM (fun _ ↦ (0:ℚ)) = 0 := by rw [←ratCast_def 0]; rfl
 
@@ -526,10 +530,19 @@ theorem Sequence.IsCauchy.sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb:
 
 /-- LIM distributes over subtraction -/
 theorem Real.LIM_sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Sequence).IsCauchy) :
-  LIM a - LIM b = LIM (a - b) := by sorry
+  LIM a - LIM b = LIM (a - b) := by
+  rw [sub_eq_add_neg]
+  rw [Real.neg_LIM b hb]
+  rw [LIM_add ha (Real.IsCauchy.neg b hb)]
+  have : a + (-b) = a - b := by ring_nf
+  rw [this]
 
 /-- ratCast distributes over subtraction -/
-theorem Real.ratCast_sub (a b:ℚ) : (a:Real) - (b:Real) = (a-b:ℚ) := by sorry
+theorem Real.ratCast_sub (a b:ℚ) : (a:Real) - (b:Real) = (a-b:ℚ) := by
+  rw [sub_eq_add_neg]
+  rw [Real.neg_ratCast]
+  rw [Real.ratCast_add]
+  ring_nf
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.instAddCommGroup : AddCommGroup Real where
@@ -539,7 +552,8 @@ noncomputable instance Real.instAddCommGroup : AddCommGroup Real where
     obtain ⟨b, hb, rfl⟩ := eq_lim b
     rw [Real.LIM_add ha hb]
     rw [Real.LIM_add hb ha]
-    rw [_root_.add_comm a b]
+    congr 1
+    ring_nf
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.instCommMonoid : CommMonoid Real where
@@ -549,7 +563,8 @@ noncomputable instance Real.instCommMonoid : CommMonoid Real where
     obtain ⟨b, hb, rfl⟩ := eq_lim b
     rw [Real.LIM_mul ha hb]
     rw [Real.LIM_mul hb ha]
-    rw [_root_.mul_comm a b]
+    congr 1
+    ring_nf
   mul_assoc := by
     intro a b c
     obtain ⟨a, ha, rfl⟩ := eq_lim a
@@ -577,20 +592,75 @@ noncomputable instance Real.instCommMonoid : CommMonoid Real where
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.instCommRing : CommRing Real where
-  left_distrib := by sorry
-  right_distrib := by sorry
-  zero_mul := by sorry
-  mul_zero := by sorry
-  mul_assoc := by sorry
-  natCast_succ := by sorry
+  left_distrib := by
+    intro a b c
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    obtain ⟨b, hb, rfl⟩ := eq_lim b
+    obtain ⟨c, hc, rfl⟩ := eq_lim c
+    rw [Real.LIM_mul ha hb]
+    rw [Real.LIM_mul ha hc]
+    rw [Real.LIM_add hb hc]
+    rw [Real.LIM_mul ha (Sequence.IsCauchy.add hb hc)]
+    rw [Real.LIM_add (Sequence.IsCauchy.mul ha hb) (Sequence.IsCauchy.mul ha hc)]
+    congr 1
+    ring_nf
+  right_distrib := by
+    intro a b c
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    obtain ⟨b, hb, rfl⟩ := eq_lim b
+    obtain ⟨c, hc, rfl⟩ := eq_lim c
+    rw [Real.LIM_mul ha hc]
+    rw [Real.LIM_mul hb hc]
+    rw [Real.LIM_add ha hb]
+    rw [Real.LIM_mul (Sequence.IsCauchy.add ha hb) hc]
+    rw [Real.LIM_add (Sequence.IsCauchy.mul ha hc) (Sequence.IsCauchy.mul hb hc)]
+    congr 1
+    ring_nf
+  zero_mul := by
+    intro a
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    rw [← Real.LIM.zero]
+    rw [Real.LIM_mul (Sequence.IsCauchy.const 0) ha]
+    have : (fun (x:ℕ) ↦ 0) * a = 0 := by funext; simp
+    rw [this]
+    rfl
+  mul_zero := by
+    intro a
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    rw [← Real.LIM.zero]
+    rw [Real.LIM_mul ha (Sequence.IsCauchy.const 0)]
+    have : a * (fun (x:ℕ) ↦ 0) = 0 := by funext; simp
+    rw [this]
+    rfl
+  mul_assoc := by
+    intro a b c
+    obtain ⟨a, ha, rfl⟩ := eq_lim a
+    obtain ⟨b, hb, rfl⟩ := eq_lim b
+    obtain ⟨c, hc, rfl⟩ := eq_lim c
+    rw [Real.LIM_mul ha hb]
+    rw [Real.LIM_mul (Sequence.IsCauchy.mul ha hb) hc]
+    rw [Real.LIM_mul hb hc]
+    rw [Real.LIM_mul ha (Sequence.IsCauchy.mul hb hc)]
+    rw [_root_.mul_assoc a b c]
+
+  natCast_succ := by
+    intro n
+    have := natCast_def n
+    simp [this] -- why does rw fail
+    have := natCast_def (n + 1)
+    simp [this]
+    rw [← Real.LIM.one]
+    rw [LIM_add (Sequence.IsCauchy.const n) (Sequence.IsCauchy.const 1)]
+    rfl
+
   intCast_negSucc := by sorry
 
 abbrev Real.ratCast_hom : ℚ →+* Real where
   toFun := RatCast.ratCast
-  map_zero' := by sorry
-  map_one' := by sorry
-  map_add' := by sorry
-  map_mul' := by sorry
+  map_zero' := by rfl
+  map_one' := by rfl
+  map_add' := by exact fun x y ↦ Eq.symm (ratCast_add x y)
+  map_mul' := by exact fun x y ↦ Eq.symm (ratCast_mul x y)
 
 /--
   Definition 5.3.12 (sequences bounded away from zero). Sequences are indexed to start from zero

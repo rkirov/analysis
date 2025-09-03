@@ -473,23 +473,34 @@ theorem Real.neg_LIM (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) : -LIM a = LIM 
     rw [this]
     exact IsCauchy.neg a ha
 
+theorem Real.add_assoc (a b c: Real): a + b + c = a + (b + c) := by
+  obtain ⟨a, ha, rfl⟩ := eq_lim a
+  obtain ⟨b, hb, rfl⟩ := eq_lim b
+  obtain ⟨c, hc, rfl⟩ := eq_lim c
+  rw [Real.LIM_add ha hb]
+  rw [Real.LIM_add (Sequence.IsCauchy.add ha hb) hc]
+  rw [Real.LIM_add hb hc]
+  rw [Real.LIM_add ha (Sequence.IsCauchy.add hb hc)]
+  rw [_root_.add_assoc a b c]
+
+theorem Real.zero_add (a: Real): 0 + a = a := by
+  obtain ⟨a, ha, rfl⟩ := eq_lim a
+  rw [← Real.LIM.zero]
+  rw [Real.LIM_add (Sequence.IsCauchy.const 0) ha]
+  have : (fun (x:ℕ) ↦ 0) + a = a := by funext; simp
+  rw [this]
+
+theorem Real.neg_add_eq_zero (a:Real) : (-a) + a = 0 := by
+  obtain ⟨a , ha, rfl⟩ := eq_lim a
+  rw [Real.neg_LIM a ha]
+  rw [Real.LIM_add (Real.IsCauchy.neg a ha) ha]
+  simp
+  rw [← Real.LIM.zero]
+  rfl
+
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.addGroup_inst : AddGroup Real :=
-AddGroup.ofLeftAxioms
-
-(by sorry)
-
-(by
-  intro a
-  obtain ⟨a, rfl⟩ := Quot.exists_rep a
-  rw [← Real.LIM.zero]
-  apply Quotient.sound
-  have := Sequence.IsCauchy.const 0
-  simp [this] -- why doesn't it simplify
-  sorry
-)
-
-(by sorry)
+AddGroup.ofLeftAxioms Real.add_assoc Real.zero_add Real.neg_add_eq_zero
 
 theorem Real.sub_eq_add_neg (x y:Real) : x - y = x + (-y) := rfl
 

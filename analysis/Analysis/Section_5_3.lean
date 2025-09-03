@@ -413,26 +413,83 @@ instance Real.instIntCast : IntCast Real where
   intCast n := ((n:ℚ):Real)
 
 /-- ratCast distributes over addition -/
-theorem Real.ratCast_add (a b:ℚ) : (a:Real) + (b:Real) = (a+b:ℚ) := by sorry
+theorem Real.ratCast_add (a b:ℚ) : (a:Real) + (b:Real) = (a+b:ℚ) := by
+  rw [ratCast_def, ratCast_def]
+  rw [LIM_add]
+  . have : (fun (x:ℕ) ↦ a) + (fun (x:ℕ) ↦ b) = (fun (x:ℕ) ↦ a + b) := by rfl
+    rw [this, ← ratCast_def]
+  . exact Sequence.IsCauchy.const a
+  . exact Sequence.IsCauchy.const b
 
 /-- ratCast distributes over multiplication -/
-theorem Real.ratCast_mul (a b:ℚ) : (a:Real) * (b:Real) = (a*b:ℚ) := by sorry
+theorem Real.ratCast_mul (a b:ℚ) : (a:Real) * (b:Real) = (a*b:ℚ) := by
+  rw [ratCast_def, ratCast_def]
+  rw [LIM_mul]
+  . have : (fun (x:ℕ) ↦ a) * (fun (x:ℕ) ↦ b) = (fun (x:ℕ) ↦ a * b) := by rfl
+    rw [this, ← ratCast_def]
+  . exact Sequence.IsCauchy.const a
+  . exact Sequence.IsCauchy.const b
 
 noncomputable instance Real.instNeg : Neg Real where
   neg x := ((-1:ℚ):Real) * x
 
+theorem neg_def (x:Real) : -x = ((-1:ℚ):Real) * x := by rfl
+
 /-- ratCast commutes with negation -/
-theorem Real.neg_ratCast (a:ℚ) : -(a:Real) = (-a:ℚ) := by sorry
+theorem Real.neg_ratCast (a:ℚ) : -(a:Real) = (-a:ℚ) := by
+  rw [neg_def]
+  rw [ratCast_mul]
+  simp
+
+theorem Real.IsCauchy.neg (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) :
+    ((-a:ℕ → ℚ):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe] at ha ⊢
+  intro ε hε
+  specialize ha ε hε
+  obtain ⟨N, hN⟩ := ha
+  use N
+  intro j hj k hk
+  specialize hN j hj k hk
+  simp [Section_4_3.dist] at hN ⊢
+  rw [abs_sub_comm] at hN
+  rw [add_comm]
+  have : a k + (- a j) = a k - a j := by ring
+  rw [this]
+  exact hN
 
 /-- It may be possible to omit the Cauchy sequence hypothesis here. -/
-theorem Real.neg_LIM (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) : -LIM a = LIM (-a) := by sorry
-
-theorem Sequence.IsCauchy.neg (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) :
-    ((-a:ℕ → ℚ):Sequence).IsCauchy := by sorry
+theorem Real.neg_LIM (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) : -LIM a = LIM (-a) := by
+  rw [LIM_def ha, LIM_def (Real.IsCauchy.neg a ha)]
+  convert Quotient.liftOn₂_mk _ _ _ _
+  simp
+  rw [dif_pos _]
+  . ext
+    . simp
+    . simp
+  . simp
+    have : (fun (x:ℕ) ↦ -1) * (fun (x:ℕ) ↦ a x) = (fun (x:ℕ) ↦ -(a x)) := by
+      funext x
+      simp
+    rw [this]
+    exact IsCauchy.neg a ha
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.addGroup_inst : AddGroup Real :=
-  AddGroup.ofLeftAxioms (by sorry) (by sorry) (by sorry)
+AddGroup.ofLeftAxioms
+
+(by sorry)
+
+(by
+  intro a
+  obtain ⟨a, rfl⟩ := Quot.exists_rep a
+  rw [← Real.LIM.zero]
+  apply Quotient.sound
+  have := Sequence.IsCauchy.const 0
+  simp [this] -- why doesn't it simplify
+  sorry
+)
+
+(by sorry)
 
 theorem Real.sub_eq_add_neg (x y:Real) : x - y = x + (-y) := rfl
 

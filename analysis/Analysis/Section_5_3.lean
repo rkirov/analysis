@@ -418,6 +418,11 @@ theorem Real.LIM.one : LIM (fun _ ↦ (1:ℚ)) = 1 := by
 instance Real.instIntCast : IntCast Real where
   intCast n := ((n:ℚ):Real)
 
+
+theorem intCast_def (n:ℤ) : (n:Real) = LIM (fun _ ↦ (n:ℚ)) := by
+  rw [LIM_def (Sequence.IsCauchy.const n)]
+  rfl
+
 /-- ratCast distributes over addition -/
 theorem Real.ratCast_add (a b:ℚ) : (a:Real) + (b:Real) = (a+b:ℚ) := by
   rw [ratCast_def, ratCast_def]
@@ -645,15 +650,23 @@ noncomputable instance Real.instCommRing : CommRing Real where
 
   natCast_succ := by
     intro n
-    have := natCast_def n
-    simp [this] -- why does rw fail
-    have := natCast_def (n + 1)
-    simp [this]
+    simp [natCast_def n] -- why does rw fail
+    simp [natCast_def (n + 1)]
     rw [← Real.LIM.one]
     rw [LIM_add (Sequence.IsCauchy.const n) (Sequence.IsCauchy.const 1)]
     rfl
 
-  intCast_negSucc := by sorry
+  intCast_negSucc := by
+    intro n
+    simp [natCast_def (n + 1)]
+    rw [neg_LIM _ (Sequence.IsCauchy.const _)]
+    have : - (fun (x:ℕ) ↦ ((n: ℚ) + 1)) = (fun (x:ℕ) ↦ ((- ((n: ℤ) + 1)):ℚ)) := by
+      funext x
+      simp only [Pi.neg_apply, neg_add_rev, Int.cast_natCast]
+    rw [this]
+    rw [Int.negSucc_eq]
+    rw [← ratCast_def]
+    norm_cast
 
 abbrev Real.ratCast_hom : ℚ →+* Real where
   toFun := RatCast.ratCast
@@ -676,10 +689,39 @@ theorem bounded_away_zero_def (a:ℕ → ℚ) : BoundedAwayZero a ↔
 example : BoundedAwayZero (fun n ↦ (-1)^n) := by use 1; simp
 
 /-- Examples 5.3.13 -/
-example : ¬ BoundedAwayZero (fun n ↦ 10^(-(n:ℤ)-1)) := by sorry
+example : ¬ BoundedAwayZero (fun n ↦ 10^(-(n:ℤ)-1)) := by
+  simp only [not_exists, gt_iff_lt, ge_iff_le, not_and, not_forall, not_le]
+  intro ε hε
+  by_cases h: ε < 1
+  -- is it fair to use this property of Q
+  . obtain ⟨N, hN⟩ := exists_pow_lt_of_lt_one hε (show (1:ℚ) / 10 < 1 by norm_num)
+    use N
+    simp at hN
+    calc
+      |(10:ℚ) ^ (-(N:ℤ) - 1)| = 10 ^ (-(N:ℤ) - 1) := by
+        apply abs_of_nonneg
+        positivity
+      _ ≤ 10 ^ (-(N:ℤ)) := by
+        gcongr
+        . norm_num
+        . linarith
+      _ = (10 ^ N)⁻¹ := by simp
+      _ < ε := hN
+  . use 0
+    simp at h
+    norm_num
+    calc
+      _ = (1:ℚ) / 10 := by norm_num
+      _ < (1:ℚ) := by norm_num
+      _ ≤ ε := by exact h
 
 /-- Examples 5.3.13 -/
-example : ¬ BoundedAwayZero (fun n ↦ 1 - 10^(-(n:ℤ))) := by sorry
+example : ¬ BoundedAwayZero (fun n ↦ 1 - 10^(-(n:ℤ))) := by
+  simp
+  intro ε hε
+  use 0
+  simp
+  exact hε
 
 /-- Examples 5.3.13 -/
 example : BoundedAwayZero (fun n ↦ 10^(n+1)) := by
@@ -689,7 +731,18 @@ example : BoundedAwayZero (fun n ↦ 10^(n+1)) := by
   gcongr <;> grind
 
 /-- Examples 5.3.13 -/
-example : ¬ ((fun (n:ℕ) ↦ (10:ℚ)^(n+1)):Sequence).IsBounded := by sorry
+example : ¬ ((fun (n:ℕ) ↦ (10:ℚ)^(n+1)):Sequence).IsBounded := by
+  simp
+  intro ε hε
+  by_cases hε': 1 ≤ ε
+  . obtain ⟨N, hN, hN'⟩ := exists_nat_pow_near hε' (show 1 < (10:ℚ) by norm_num)
+    use N
+    simp
+    exact hN'
+  . simp at hε'
+    use 0
+    simp
+    linarith
 
 /-- Lemma 5.3.14 -/
 theorem Real.boundedAwayZero_of_nonzero {x:Real} (hx: x ≠ 0) :
@@ -702,9 +755,32 @@ theorem Real.boundedAwayZero_of_nonzero {x:Real} (hx: x ≠ 0) :
   choose ε hε hx using hx
   choose N hb' using (Sequence.IsCauchy.coe _).mp hb _ (half_pos hε)
   choose n₀ hn₀ hx using hx N
-  have how : ∀ j ≥ N, |b j| ≥ ε/2 := by sorry
+  have how : ∀ j ≥ N, |b j| ≥ ε/2 := by
+    intro j hj
+    specialize hb' j hj n₀ hn₀
+    simp [Section_4_3.dist_eq] at hb'
+    by_contra h
+    simp at h
+    have : |b n₀| ≤ ε := by
+      calc
+        |b n₀| = |b n₀ - b j + b j| := by ring_nf
+        _ ≤ |b n₀ - b j| + |b j| := by exact abs_add _ _
+        _ ≤ ε/2 + ε/2 := by
+          gcongr
+          rw [abs_sub_comm]
+          exact hb'
+        _ = ε := by ring_nf
+    linarith
   set a : ℕ → ℚ := fun n ↦ if n < n₀ then ε/2 else b n
-  have not_hard : Sequence.Equiv a b := by sorry
+  have not_hard : Sequence.Equiv a b := by
+    rw [Sequence.equiv_iff]
+    intro ε hε
+    use n₀
+    intro n hn
+    unfold a
+    have : ¬ n < n₀ := by linarith
+    simp [this]
+    exact le_of_lt hε
   have ha := (Sequence.isCauchy_of_equiv not_hard).mpr hb
   refine ⟨ a, ha, ?_, by rw [(LIM_eq_LIM ha hb).mpr not_hard] ⟩
   rw [bounded_away_zero_def]
@@ -718,7 +794,18 @@ theorem Real.boundedAwayZero_of_nonzero {x:Real} (hx: x ≠ 0) :
 -/
 theorem Real.lim_of_boundedAwayZero {a:ℕ → ℚ} (ha: BoundedAwayZero a)
   (ha_cauchy: (a:Sequence).IsCauchy) :
-    LIM a ≠ 0 := by sorry
+    LIM a ≠ 0 := by
+  by_contra h
+  simp only [←LIM.zero] at h
+  rw [LIM_eq_LIM ha_cauchy (by convert Sequence.IsCauchy.const 0), Sequence.equiv_iff] at h
+  simp at h
+  rw [bounded_away_zero_def] at ha
+  obtain ⟨ε, hε, ha⟩ := ha
+  specialize h (ε/2) (by positivity)
+  obtain ⟨N, hN⟩ := h
+  specialize hN N (by rfl)
+  specialize ha N
+  linarith
 
 theorem Real.nonzero_of_boundedAwayZero {a:ℕ → ℚ} (ha: BoundedAwayZero a) (n: ℕ) : a n ≠ 0 := by
    choose c hc ha using ha; specialize ha n; contrapose! ha; simp [ha, hc]

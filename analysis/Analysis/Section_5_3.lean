@@ -867,10 +867,28 @@ theorem Real.inv_def {a:ℕ → ℚ} (h: BoundedAwayZero a) (hc: (a:Sequence).Is
 theorem Real.inv_zero : (0:Real)⁻¹ = 0 := by simp [Inv.inv]
 
 theorem Real.self_mul_inv {x:Real} (hx: x ≠ 0) : x * x⁻¹ = 1 := by
-  sorry
+  obtain ⟨a, ha, ha', rfl⟩ := boundedAwayZero_of_nonzero hx
+  rw [inv_def ha' ha]
+  have ha'c := (inv_isCauchy_of_boundedAwayZero ha' ha)
+  rw [LIM_mul ha ha'c]
+  rw [← Real.LIM.one]
+  rw [LIM_eq_LIM (ha.mul ha'c) (Sequence.IsCauchy.const 1)]
+  rw [Sequence.equiv_def]
+  intro ε hε
+  -- have : a 0 ≠ 0 := by exact nonzero_of_boundedAwayZero ha' 0
+  rw [Rat.eventuallyClose_def]
+  use 0
+  rw [Rat.closeSeq_def]
+  intro n hn
+  simp at hn
+  lift n to ℕ using hn
+  have : a n ≠ 0 := by exact nonzero_of_boundedAwayZero ha' n
+  simp [this, Rat.Close]
+  exact le_of_lt hε
 
 theorem Real.inv_mul_self {x:Real} (hx: x ≠ 0) : x⁻¹ * x = 1 := by
-  sorry
+  rw [mul_comm]
+  exact self_mul_inv hx
 
 lemma BoundedAwayZero.const {q : ℚ} (hq : q ≠ 0) : BoundedAwayZero fun _ ↦ q := by
   use |q|; simp [hq]
@@ -885,22 +903,57 @@ noncomputable instance Real.instDivInvMonoid : DivInvMonoid Real where
 
 theorem Real.div_eq (x y:Real) : x/y = x * y⁻¹ := rfl
 
+theorem Real.LIM_div {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Sequence).IsCauchy)
+    (hb': BoundedAwayZero b): LIM a / LIM b = LIM (a / b) := by
+  rw [div_eq]
+  rw [Real.inv_def hb' hb]
+  rw [LIM_mul ha (inv_isCauchy_of_boundedAwayZero hb' hb)]
+  rfl
+
 noncomputable instance Real.instField : Field Real where
-  exists_pair_ne := by sorry
-  mul_inv_cancel := by sorry
-  inv_zero := by sorry
-  ratCast_def := by sorry
+  exists_pair_ne := by
+    use 0, 1
+    rw [← Real.LIM.one, ← Real.LIM.zero]
+    repeat rw [← ratCast_def]
+    have := not_iff_not.mpr (ratCast_inj 0 1)
+    simp only [ne_eq, ratCast_inj, zero_ne_one, not_false_eq_true]
+  mul_inv_cancel := by
+    intro a
+    exact self_mul_inv
+  inv_zero := inv_zero
+  ratCast_def := by
+    intro q
+    rw [ratCast_def]
+    rw [intCast_def, natCast_def]
+    rw [LIM_div (Sequence.IsCauchy.const _) (Sequence.IsCauchy.const _) (BoundedAwayZero.const (by norm_cast; exact q.den_nz))]
+    have : (fun (x:ℕ) ↦ (q.num: ℚ)) / (fun (x:ℕ) ↦ (q.den: ℚ)) =
+        (fun (x:ℕ) ↦ ((q.num / q.den):ℚ)) := by
+      ext n
+      simp
+    rw [this]
+    rw [Rat.num_div_den]
   qsmul := _
   nnqsmul := _
 
-theorem Real.mul_right_cancel₀ {x y z:Real} (hz: z ≠ 0) (h: x * z = y * z) : x = y := by sorry
+theorem Real.mul_right_cancel₀ {x y z:Real} (hz: z ≠ 0) (h: x * z = y * z) : x = y := by
+  field_simp [hz] at h
+  exact h
 
 theorem Real.mul_right_nocancel : ¬ ∀ (x y z:Real), (hz: z = 0) → (x * z = y * z) → x = y := by
-  sorry
+  push_neg
+  use 0, 1, 0
+  constructor
+  . rfl
+  . constructor
+    . simp
+    . exact zero_ne_one' Real
 
 /-- Exercise 5.3.4 -/
 theorem Real.IsBounded.equiv {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hab: Sequence.Equiv a b) :
-    (b:Sequence).IsBounded := by sorry
+    (b:Sequence).IsBounded := by
+  rw [Sequence.equiv_def] at hab
+  specialize hab 1 (by positivity)
+  exact (Sequence.isBounded_of_eventuallyClose hab).mp ha
 
 /--
   Same as `Sequence.IsCauchy.harmonic` but reindexing the sequence as a₀ = 1, a₁ = 1/2, ...
@@ -912,6 +965,40 @@ theorem Sequence.IsCauchy.harmonic' : ((fun n ↦ 1/((n:ℚ)+1): ℕ → ℚ):Se
   simp_all
 
 /-- Exercise 5.3.5 -/
-theorem Real.LIM.harmonic : LIM (fun n ↦ 1/((n:ℚ)+1)) = 0 := by sorry
-
+theorem Real.LIM.harmonic : LIM (fun n ↦ 1/((n:ℚ)+1)) = 0 := by
+  rw [← Real.LIM.zero]
+  rw [LIM_eq_LIM Sequence.IsCauchy.harmonic' (Sequence.IsCauchy.const 0)]
+  rw [Sequence.equiv_iff]
+  intro ε hε
+  obtain ⟨ N, hN ⟩ := exists_nat_gt (1 / ε)
+  use N
+  by_cases hN': N = 0
+  . subst N
+    simp at hN
+    linarith
+  intro n hn
+  have hn': n > 0 := by
+    by_contra hn'
+    simp at hn'
+    subst n
+    simp at hn
+    contradiction
+  rw [sub_zero]
+  rw [abs_of_nonneg (by positivity)]
+  calc
+    1 / ((n:ℚ) + 1) ≤ 1 / (n: ℚ) := by
+      simp
+      rw [inv_le_inv₀]
+      . norm_num
+      . positivity
+      . positivity
+    _ ≤ ε := by
+      simp
+      rw [inv_le_comm₀ (by positivity) (by positivity)]
+      simp at hN
+      have : ε⁻¹ < (n:ℚ) := by
+        calc
+          _ < _ := hN
+          _ ≤ _ := by norm_cast
+      exact le_of_lt this
 end Chapter5

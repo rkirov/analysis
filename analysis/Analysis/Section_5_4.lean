@@ -82,8 +82,94 @@ theorem Real.isPos_def (x:Real) :
 theorem Real.isNeg_def (x:Real) :
     IsNeg x ↔ ∃ a:ℕ → ℚ, BoundedAwayNeg a ∧ (a:Sequence).IsCauchy ∧ x = LIM a := by rfl
 
+-- turns out this was just abs_abs_sub_abs_le
+lemma abs_asb_sub(a b:ℚ): |(|a| - |b|)| ≤ |a - b| := by
+  rw [abs_sub_le_iff]
+  constructor
+  . simp
+    convert abs_add (a - b) b
+    ring_nf
+  . simp
+    rw [abs_sub_comm]
+    convert abs_add (b - a) a
+    ring_nf
+
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.trichotomous (x:Real) : x = 0 ∨ x.IsPos ∨ x.IsNeg := by sorry
+theorem Real.trichotomous (x:Real) : x = 0 ∨ x.IsPos ∨ x.IsNeg := by
+  by_cases h: x = 0
+  . left; exact h
+  right
+  obtain ⟨a , ha, rfl⟩ := eq_lim x
+  rw [← Real.LIM.zero] at h
+  rw [LIM_eq_LIM ha (Sequence.IsCauchy.const 0)] at h
+  rw [Sequence.equiv_def] at h
+  simp [Rat.eventuallyClose_iff] at h
+  obtain ⟨ε, hε, h⟩ := h
+  have ha_copy := ha
+  rw [Sequence.IsCauchy.coe] at ha
+  specialize ha (ε / 2) (by positivity)
+  obtain ⟨N, ha⟩ := ha
+  simp [Section_4_3.dist] at ha
+  specialize h N
+  obtain ⟨j, hj, h⟩ := h
+  let a' := (fun n ↦ if n < N then ε / 2 else a n)
+  have ha'_equiv : Sequence.Equiv a a' := by
+    rw [Sequence.equiv_def]
+    intro ε' hε'
+    rw [Rat.eventuallyClose_iff]
+    use N
+    intro n hn
+    have hn': ¬ n < N := by linarith
+    unfold a'
+    simp [hn']
+    exact le_of_lt hε'
+
+  have ha' : (a':Sequence).IsCauchy := by
+    rw [← Sequence.isCauchy_of_equiv ha'_equiv]
+    exact ha_copy
+  specialize ha j hj
+  by_cases hj': 0 ≤ a j
+  . simp [abs_of_nonneg hj'] at h
+    left
+    rw [isPos_def]
+    use a'
+    constructor
+    . rw [boundedAwayPos_def]
+      use (ε / 2), (by positivity)
+      intro n
+      by_cases hn: n < N
+      . unfold a'
+        simp [hn]
+      . simp at hn
+        specialize ha n hn
+        simp
+        calc
+          (ε / 2) = ε - (ε / 2) := by ring
+          _ ≤ ε - |a j - a n| := by gcongr
+          _ ≤ a j - |a j - a n| := by gcongr
+          _ = |a j| - |a j - a n| := by
+            simp
+            rw [abs_of_nonneg hj']
+          _ ≤ |(|a j| - |a j - a n|)| := by
+            exact le_abs_self _
+          _ ≤ |a j - (a j - a n)| := by
+            exact abs_abs_sub_abs_le _ _
+          _ = |a n| := by ring_nf
+        have : a' n = a n := by
+          unfold a'
+          simp [hn]
+        rw [this]
+        by_cases han: 0 ≤ a n
+        . rw [abs_of_nonneg han]
+        . have : a j - a n > 0 := by linarith
+          rw [abs_of_nonneg (le_of_lt this)] at ha
+          linarith
+    . constructor
+      . exact ha'
+      . apply (Real.LIM_eq_LIM ha_copy ha').mpr
+        exact ha'_equiv
+  -- copy/paste
+  . sorry
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
 theorem Real.not_zero_pos (x:Real) : ¬(x = 0 ∧ x.IsPos) := by sorry

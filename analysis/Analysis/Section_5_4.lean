@@ -484,7 +484,12 @@ instance Real.instLE : LE Real where
 theorem Real.lt_iff (x y:Real) : x < y ↔ (x-y).IsNeg := by rfl
 theorem Real.le_iff (x y:Real) : x ≤ y ↔ (x < y) ∨ (x = y) := by rfl
 
-theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by sorry
+theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by
+  simp only [gt_iff_lt]
+  rw [lt_iff]
+  rw [neg_iff_pos_of_neg]
+  simp only [neg_sub]
+
 theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by sorry
 
 theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by sorry

@@ -2629,9 +2629,8 @@ lemma SetTheory.Set.fin_to_fin_surjective_of_injective {n: ℕ} {f: Fin n → Fi
   have hp := y.prop
   contradiction
 
--- this proof will take a long time to check, if you want to work on it
--- comment out parts of it
-set_option maxHeartbeats 1500000 in
+-- this proof will take a long time to check
+set_option maxHeartbeats 1000000 in
 /-- Exercise 3.6.12 (i) -/
 theorem SetTheory.Set.Permutations_ih (n: ℕ):
     (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by

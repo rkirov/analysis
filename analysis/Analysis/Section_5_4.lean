@@ -771,15 +771,111 @@ theorem Real.LIM_mono {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Sequ
   have := LIM_of_nonneg (a := b - a) (by intro n; simp [hmono n]) (Sequence.IsCauchy.sub hb ha)
   rw [←Real.LIM_sub hb ha] at this; linarith
 
+lemma add_inv_le_ε{ε: ℚ} (hε: 0 < ε) {k N: ℕ} (hn: N ≤ k) (hnε: (N:ℚ) > 2 / ε) : ((k:ℚ) + 1)⁻¹ < ε / 2 := by
+  calc
+    _ ≤ ((N:ℚ) + 1)⁻¹ := by gcongr
+    _ < (2 / ε + 1)⁻¹ := by gcongr
+    _ ≤ _ := by
+      field_simp
+      rw [div_le_div_iff₀]
+      . gcongr
+        linarith
+      . positivity
+      . norm_num
+
 /-- Remark 5.4.11 --/
 theorem Real.LIM_mono_fail :
     ∃ (a b:ℕ → ℚ), (a:Sequence).IsCauchy
     ∧ (b:Sequence).IsCauchy
-    ∧ (∀ n, a n > b n)
-    ∧ ¬LIM a > LIM b := by
-  use (fun n ↦ 1 + 1/((n:ℚ) + 1))
+    ∧ (∀ n, a n < b n)
+    ∧ ¬ LIM a < LIM b := by
   use (fun n ↦ 1 - 1/((n:ℚ) + 1))
-  sorry
+  use (fun n ↦ 1 + 1/((n:ℚ) + 1))
+  have hc1 : ((fun (n:ℕ) ↦ 1 - 1/(n + 1:ℚ)) : Sequence).IsCauchy := by
+    rw [Sequence.IsCauchy.coe]
+    intro ε hε
+    obtain ⟨ N, hN : N > 2/ε ⟩ := exists_nat_gt (2 / ε)
+    use N
+    intro j hj k hk
+    rw [Section_4_3.dist]
+    simp
+    have hk : ((k:ℚ) + 1)⁻¹ < ε / 2 := add_inv_le_ε hε hk hN
+    have hk' : 0 ≤ ((k:ℚ) + 1)⁻¹ := by positivity
+    have hj : ((j:ℚ) + 1)⁻¹ < ε / 2 := add_inv_le_ε hε hj hN
+    have hj' : 0 ≤ ((j:ℚ) + 1)⁻¹ := by positivity
+    calc
+      _ ≤ |((k:ℚ) + 1)⁻¹| + |((j:ℚ) + 1)⁻¹| := by
+        exact abs_sub _ _
+      _ = ((k:ℚ) + 1)⁻¹ + ((j:ℚ) + 1)⁻¹ := by
+        rw [abs_of_nonneg hk', abs_of_nonneg hj']
+      _ ≤ ε / 2 + ε / 2 := by linarith
+      _ = ε := by ring
+  -- copy/paste from hc1 with one rw [abs_sub_comm injected
+  have hc2 : ((fun (n:ℕ) ↦ 1 + 1/(n + 1:ℚ)) : Sequence).IsCauchy := by
+    rw [Sequence.IsCauchy.coe]
+    intro ε hε
+    obtain ⟨ N, hN : N > 2/ε ⟩ := exists_nat_gt (2 / ε)
+    use N
+    intro j hj k hk
+    rw [Section_4_3.dist]
+    simp
+    have hk : ((k:ℚ) + 1)⁻¹ < ε / 2 := add_inv_le_ε hε hk hN
+    have hk' : 0 ≤ ((k:ℚ) + 1)⁻¹ := by positivity
+    have hj : ((j:ℚ) + 1)⁻¹ < ε / 2 := add_inv_le_ε hε hj hN
+    have hj' : 0 ≤ ((j:ℚ) + 1)⁻¹ := by positivity
+    rw [abs_sub_comm]
+    calc
+      _ ≤ |((k:ℚ) + 1)⁻¹| + |((j:ℚ) + 1)⁻¹| := by
+        exact abs_sub _ _
+      _ = ((k:ℚ) + 1)⁻¹ + ((j:ℚ) + 1)⁻¹ := by
+        rw [abs_of_nonneg hk', abs_of_nonneg hj']
+      _ ≤ ε / 2 + ε / 2 := by linarith
+      _ = ε := by ring
+
+  constructor
+  . exact hc1
+  . constructor
+    . exact hc2
+    . constructor
+      . intro n
+        have : 1 - 1/(n + 1:ℚ) < 1 := by
+          simp
+          exact Nat.cast_add_one_pos n
+        have : 1 < 1 + 1/(n + 1:ℚ) := by
+          simp
+          exact Nat.cast_add_one_pos n
+        linarith
+      . rw [not_lt]
+        right
+        rw [LIM_eq_LIM hc2 hc1]
+        rw [Sequence.equiv_def]
+        intro ε hε
+        rw [Rat.eventuallyClose_iff]
+        obtain ⟨ N, hN : N > 2/ε ⟩ := exists_nat_gt (2 / ε)
+        use N
+        intro n hn
+        field_simp
+        ring_nf
+        rw [abs_of_nonneg (by positivity)]
+        calc
+          _ ≤ 1 / (1 + (N:ℚ)) * 2 := by
+            gcongr
+            field_simp
+            norm_cast
+            apply one_div_le_one_div_of_le
+            . positivity
+            . simp
+              exact hn
+          _ ≤ 1 / (1 + (2 / ε)) * 2 := by
+            gcongr
+          _ ≤ _ := by
+            have : ε + 2 > 0 := by positivity
+            field_simp [this, hε]
+            -- what tactic can close this?
+            rw [div_le_iff₀]
+            . field_simp
+              exact le_of_lt hε
+            . positivity
 
 /-- Proposition 5.4.12 (Bounding reals by rationals) -/
 theorem Real.exists_rat_le_and_nat_gt {x:Real} (hx: x.IsPos) :

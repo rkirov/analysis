@@ -491,45 +491,100 @@ theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by
   rw [neg_iff_pos_of_neg]
   simp only [neg_sub]
 
-theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by sorry
+theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by
+  simp only [ge_iff_le, gt_iff_lt]
+  rw [Real.le_iff]
+  tauto
 
-theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by sorry
+theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by
+  rw [lt_iff]
+  have : q < q' ↔ q - q' < 0 := by exact Iff.symm sub_neg
+  rw [this]
+  have : (q:Real) - (q':Real) = (((q - q') : ℚ): Real) := by exact ratCast_sub q q'
+  rw [this]
+  exact Iff.symm (neg_of_coe (q - q'))
 
 theorem Real.gt_of_coe (q q':ℚ): q > q' ↔ (q:Real) > (q':Real) := Real.lt_of_coe _ _
 
-theorem Real.isPos_iff (x:Real) : x.IsPos ↔ x > 0 := by sorry
-theorem Real.isNeg_iff (x:Real) : x.IsNeg ↔ x < 0 := by sorry
+theorem Real.isPos_iff (x:Real) : x.IsPos ↔ x > 0 := by
+  rw [gt_iff, sub_zero]
+
+theorem Real.isNeg_iff (x:Real) : x.IsNeg ↔ x < 0 := by
+  rw [lt_iff, sub_zero]
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.trichotomous' (x y:Real) : x > y ∨ x < y ∨ x = y := by sorry
+theorem Real.trichotomous' (x y:Real) : x > y ∨ x < y ∨ x = y := by
+  have := trichotomous (x - y)
+  rcases this with (h | h | h)
+  . right
+    right
+    have : x - y = 0 ↔ x = y := by exact sub_eq_zero
+    rwa [← this]
+  . left
+    rwa [gt_iff]
+  . right
+    left
+    rwa [lt_iff]
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_gt_and_lt (x y:Real) : ¬ (x > y ∧ x < y):= by sorry
+theorem Real.not_gt_and_lt (x y:Real) : ¬ (x > y ∧ x < y):= by
+  rw [gt_iff, lt_iff]
+  exact not_pos_neg (x - y)
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_gt_and_eq (x y:Real) : ¬ (x > y ∧ x = y):= by sorry
+theorem Real.not_gt_and_eq (x y:Real) : ¬ (x > y ∧ x = y):= by
+  rw [gt_iff, ← sub_eq_zero]
+  have := not_zero_pos (x - y)
+  contrapose! this
+  exact this.symm
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_lt_and_eq (x y:Real) : ¬ (x < y ∧ x = y):= by sorry
+theorem Real.not_lt_and_eq (x y:Real) : ¬ (x < y ∧ x = y):= by
+  rw [lt_iff, ← sub_eq_zero]
+  have := not_zero_neg (x - y)
+  contrapose! this
+  exact this.symm
 
 /-- Proposition 5.4.7(b) (order is anti-symmetric) / Exercise 5.4.2 -/
-theorem Real.antisymm (x y:Real) : x < y ↔ (y - x).IsPos := by sorry
+theorem Real.antisymm (x y:Real) : x < y ↔ (y - x).IsPos := by
+  rw [lt_iff]
+  rw [neg_iff_pos_of_neg]
+  simp only [neg_sub]
 
 /-- Proposition 5.4.7(c) (order is transitive) / Exercise 5.4.2 -/
-theorem Real.lt_trans {x y z:Real} (hxy: x < y) (hyz: y < z) : x < z := by sorry
+theorem Real.lt_trans {x y z:Real} (hxy: x < y) (hyz: y < z) : x < z := by
+  rw [antisymm] at hxy hyz ⊢
+  have := pos_add hxy hyz
+  simp only [sub_add_sub_cancel'] at this
+  exact this
 
 /-- Proposition 5.4.7(d) (addition preserves order) / Exercise 5.4.2 -/
-theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z := by sorry
+theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z := by
+  rw [antisymm] at hxy ⊢
+  simp only [add_sub_add_right_eq_sub]
+  exact hxy
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
 theorem Real.mul_lt_mul_right {x y z:Real} (hxy: x < y) (hz: z.IsPos) : x * z < y * z := by
   rw [antisymm] at hxy ⊢; convert pos_mul hxy hz using 1; ring
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
-theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by sorry
+theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by
+  rw [le_iff] at hxy ⊢
+  cases' hxy with hxy hxy
+  . left
+    have := mul_lt_mul_right hxy hz
+    rw [mul_comm, mul_comm y] at this
+    exact this
+  . right
+    subst x
+    rfl
 
 theorem Real.mul_pos_neg {x y:Real} (hx: x.IsPos) (hy: y.IsNeg) : (x * y).IsNeg := by
-  sorry
+  rw [neg_iff_pos_of_neg] at hy ⊢
+  have := pos_mul hx hy
+  simp only [mul_neg] at this
+  exact this
 
 open Classical in
 /--
@@ -537,11 +592,60 @@ open Classical in
   and so classical logic is required to impose decidability.
 -/
 noncomputable instance Real.instLinearOrder : LinearOrder Real where
-  le_refl := sorry
-  le_trans := sorry
-  lt_iff_le_not_ge := sorry
-  le_antisymm := sorry
-  le_total := sorry
+  le_refl := by
+    intro x
+    right
+    rfl
+
+  le_trans := by
+    intro a b c hab hac
+    rw [le_iff] at hab hac ⊢
+    cases' hab with hab hab
+    . cases' hac with hac hac
+      . left
+        exact lt_trans hab hac
+      . subst c
+        left
+        exact hab
+    . subst b
+      exact hac
+
+  lt_iff_le_not_ge := by
+    intro a b
+    simp [le_iff]
+    push_neg
+    constructor
+    . intro h
+      constructor
+      . left; exact h
+      . constructor
+        . have := not_gt_and_lt a b
+          tauto
+        . have := not_lt_and_eq a b
+          tauto
+    . intro h
+      have := trichotomous' a b
+      tauto
+
+  le_antisymm := by
+    intro a b hab hba
+    rw [le_iff] at hab hba
+    cases' hab with hab hab
+    . cases' hba with hba hba
+      . have := lt_trans hab hba
+        exfalso
+        rw [lt_iff] at this
+        simp only [sub_self, neg_iff_pos_of_neg, neg_zero] at this
+        exact not_zero_pos 0 ⟨rfl, this⟩
+      . exact hba.symm
+    . exact hab
+
+  le_total := by
+    intro a b
+    rw [le_iff] at ⊢
+    have := trichotomous' a b
+    tauto
+
   toDecidableLE := Classical.decRel _
 
 /--
@@ -564,7 +668,9 @@ theorem Real.inv_of_pos {x:Real} (hx: x.IsPos) : x⁻¹.IsPos := by
   have trich := trichotomous x⁻¹
   simpa [hinv_non, hnonneg] using trich
 
-theorem Real.div_of_pos {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x/y).IsPos := by sorry
+theorem Real.div_of_pos {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x/y).IsPos := by
+  rw [show (x/y) = x * y⁻¹ from rfl]
+  exact pos_mul hx (inv_of_pos hy)
 
 theorem Real.inv_of_gt {x y:Real} (hx: x.IsPos) (hy: y.IsPos) (hxy: x > y) : x⁻¹ < y⁻¹ := by
   observe hxnon: x ≠ 0
@@ -580,12 +686,62 @@ theorem Real.inv_of_gt {x y:Real} (hx: x.IsPos) (hy: y.IsPos) (hxy: x > y) : x�
 
 /-- (Not from textbook) Real has the structure of a strict ordered ring. -/
 instance Real.instIsStrictOrderedRing : IsStrictOrderedRing Real where
-  add_le_add_left := by sorry
-  add_le_add_right := by sorry
-  mul_lt_mul_of_pos_left := by sorry
-  mul_lt_mul_of_pos_right := by sorry
-  le_of_add_le_add_left := by sorry
-  zero_le_one := by sorry
+  add_le_add_left := by
+    intro a b hab c
+    rw [le_iff] at hab ⊢
+    cases' hab with hab hab
+    . left
+      rw [antisymm] at hab ⊢
+      simpa only [add_sub_add_left_eq_sub]
+    . subst a
+      right
+      rfl
+
+  add_le_add_right := by
+    intro a b hab c
+    rw [le_iff] at hab ⊢
+    cases' hab with hab hab
+    . left
+      rw [antisymm] at hab ⊢
+      simpa only [add_sub_add_right_eq_sub]
+    . subst a
+      right
+      rfl
+
+  mul_lt_mul_of_pos_left := by
+    intro a b c hab hc
+    rw [antisymm] at hab ⊢
+    rw [show (c * b - c * a) = c * (b - a) by ring]
+    have : c > 0 := hc
+    rw [← (isPos_iff c)] at this
+    exact pos_mul this hab
+
+  mul_lt_mul_of_pos_right := by
+    intro a b c hab hc
+    rw [antisymm] at hab ⊢
+    rw [show (b * c - a * c) = (b - a) * c by ring]
+    have : c > 0 := hc
+    rw [← (isPos_iff c)] at this
+    exact pos_mul hab this
+
+  le_of_add_le_add_left := by
+    intro a b c hab
+    rw [le_iff] at hab ⊢
+    cases' hab with hab hab
+    . left
+      rw [antisymm] at hab ⊢
+      simp only [add_sub_add_left_eq_sub] at hab
+      exact hab
+    . simp only [add_right_inj] at hab
+      subst b
+      right
+      rfl
+
+  zero_le_one := by
+    left
+    rw [lt_iff]
+    simp only [zero_sub, neg_iff_pos_of_neg, neg_neg]
+    exact (pos_of_coe ↑1).mpr rfl
 
 /-- Proposition 5.4.9 (The non-negative reals are closed)-/
 theorem Real.LIM_of_nonneg {a: ℕ → ℚ} (ha: ∀ n, a n ≥ 0) (hcauchy: (a:Sequence).IsCauchy) :

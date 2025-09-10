@@ -39,19 +39,47 @@ theorem Real.Icc_def (x y:Real) : .Icc x y = { z | x ≤ z ∧ z ≤ y } := rfl
 theorem Real.mem_Icc (x y z:Real) : z ∈ Set.Icc x y ↔ x ≤ z ∧ z ≤ y := by simp [Real.Icc_def]
 
 /-- Example 5.5.2 -/
-example (M: Real) : M ∈ upperBounds (.Icc 0 1) ↔ M ≥ 1 := by sorry
+example (M: Real) : M ∈ upperBounds (.Icc 0 1) ↔ M ≥ 1 := by
+  rw [Real.upperBound_def]
+  simp only [Set.mem_Icc, and_imp, ge_iff_le]
+  constructor
+  . intro h
+    specialize h 1 (by norm_num) (by rfl)
+    exact h
+  . intro h x hx1 hx2
+    exact le_trans hx2 h
 
 /-- API for Example 5.5.3 -/
 theorem Real.Ioi_def (x:Real) : .Ioi x = { z | z > x } := rfl
 
 /-- Example 5.5.3 -/
-example : ¬ ∃ M : Real, M ∈ upperBounds (.Ioi 0) := by sorry
+example : ¬ ∃ M, M ∈ upperBounds (.Ioi (0:Real)) := by
+  push_neg
+  intro M h
+  rw [Real.upperBound_def] at h
+  rw [Real.Ioi_def] at h
+  by_cases hM: 0 < M
+  . specialize h (M + 1)
+    simp at h
+    specialize h (by positivity)
+    linarith
+  . simp at hM
+    specialize h 1
+    simp at h
+    linarith
 
 /-- Example 5.5.4 -/
-example : ∀ M, M ∈ upperBounds (∅ : Set Real) := by sorry
+example : ∀ M, M ∈ upperBounds (∅ : Set Real) := by
+  intro M
+  rw [Real.upperBound_def]
+  intro h he
+  contradiction
 
 theorem Real.upperBound_upper {M M': Real} (h: M ≤ M') {E: Set Real} (hb: M ∈ upperBounds E) :
-    M' ∈ upperBounds E := by sorry
+    M' ∈ upperBounds E := by
+  rw [mem_upperBounds] at hb ⊢
+  intros x hx
+  exact le_trans (hb x hx) h
 
 /-- Definition 5.5.5 (least upper bound).  Here we use the `isLUB` predicate defined in Mathlib. -/
 theorem Real.isLUB_def (E: Set Real) (M: Real) :
@@ -61,10 +89,26 @@ theorem Real.isGLB_def (E: Set Real) (M: Real) :
     IsGLB E M ↔ M ∈ lowerBounds E ∧ ∀ M' ∈ lowerBounds E, M' ≤ M := by rfl
 
 /-- Example 5.5.6 -/
-example : IsLUB (.Icc 0 1) (1 : Real) := by sorry
+example : IsLUB (.Icc 0 1) (1:Real) := by
+  rw [Real.isLUB_def]
+  constructor
+  . rw [Real.upperBound_def]
+    rintro x ⟨hx1, hx2⟩
+    exact hx2
+  . intros M' hM'
+    rw [Real.upperBound_def] at hM'
+    specialize hM' 1 (by norm_num)
+    exact hM'
 
 /-- Example 5.5.7 -/
-example : ¬∃ M, IsLUB (∅: Set Real) M := by sorry
+example : ¬∃ M, IsLUB (∅: Set Real) M := by
+  push_neg
+  intro M h
+  rw [Real.isLUB_def] at h
+  obtain ⟨h1, h2⟩ := h
+  specialize h2 (M-1)
+  simp at h2
+  linarith
 
 /-- Proposition 5.5.8 (Uniqueness of least upper bound)-/
 theorem Real.LUB_unique {E: Set Real} {M M': Real} (h1: IsLUB E M) (h2: IsLUB E M') : M = M' := by grind [Real.isLUB_def]
@@ -74,13 +118,50 @@ theorem Real.bddAbove_def (E: Set Real) : BddAbove E ↔ ∃ M, M ∈ upperBound
 
 theorem Real.bddBelow_def (E: Set Real) : BddBelow E ↔ ∃ M, M ∈ lowerBounds E := Set.nonempty_def
 
+set_option maxHeartbeats 1500000 in
 /-- Exercise 5.5.2 -/
 theorem Real.upperBound_between {E: Set Real} {n:ℕ} {L K:ℤ} (hLK: L < K)
   (hK: K*((1/(n+1):ℚ):Real) ∈ upperBounds E) (hL: L*((1/(n+1):ℚ):Real) ∉ upperBounds E) :
     ∃ m, L < m
     ∧ m ≤ K
     ∧ m*((1/(n+1):ℚ):Real) ∈ upperBounds E
-    ∧ (m-1)*((1/(n+1):ℚ):Real) ∉ upperBounds E := by sorry
+    ∧ (m-1)*((1/(n+1):ℚ):Real) ∉ upperBounds E := by
+  -- clean up toNat, I don't know how to use it properly
+  let k:ℕ := (K - 1 - L).toNat
+  have hkToNat: (K - 1 - L).toNat = K - 1 - L := by
+    simp
+    linarith
+  induction' hk: k with k' ih generalizing K
+  . subst k
+    simp at hk
+    have : K = L + 1 := by linarith
+    use K, hLK, (by rfl), hK
+    rw [this]
+    simp_all
+  . by_cases h: ((K - 1):ℤ) * ((1/(n+1):ℚ):Real) ∈ upperBounds E
+    . have : L < K - 1 := by linarith
+      specialize ih this h
+      have h': L ≤ K - 1 - 1 := by linarith
+      have h'': (K - 1 - 1 - L).toNat = k' := by
+        have ht: (K - 1 - 1 - L).toNat = (K - 1 - 1 - L) := by simp [h']
+        have : k' = k - 1 := by omega
+        rw [this]
+        unfold k
+        linarith
+      simp at ih
+      specialize ih h'
+      simp [h''] at ih
+      obtain ⟨M, hM, hM', hM'', hM'''⟩ := ih
+      use M
+      . constructor
+        . exact hM
+        . constructor
+          . linarith
+          . constructor
+            . simp [hM'']
+            . simp [hM''']
+    . use K
+      simp_all
 
 /-- Exercise 5.5.3 -/
 theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
@@ -88,7 +169,21 @@ theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
   (hm2: (((m:ℚ) / (n+1) - 1 / (n+1):ℚ):Real) ∉ upperBounds E)
   (hm'1: (((m':ℚ) / (n+1):ℚ):Real) ∈ upperBounds E)
   (hm'2: (((m':ℚ) / (n+1) - 1 / (n+1):ℚ):Real) ∉ upperBounds E) :
-    m = m' := by sorry
+    m = m' := by
+  wlog h: m < m'
+  . simp at h
+    rw [le_iff_lt_or_eq] at h
+    cases' h with h h
+    . specialize this hm'1 hm'2 hm1 hm2 h
+      exact this.symm
+    . exact h.symm
+  have : m ≤ m' - 1 := by linarith
+  have : (((m:ℚ) / (n+1):ℚ):Real) ≤ (((m':ℚ) / (n+1) - 1 / (n+1):ℚ):Real) := by
+    field_simp
+    rw [div_le_div_iff_of_pos_right (by positivity)]
+    norm_cast
+  have := upperBound_upper this hm1
+  contradiction
 
 /-- Lemmas that can be helpful for proving 5.5.4 -/
 theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):

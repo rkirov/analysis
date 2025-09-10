@@ -473,6 +473,23 @@ theorem Real.abs_of_zero : abs 0 = 0 := by
   have hneg: ¬(0:Real).IsNeg := by have := not_zero_neg 0; simpa using this
   simp [abs, hpos, hneg]
 
+theorem Real.abs_nonneg (x:Real): (abs x).IsPos ∨ (abs x) = 0 := by
+  by_cases hx: x.IsPos
+  . rw [abs_of_pos x hx]
+    left
+    exact hx
+  . have := trichotomous x
+    simp [hx] at this
+    rcases this with (h | h)
+    . subst x
+      right
+      simp
+    . left
+      rw [← neg_iff_pos_of_neg] at h
+      rw [abs_of_neg x h]
+      rw [← neg_iff_pos_of_neg]
+      exact h
+
 /-- Definition 5.4.6 (Ordering of the reals) -/
 instance Real.instLT : LT Real where
   lt x y := (x-y).IsNeg
@@ -912,81 +929,393 @@ theorem Real.le_mul {ε:Real} (hε: ε.IsPos) (x:Real) : ∃ M:ℕ, M > 0 ∧ M 
     rw [isPos_iff] at hε; field_simp
   use 1; simp_all [isPos_iff]; linarith
 
-/-- Proposition 5.4.14 / Exercise 5.4.5 -/
-theorem Real.rat_between {x y:Real} (hxy: x < y) : ∃ q:ℚ, x < (q:Real) ∧ (q:Real) < y := by sorry
-
 /-- Exercise 5.4.3 -/
-theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by sorry
+theorem Real.floor_exist (x:Real) : ∃!! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by
+  apply existsUnique_of_exists_of_unique
+  . wlog hx : x > 0
+    . simp at hx
+      by_cases h': x = 0
+      . subst x
+        use 0
+        simp
+      . have h: x < 0 := by grind
+        specialize this (-x) (by linarith)
+        obtain ⟨N, hN, hN'⟩ := this
+        by_cases hx: (N:Real) = -x
+        . use -N
+          observe : x = -(N: Real)
+          subst x
+          simp
+        use -N-1
+        simp
+        grind
+    obtain ⟨M, hM, h⟩ := le_mul (ε := 1) (by exact (pos_of_coe ↑1).mpr rfl) x
+    simp at h
+    induction' M with M ih
+    . contradiction
+    . by_cases hM': (M:Real) ≤ x
+      . use M
+        simp [hM']
+        norm_cast
+      . simp at hM'
+        by_cases hz: M = 0
+        . subst M
+          norm_cast at hM'
+          linarith
+        . have : M > 0 := by
+            have : 0 ≤  M := by exact Nat.zero_le M
+            rw [le_iff_lt_or_eq] at this
+            aesop
+          specialize ih this hM'
+          exact ih
+  . intro N N' hN hN'
+    have h1 := lt_of_le_of_lt hN.1 hN'.2
+    have h2 := lt_of_le_of_lt hN'.1 hN.2
+    norm_cast at h1 h2
+    have h1': N ≤ N' := by exact (Int.add_le_add_iff_right 1).mp h1
+    have h2': N' ≤ N := by exact (Int.add_le_add_iff_right 1).mp h2
+    exact Int.le_antisymm h1' h2'
 
 /-- Exercise 5.4.4 -/
-theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ N:ℤ, N>0 ∧ (N:Real)⁻¹ < x := by sorry
+theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ (N:ℤ):ℤ, N>0 ∧ (N:Real)⁻¹ < x := by
+  obtain ⟨N, hN, h⟩ := (Real.floor_exist (1/x)).exists
+  rw [isPos_iff] at hx
+  use N + 1
+  have hN1: 0 < (N: Real) + 1 :=
+    calc
+      0 < 1 / x := by exact one_div_pos.mpr hx
+      _ < _ := h
+  constructor
+  . norm_cast at hN1
+  . rw [inv_eq_one_div]
+    field_simp
+    rw [div_lt_iff₀ hN1]
+    rw [div_lt_iff₀ hx] at h
+    rw [mul_comm]
+    exact h
+
+/-- Proposition 5.4.14 / Exercise 5.4.5 -/
+theorem Real.rat_between {x y:Real} (hxy: x < y) : ∃ q:ℚ, x < (q:Real) ∧ (q:Real) < y := by
+  obtain ⟨N, hN, h⟩ := exist_inv_nat_le (x:= y - x) (by exact (antisymm x y).mp hxy)
+  obtain ⟨M, hM, hM'⟩ := (floor_exist (N * x)).exists
+  use (M + 1) / N
+  field_simp at h
+  constructor
+  . simp
+    rw [lt_div_iff₀ (by norm_cast)]
+    rw [mul_comm]
+    exact hM'
+  . simp
+    calc
+      _ = (M: Real) / (N: Real) + 1 / (N: Real) := by ring
+      _ < (M: Real) / (N: Real) + y - x := by linarith
+      _ ≤ x + y - x := by
+        gcongr
+        rw [div_le_iff₀ (by norm_cast)]
+        rw [mul_comm]
+        exact hM
+      _ = y := by ring
+
+theorem Real.abs_of_nonneg (x:Real) (hx: 0 ≤ x) : abs x = x := by
+  rw [le_iff] at hx
+  cases' hx with hx hx
+  . rw [antisymm] at hx
+    simp at hx
+    rw [abs_of_pos x hx]
+  . subst x
+    simp
+
+theorem Real.abs_nonneg' (x:Real): x.abs ≥ 0 := by
+  simp
+  rw [le_iff]
+  have := abs_nonneg x
+  rw [antisymm]
+  aesop
+
+lemma Real.abs_eq_abs (x: Real): |x| = x.abs := by
+  rcases trichotomous x with h | h | h
+  . subst x
+    simp
+  . have : 0 < x := by exact (isPos_iff x).mp h
+    simp [h]
+    exact le_of_lt this
+  . have : x < 0 := by exact (isNeg_iff x).mp h
+    simp [h]
+    exact le_of_lt this
 
 /-- Exercise 5.4.6 -/
-theorem Real.dist_lt_iff (ε x y:Real) : |x-y| < ε ↔ y-ε < x ∧ x < y+ε := by sorry
+theorem Real.dist_lt_iff (ε x y:Real) : |x-y| < ε ↔ y-ε < x ∧ x < y+ε := by
+  rw [abs_eq_abs]
+  by_cases h: 0 ≤ x - y
+  . rw [abs_of_nonneg (x - y) h]
+    constructor
+    . intro hlt
+      constructor <;> linarith
+    . intro hlt
+      linarith
+  . rw [abs_of_neg (x - y) (by simp at h; exact h)]
+    constructor
+    . intro hlt
+      constructor <;> linarith
+    . intro hlt
+      linarith
 
 /-- Exercise 5.4.6 -/
-theorem Real.dist_le_iff (ε x y:Real) : |x-y| ≤ ε ↔ y-ε ≤ x ∧ x ≤ y+ε := by sorry
+theorem Real.dist_le_iff (ε x y:Real) : |x-y| ≤ ε ↔ y-ε ≤ x ∧ x ≤ y+ε := by
+  rw [abs_eq_abs]
+  constructor
+  . intro h
+    cases' h with h h
+    . rw [← abs_eq_abs] at h
+      rw [dist_lt_iff] at h
+      exact ⟨h.1.le, h.2.le⟩
+    . subst ε
+      by_cases h: 0 ≤ x - y
+      . simp [abs_of_nonneg _ h]
+        linarith
+      . simp at h
+        simp [abs_of_neg (x - y) (by exact h)]
+        linarith
+  . intro ⟨h1, h2⟩
+    cases' h1 with h1 h1
+    . cases' h2 with h2 h2
+      . have := (dist_lt_iff _ _ _).mpr ⟨h1, h2⟩
+        rw [abs_eq_abs] at this
+        exact le_of_lt this
+      . subst x
+        simp
+        by_cases hε: 0 < ε
+        . rw [abs_of_nonneg _ (le_of_lt hε)]
+        . simp at hε
+          linarith
+    . subst x
+      simp
+      by_cases hε: 0 < ε
+      . have : -ε < 0 := by
+          linarith
+        rw [abs_of_neg _ (by exact (isNeg_iff (-ε)).mpr this)]
+        simp
+      . simp at hε
+        have : 0 ≤ -ε := by linarith
+        rw [abs_of_nonneg _ this]
+        linarith
 
 /-- Exercise 5.4.7 -/
-theorem Real.le_add_eps_iff (x y:Real) : (∀ ε > 0, x ≤ y+ε) ↔ x ≤ y := by sorry
+theorem Real.le_add_eps_iff (x y:Real) : (∀ ε > 0, x ≤ y+ε) ↔ x ≤ y := by
+  constructor
+  . intro h
+    by_contra! hxy
+    specialize h ((x - y) / 2) (by linarith)
+    linarith
+  . intro h
+    intro ε hε
+    linarith
 
 /-- Exercise 5.4.7 -/
-theorem Real.dist_le_eps_iff (x y:Real) : (∀ ε > 0, |x-y| ≤ ε) ↔ x = y := by sorry
+theorem Real.dist_le_eps_iff (x y:Real) : (∀ ε > 0, |x-y| ≤ ε) ↔ x = y := by
+  constructor
+  . intro h
+    by_contra! hxy
+    wlog h': x > y
+    . simp at h'
+      specialize this y x
+      apply this
+      . rw [abs_sub_comm]
+        exact h
+      . exact hxy.symm
+      . exact lt_of_le_of_ne h' hxy
+    have := _root_.abs_of_pos (a:=x - y) (by linarith)
+    simp [this] at h
+    simp [add_comm] at h
+    rw [le_add_eps_iff] at h
+    linarith
+  . intro h
+    subst x
+    simp
+    intro ε
+    exact le_of_lt
 
 /-- Exercise 5.4.8 -/
 theorem Real.LIM_of_le {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy) (h: ∀ n, a n ≤ x) :
-    LIM a ≤ x := by sorry
+    LIM a ≤ x := by
+  by_contra h'
+  simp at h'
+  obtain ⟨q, hq1, hq2⟩ := rat_between h'
+  rw [ratCast_def] at hq2
+  have : ∀ n, a n ≤ q := by
+    intro n
+    specialize h n
+    apply le_of_lt
+    have := lt_of_le_of_lt h hq1
+    norm_cast at this
+  have := LIM_mono hcauchy (Sequence.IsCauchy.const q) this
+  linarith
 
 /-- Exercise 5.4.8 -/
 theorem Real.LIM_of_ge {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy) (h: ∀ n, a n ≥ x) :
-    LIM a ≥ x := by sorry
+    LIM a ≥ x := by
+  by_contra h'
+  simp at h'
+  obtain ⟨q, hq1, hq2⟩ := rat_between h'
+  rw [ratCast_def] at hq1
+  have : ∀ n, a n ≥ q := by
+    intro n
+    specialize h n
+    apply le_of_lt
+    have := lt_of_lt_of_le hq2 h
+    norm_cast at this
+  have := LIM_mono (Sequence.IsCauchy.const q) hcauchy this
+  linarith
 
-theorem Real.max_eq (x y:Real) : max x y = if x ≥ y then x else y := max_def' x y
+theorem Real.max_eq (x y:Real) : max x y = (if x ≥ y then x else y) := max_def' x y
 
 theorem Real.min_eq (x y:Real) : min x y = if x ≤ y then x else y := rfl
 
 /-- Exercise 5.4.9 -/
-theorem Real.neg_max (x y:Real) : max x y = - min (-x) (-y) := by sorry
+theorem Real.neg_max (x y:Real) : max x y = - min (-x) (-y) := by
+  rw [max_eq, min_eq]
+  by_cases h: x ≥ y <;> simp [h]
 
 /-- Exercise 5.4.9 -/
-theorem Real.neg_min (x y:Real) : min x y = - max (-x) (-y) := by sorry
+theorem Real.neg_min (x y:Real) : min x y = - max (-x) (-y) := by
+  rw [neg_max]
+  simp
 
 /-- Exercise 5.4.9 -/
-theorem Real.max_comm (x y:Real) : max x y = max y x := by sorry
+theorem Real.max_comm (x y:Real) : max x y = max y x := by
+  rw [max_eq, max_eq]
+  by_cases h: x ≥ y
+  . simp [h]
+    intro h
+    linarith
+  . simp [h]
+    intro h
+    linarith
 
 /-- Exercise 5.4.9 -/
-theorem Real.max_self (x:Real) : max x x = x := by sorry
+theorem Real.max_self (x:Real) : max x x = x := by
+  rw [max_def]
+  simp
 
 /-- Exercise 5.4.9 -/
-theorem Real.max_add (x y z:Real) : max (x + z) (y + z) = max x y + z := by sorry
+theorem Real.max_add (x y z:Real) : max (x + z) (y + z) = max x y + z := by
+  rw [max_eq, max_eq]
+  by_cases h: x ≥ y
+  . have : x + z ≥ y + z := by linarith
+    simp [this]
+    intro h
+    linarith
+  . simp at h
+    have : ¬ x + z ≥ y + z := by linarith
+    simp [this]
+    intro h
+    linarith
 
 /-- Exercise 5.4.9 -/
 theorem Real.max_mul (x y :Real) {z:Real} (hz: z.IsPos) : max (x * z) (y * z) = max x y * z := by
-  sorry
-/- Additional exercise: What happens if z is negative? -/
+  rw [max_eq, max_eq]
+  have hz': 0 < z := by exact (isPos_iff z).mp hz
+  by_cases h: x ≥ y
+  . have : x * z ≥ y * z := by exact (mul_le_mul_iff_of_pos_right hz').mpr h
+    simp [this]
+    intro h
+    linarith
+  . simp at h
+    have : ¬ x * z ≥ y * z := by simp; exact mul_lt_mul_right h hz
+    simp [this]
+    intro h
+    linarith
+
+theorem Real.max_mul_neg (x y :Real) {z:Real} (hz: z.IsNeg) : max (x * z) (y * z) = min x y * z := by
+  have : (-z).IsPos := by exact (neg_iff_pos_of_neg z).mp hz
+  have := max_mul (x:=-x) (y:=-y) this
+  simp at this
+  rw [this]
+  rw [neg_min]
+  ring
 
 /-- Exercise 5.4.9 -/
-theorem Real.min_comm (x y:Real) : min x y = min y x := by sorry
+theorem Real.min_comm (x y:Real) : min x y = min y x := by
+  rw [min_eq, min_eq]
+  by_cases h: x ≤ y
+  . simp [h]
+    intro h
+    linarith
+  . simp [h]
+    intro h
+    linarith
 
 /-- Exercise 5.4.9 -/
-theorem Real.min_self (x:Real) : min x x = x := by sorry
+theorem Real.min_self (x:Real) : min x x = x := by
+  rw [min_eq]
+  simp
 
-/-- Exercise 5.4.9 -/
-theorem Real.min_add (x y z:Real) : min (x + z) (y + z) = min x y + z := by sorry
+/- Exercise 5.4.9 -/
+theorem Real.min_add (x y z:Real) : min (x + z) (y + z) = min x y + z := by
+  rw [min_eq, min_eq]
+  by_cases h: x + z ≤ y + z
+  . simp [h]
+    intro h
+    linarith
+  . simp [h]
+    intro h
+    linarith
 
 /-- Exercise 5.4.9 -/
 theorem Real.min_mul (x y :Real) {z:Real} (hz: z.IsPos) : min (x * z) (y * z) = min x y * z := by
-  sorry
+  rw [min_eq, min_eq]
+  have hz': 0 < z := by exact (isPos_iff z).mp hz
+  by_cases h: x ≤ y
+  . have : x * z ≤ y * z := by exact (mul_le_mul_iff_of_pos_right hz').mpr h
+    simp [this]
+    intro h
+    linarith
+  . simp at h
+    have : ¬ x * z ≤ y * z := by simp; exact mul_lt_mul_right h hz
+    simp [this]
+    intro h
+    linarith
 
 /-- Exercise 5.4.9 -/
-theorem Real.inv_max {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (max x y)⁻¹ = min x⁻¹ y⁻¹ := by sorry
+theorem Real.inv_max {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (max x y)⁻¹ = min x⁻¹ y⁻¹ := by
+  rw [max_eq, min_eq]
+  have hx': 0 < x := by exact (isPos_iff x).mp hx
+  have hy': 0 < y := by exact (isPos_iff y).mp hy
+  by_cases h: x < y
+  . have : ¬ x ≥ y := by linarith
+    simp [this]
+    have : y⁻¹ < x⁻¹ := by rwa [inv_lt_inv₀ hy' hx']
+    simp [this]
+  . simp at h
+    simp [h]
+    rw [inv_lt_inv₀ hy' hx']
+    intro h
+    linarith
 
 /-- Exercise 5.4.9 -/
-theorem Real.inv_min {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (min x y)⁻¹ = max x⁻¹ y⁻¹ := by sorry
+theorem Real.inv_min {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (min x y)⁻¹ = max x⁻¹ y⁻¹ := by
+  rw [min_eq, max_eq]
+  have hx': 0 < x := by exact (isPos_iff x).mp hx
+  have hy': 0 < y := by exact (isPos_iff y).mp hy
+  by_cases h: x ≤ y
+  . simp [h]
+    rw [inv_lt_inv₀ hx' hy']
+    intro h
+    linarith
+  . simp [h]
+    rw [inv_le_inv₀ hy' hx']
+    intro h
+    linarith
 
 /-- Not from textbook: the rationals map as an ordered ring homomorphism into the reals. -/
 abbrev Real.ratCast_ordered_hom : ℚ →+*o Real where
   toRingHom := ratCast_hom
-  monotone' := by sorry
+  monotone' := by
+    simp
+    intro x y h
+    simp [ratCast_def]
+    apply LIM_mono (Sequence.IsCauchy.const x) (Sequence.IsCauchy.const y)
+    intro n
+    exact h
 
 end Chapter5

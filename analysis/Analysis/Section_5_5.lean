@@ -178,13 +178,37 @@ theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):
     _ ≤ |a n - a n'| := by exact abs_abs_sub_abs_le (a n) (a n')
     _ ≤ _ := hM
 
+theorem Sequence.abs_equiv_pos {a:ℕ → ℚ} (ha: (a: Sequence).IsCauchy)
+  (hlim: LIM a > 0) : Sequence.Equiv a |a| := by
+  -- by limit means a n eventually > 0, so |a n| = a n eventually
+  sorry
+
+theorem Sequence.abs_eq {a b:ℕ → ℚ}: LIM a = LIM b → LIM |a| = LIM |b| := by sorry
+
 theorem Real.LIM_abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy): |LIM a| = LIM |a| := by
-  simp_rw [LIM_def ha, LIM_def (Sequence.IsCauchy.abs ha)]
-  convert Quotient.liftOn₂_mk _ _ _ _
-  . sorry
-  . sorry
-  . sorry
-  . sorry
+  rcases trichotomous' (LIM a) 0 with (h | h | h)
+  . rw [_root_.abs_of_nonneg (le_of_lt h)]
+    rw [LIM_eq_LIM ha (Sequence.IsCauchy.abs ha)]
+    exact Sequence.abs_equiv_pos ha h
+  .
+    rw [_root_.abs_of_neg h]
+    rw [neg_LIM _ ha]
+    have hneg: (((-a): ℕ → ℚ): Sequence).IsCauchy := Sequence.IsCauchy_neg ha
+    conv_rhs => rw [show |a| = |(- a)| by funext x; simp]
+    rw [LIM_eq_LIM hneg (Sequence.IsCauchy.abs hneg)]
+    have : LIM (-a) > 0 := by
+      rw [← neg_LIM _ ha]
+      linarith
+    exact Sequence.abs_equiv_pos hneg this
+  . rw [h]
+    rw [← Real.LIM.zero] at h
+    apply Sequence.abs_eq at h
+    rw [h]
+    have : |fun (x:ℕ) ↦ (0:ℚ)| = 0 := by funext x; simp
+    rw [this]
+    simp
+    symm
+    exact Real.LIM.zero
 
 theorem Real.LIM_of_le' {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy) (h: ∃ N, ∀ n ≥ N, a n ≤ x) :
     LIM a ≤ x := by
@@ -317,8 +341,8 @@ theorem Real.LIM_of_Cauchy {q:ℕ → ℚ} (hq: ∀ M, ∀ n ≥ M, ∀ n' ≥ M
     intro n hn
     specialize hq n hn
     simp_all
-    norm_cast at hq ⊢
-    sorry
+    rw [show (M:Real) = ((M:ℚ):Real) by rfl]
+    norm_cast at ⊢ hq
 
 /--
 The sequence m₁, m₂, … is well-defined.

@@ -472,7 +472,8 @@ theorem Real.IsCauchy.neg (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) :
 theorem Real.neg_LIM (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) : -LIM a = LIM (-a) := by
   rw [LIM_def ha, LIM_def (Real.IsCauchy.neg a ha)]
   convert Quotient.liftOn₂_mk _ _ _ _
-  simp
+  simp only [CauchySequence.coe_eq, Sequence.eval_coe_at_int, ge_iff_le, Nat.cast_nonneg,
+    ↓reduceIte, Int.toNat_natCast]
   rw [dif_pos _]
   . ext
     . simp

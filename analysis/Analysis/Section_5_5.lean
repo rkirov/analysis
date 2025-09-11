@@ -178,31 +178,59 @@ theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):
     _ ≤ |a n - a n'| := by exact abs_abs_sub_abs_le (a n) (a n')
     _ ≤ _ := hM
 
-theorem Sequence.abs_equiv_pos {a:ℕ → ℚ} (ha: (a: Sequence).IsCauchy)
-  (hlim: LIM a > 0) : Sequence.Equiv a |a| := by
-  -- by limit means a n eventually > 0, so |a n| = a n eventually
-  sorry
+theorem Real.LIM.abs_eq {a b:ℕ → ℚ}
+    (ha: (a: Sequence).IsCauchy) (hb: (b: Sequence).IsCauchy)
+    (h: LIM a = LIM b): LIM |a| = LIM |b| := by
+  rw [LIM_eq_LIM ha hb] at h
+  rw [LIM_eq_LIM (Sequence.IsCauchy.abs ha) (Sequence.IsCauchy.abs hb)]
+  rw [Sequence.equiv_def] at h ⊢
+  intro ε hε
+  specialize h ε hε
+  rw [Rat.eventuallyClose_iff] at h ⊢
+  obtain ⟨N, hN⟩ := h
+  use N
+  intro n hn
+  specialize hN n hn
+  simp_all
+  calc
+    _ ≤ |a n - b n| := abs_abs_sub_abs_le (a n) (b n)
+    _ ≤ _ := hN
 
-theorem Sequence.abs_eq {a b:ℕ → ℚ}: LIM a = LIM b → LIM |a| = LIM |b| := by sorry
+theorem Real.LIM.abs_eq_pos {a: ℕ → ℚ} (h: LIM a > 0) (ha: (a:Sequence).IsCauchy)
+    : LIM a = LIM |a| := by
+  rw [← isPos_iff] at h
+  rw [isPos_def] at h
+  obtain ⟨b, hb, hbc, h⟩ := h
+  rw [h]
+  rw [Real.LIM.abs_eq ha hbc h]
+  congr
+  funext n
+  simp only [Pi.abs_apply]
+  rw [boundedAwayPos_def] at hb
+  obtain ⟨c, hc, hb⟩ := hb
+  specialize hb n
+  symm
+  apply _root_.abs_of_nonneg
+  linarith
 
 theorem Real.LIM_abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy): |LIM a| = LIM |a| := by
   rcases trichotomous' (LIM a) 0 with (h | h | h)
   . rw [_root_.abs_of_nonneg (le_of_lt h)]
-    rw [LIM_eq_LIM ha (Sequence.IsCauchy.abs ha)]
-    exact Sequence.abs_equiv_pos ha h
-  .
-    rw [_root_.abs_of_neg h]
+    exact Real.LIM.abs_eq_pos h ha
+  . rw [_root_.abs_of_neg h]
     rw [neg_LIM _ ha]
     have hneg: (((-a): ℕ → ℚ): Sequence).IsCauchy := Sequence.IsCauchy_neg ha
     conv_rhs => rw [show |a| = |(- a)| by funext x; simp]
-    rw [LIM_eq_LIM hneg (Sequence.IsCauchy.abs hneg)]
     have : LIM (-a) > 0 := by
-      rw [← neg_LIM _ ha]
-      linarith
-    exact Sequence.abs_equiv_pos hneg this
+      rw [← isPos_iff]
+      rw [← isNeg_iff] at h
+      rw [neg_iff_pos_of_neg] at h
+      rw [neg_LIM _ ha] at h
+      exact h
+    exact Real.LIM.abs_eq_pos this hneg
   . rw [h]
     rw [← Real.LIM.zero] at h
-    apply Sequence.abs_eq at h
+    apply Real.LIM.abs_eq ha (Sequence.IsCauchy.const 0) at h
     rw [h]
     have : |fun (x:ℕ) ↦ (0:ℚ)| = 0 := by funext x; simp
     rw [this]

@@ -485,7 +485,11 @@ theorem Real.exist_sqrt_two : ∃ x:Real, x^2 = 2 := by
       _ ≥ x^2 - 2 * ε * 2 + 0 * 0 := by gcongr
       _ = x^2 - 4 * ε := by ring
       _ > 2 := hε3
-    have why (y:Real) (hy: y ∈ E) : x - ε ≥ y := by sorry
+    have why (y:Real) (hy: y ∈ E) : x - ε ≥ y := by
+      simp [E] at hy
+      have : (x - ε) ^ 2 ≥ y^2 := by linarith
+      refine (sq_le_sq₀ hy.1 ?_).mp this
+      linarith
     have claim13: x-ε ∈ upperBounds E := by rwa [upperBound_def]
     have claim14: x ≤ x-ε := by grind [isLUB_def]
     linarith
@@ -508,7 +512,16 @@ theorem Real.exist_sqrt_two : ∃ x:Real, x^2 = 2 := by
   assumption
 
 /-- Remark 5.5.13 -/
-theorem Real.exist_irrational : ∃ x:Real, ¬ ∃ q:ℚ, x = (q:Real) := by sorry
+theorem Real.exist_irrational : ∃ x:Real, ¬ ∃ q:ℚ, x = (q:Real) := by
+  have hr := exist_sqrt_two
+  have hq := Rat.not_exist_sqrt_two
+  obtain ⟨x, hx⟩ := hr
+  use x
+  contrapose! hq
+  obtain ⟨q, hq⟩ := hq
+  use q
+  subst x
+  norm_cast at hx
 
 /-- Helper lemma for Exercise 5.5.1. -/
 theorem Real.mem_neg (E: Set Real) (x:Real) : x ∈ -E ↔ -x ∈ E := Set.mem_neg

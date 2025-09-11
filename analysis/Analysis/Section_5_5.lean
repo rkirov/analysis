@@ -163,6 +163,78 @@ theorem Real.upperBound_between {E: Set Real} {n:ℕ} {L K:ℤ} (hLK: L < K)
     . use K
       simp_all
 
+theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):
+  ((|a| : ℕ → ℚ) : Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe] at ha ⊢
+  intro ε hε
+  specialize ha ε hε
+  obtain ⟨M, hM⟩ := ha
+  use M
+  intro n hn n' hn'
+  specialize hM n hn n' hn'
+  rw [Section_4_3.dist] at hM ⊢
+  simp_all
+  calc
+    _ ≤ |a n - a n'| := by exact abs_abs_sub_abs_le (a n) (a n')
+    _ ≤ _ := hM
+
+theorem Real.LIM_abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy): |LIM a| = LIM |a| := by
+  simp_rw [LIM_def ha, LIM_def (Sequence.IsCauchy.abs ha)]
+  convert Quotient.liftOn₂_mk _ _ _ _
+  . sorry
+  . sorry
+  . sorry
+  . sorry
+
+theorem Real.LIM_of_le' {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy) (h: ∃ N, ∀ n ≥ N, a n ≤ x) :
+    LIM a ≤ x := by
+  obtain ⟨N, hN⟩ := h
+  let a' := fun n ↦ if n < N then a N else a n
+  have ha'_def: ∀ n, a' n = if n < N then a N else a n := by
+    unfold a'
+    simp
+  have ha': (a':Sequence).IsCauchy := by
+    rw [Sequence.IsCauchy.coe] at hcauchy ⊢
+    intro ε hε
+    obtain ⟨M, hM⟩ := hcauchy ε hε
+    use max M N
+    intro n hn n' hn'
+    simp [ha'_def]
+    have h1: ¬ n < N := by
+      simp
+      exact le_of_max_le_right hn
+    have h2: ¬ n' < N := by
+      simp
+      exact le_of_max_le_right hn'
+    simp [h1, h2]
+    specialize hM n (by exact le_of_max_le_left hn) n' (by exact le_of_max_le_left hn')
+    exact hM
+  have ha'eq: Sequence.Equiv a a' := by
+    rw [Sequence.equiv_def]
+    intro ε hε
+    rw [Rat.eventuallyClose_iff]
+    use N
+    intro n hn
+    simp [ha'_def]
+    have : ¬ n < N := by simp; exact hn
+    simp [this]
+    exact le_of_lt hε
+  have ha'a: LIM a = LIM a' := (LIM_eq_LIM (hcauchy) (ha')).mpr ha'eq
+  rw [ha'a]
+  have : ∀ n, a' n ≤ x := by
+    intro n
+    by_cases hn: n < N
+    . rw [ha'_def n]
+      simp [hn]
+      specialize hN N (by rfl)
+      exact hN
+    . rw [ha'_def n]
+      simp [hn]
+      simp at hn
+      specialize hN n hn
+      exact hN
+  exact LIM_of_le ha' this
+
 /-- Exercise 5.5.3 -/
 theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
   (hm1: (((m:ℚ) / (n+1):ℚ):Real) ∈ upperBounds E)
@@ -185,6 +257,7 @@ theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
   have := upperBound_upper this hm1
   contradiction
 
+set_option pp.coercions.types true in
 /-- Lemmas that can be helpful for proving 5.5.4 -/
 theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):
   ((|a| : ℕ → ℚ) : Sequence).IsCauchy := by sorry
@@ -202,7 +275,50 @@ theorem Real.LIM_of_le' {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy
 
 /-- Exercise 5.5.4 -/
 theorem Real.LIM_of_Cauchy {q:ℕ → ℚ} (hq: ∀ M, ∀ n ≥ M, ∀ n' ≥ M, |q n - q n'| ≤ 1 / (M+1)) :
-    (q:Sequence).IsCauchy ∧ ∀ M, |q M - LIM q| ≤ 1 / (M+1) := by sorry
+    (q:Sequence).IsCauchy ∧ ∀ M, |q M - LIM q| ≤ 1 / (M+1) := by
+  have hqCauchy: (q:Sequence).IsCauchy := by
+    rw [Sequence.IsCauchy.coe]
+    intro ε hε
+    obtain ⟨M, hM⟩ := exists_nat_ge (1 / ε)
+    use M
+    intro j hj k hk
+    rw [Section_4_3.dist]
+    specialize hq M j hj k hk
+    have hMp : 0 < M := by
+      by_contra h'
+      simp at h'
+      subst M
+      norm_cast at hM
+      simp at hε
+      rw [<- one_div_pos] at hε
+      linarith
+    calc
+      _ = |q j - q k| := by ring
+      _ ≤ 1 / (M+1) := hq
+      _ ≤ 1 / M := by
+        gcongr
+        norm_cast
+        exact Nat.le_add_right M 1
+      _ ≤ ε := by
+        rw [one_div_le]
+        . exact hM
+        . norm_cast
+        . exact hε
+  constructor
+  . exact hqCauchy
+  . intro M
+    specialize hq M M (by rfl)
+    rw [ratCast_def]
+    rw [LIM_sub (Sequence.IsCauchy.const _) hqCauchy]
+    have hsub := Sequence.IsCauchy.sub (Sequence.IsCauchy.const (q M)) hqCauchy
+    rw [LIM_abs hsub]
+    apply LIM_of_le' (Sequence.IsCauchy.abs hsub)
+    use M
+    intro n hn
+    specialize hq n hn
+    simp_all
+    norm_cast at hq ⊢
+    sorry
 
 /--
 The sequence m₁, m₂, … is well-defined.

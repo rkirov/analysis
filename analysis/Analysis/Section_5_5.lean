@@ -575,6 +575,40 @@ theorem Real.exist_irrational : ∃ x:Real, ¬ ∃ q:ℚ, x = (q:Real) := by
   subst x
   norm_cast at hx
 
+lemma hLowerBound_of_UpperBound {E : Set Real} (M:Real)
+    (hbound: M ∈ lowerBounds E) : -M ∈ upperBounds (-E) := by
+  rw [mem_upperBounds]
+  rw [mem_lowerBounds] at hbound
+  intro x h
+  specialize hbound (-x) h
+  linarith
+
+lemma hUpperBound_of_LowerBound {E: Set Real} (M:Real)
+    (hbound: M ∈ upperBounds E) : -M ∈ lowerBounds (-E) := by
+  rw [mem_upperBounds] at hbound
+  rw [mem_lowerBounds]
+  intro x h
+  specialize hbound (-x) h
+  linarith
+
+/-- Helper lemma for Exercise 5.5.1. -/
+theorem Real.mem_neg (E: Set Real) (x:Real) : x ∈ -E ↔ -x ∈ E := Set.mem_neg
+
+/-- Exercise 5.5.1-/
+theorem Real.inf_neg {E: Set Real} {M:Real} (h: IsLUB E M) : IsGLB (-E) (-M) := by
+  rw [isGLB_def]
+  rw [isLUB_def] at h
+  obtain ⟨h1, h2⟩ := h
+  constructor
+  . have := hUpperBound_of_LowerBound _ h1
+    simp at this
+    exact this
+  . intro y hy
+    apply hLowerBound_of_UpperBound y at hy
+    simp at hy
+    specialize h2 (-y) hy
+    linarith
+
 /-- Helper lemma for Exercise 5.5.1. -/
 theorem Real.mem_neg (E: Set Real) (x:Real) : x ∈ -E ↔ -x ∈ E := Set.mem_neg
 
@@ -582,7 +616,19 @@ theorem Real.mem_neg (E: Set Real) (x:Real) : x ∈ -E ↔ -x ∈ E := Set.mem_n
 theorem Real.inf_neg {E: Set Real} {M:Real} (h: IsLUB E M) : IsGLB (-E) (-M) := by sorry
 
 theorem Real.GLB_exist {E: Set Real} (hE: Set.Nonempty E) (hbound: BddBelow E): ∃ S, IsGLB E S := by
-  sorry
+  have hE': (-E).Nonempty := by
+    obtain ⟨x, hx⟩ := hE
+    use -x
+    simpa
+  have hE'bound: BddAbove (-E) := by
+    rw [Real.bddAbove_def]
+    rw [Real.bddBelow_def] at hbound
+    obtain ⟨M, hM⟩ := hbound
+    use -M
+    exact hLowerBound_of_UpperBound M hM
+  obtain ⟨S, hS⟩ := Real.LUB_exist hE' hE'bound
+  use -S
+  exact isLUB_neg.mp hS
 
 open Classical in
 noncomputable abbrev ExtendedReal.inf (E: Set Real) : ExtendedReal :=
@@ -602,7 +648,31 @@ theorem ExtendedReal.inf_of_bounded_finite {E: Set Real} (hnon: E.Nonempty) (hb:
 
 /-- Exercise 5.5.5 -/
 theorem Real.irrat_between {x y:Real} (hxy: x < y) :
-    ∃ z, x < z ∧ z < y ∧ ¬ ∃ q:ℚ, z = (q:Real) := by sorry
+    ∃ z, x < z ∧ z < y ∧ ¬ ∃ q:ℚ, z = (q:Real) := by
+  obtain ⟨sq2, hsq2⟩ := exist_sqrt_two
+  wlog h: 0 < sq2
+  . simp at h
+    rw [le_iff_lt_or_eq] at h
+    cases' h with h h
+    . specialize this hxy (-sq2) (by simpa) (by simpa)
+      exact this
+    . subst sq2
+      norm_num at hsq2
+  have := Real.rat_between (x := x - sq2) (y := y - sq2) (by linarith)
+  obtain ⟨q, h1, h2⟩ := this
+  use q + sq2
+  constructor
+  . linarith
+  . constructor
+    . linarith
+    . rintro ⟨r, hr⟩
+      have := Rat.not_exist_sqrt_two
+      push_neg at this
+      specialize this (r - q)
+      have h: (r - q) = (sq2:Real) := by linarith
+      apply congrArg (. ^ 2) at h
+      rw [hsq2] at h
+      norm_cast at h
 
 /- Use the notion of supremum in this section to define a Mathlib `sSup` operation -/
 noncomputable instance Real.inst_SupSet : SupSet Real where

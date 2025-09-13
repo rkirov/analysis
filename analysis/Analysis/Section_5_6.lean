@@ -187,7 +187,7 @@ theorem Real.pow_abs (x:Real) (n:ℕ) : |x|^n = |x^n| := by
   . rw [pow_succ]
     rw [pow_succ]
     rw [ih]
-    rw [abs_mul (x ^ n) x] -- what?
+    rw [abs_mul]
 
 /-- Definition 5.6.2 (Exponentiating a real by an integer). Here we use the Mathlib definition coming from `DivInvMonoid`. -/
 lemma Real.pow_eq_pow (x: Real) (n:ℕ): x ^ (n:ℤ) = x ^ n := by rfl
@@ -197,30 +197,180 @@ lemma Real.zpow_zero (x: Real) : x ^ (0:ℤ) = 1 := by rfl
 
 lemma Real.zpow_neg {x:Real} (n:ℕ) : x^(-n:ℤ) = 1 / (x^n) := by simp
 
-/-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.zpow_add (x:Real) (n m:ℤ) (hx: x ≠ 0): x^n * x^m = x^(n+m) := by sorry
+lemma Real.div_eq_mul_inv (x y: Real) : x / y = x * (1 / y) := by field_simp
 
 /-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.zpow_mul (x:Real) (n m:ℤ) : (x^n)^m = x^(n*m) := by sorry
+theorem Real.zpow_add (x:Real) (n m:ℤ) (hx: x ≠ 0)(hx: x ≠ 0): x^n * x^m = x^(n+m) := by
+  wlog hnm : n ≥ m
+  . simp only [ge_iff_le, not_le] at hnm
+    have := this x m n hx (by exact Int.le_of_lt hnm)
+    rwa [mul_comm, add_comm]
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  obtain ⟨m', hm'⟩ := Int.eq_nat_or_neg m
+  rcases hn' with ⟨rfl | rfl⟩
+  . rcases hm' with ⟨rfl | rfl⟩
+    . have : (n':ℤ) + (m':ℤ) = (((n' + m'):ℕ): ℤ) := by rfl
+      rw [this]
+      norm_cast
+      exact pow_add _ _ _
+    . subst m -- why didn't rfl do it
+      rw [zpow_neg]
+      field_simp
+      by_cases h2: n' ≥ m'
+      . have : (n': ℤ) + -(m':ℤ) = n' - m' := by rfl
+        rw [this]
+        norm_cast
+        rw [pow_add]
+        congr
+        omega
+      . have : (n': ℤ) + -(m':ℤ) = -(m' - n') := by omega
+        rw [this]
+        simp at h2
+        have : (m': ℤ) - (n':ℤ) = (((m' - n'): ℕ): ℤ) := by rw [Int.natCast_sub h2.le]
+        rw [this]
+        rw [zpow_neg]
+        field_simp
+        rw [pow_add]
+        congr
+        omega
+  . subst n -- why didn't rfl do it
+    rw [zpow_neg]
+    rcases hm' with ⟨rfl | rfl⟩
+    . field_simp
+      by_cases h2: n' ≥ m'
+      . have : -(n': ℤ) + (m':ℤ) = -(n' - m') := by omega
+        rw [this]
+        norm_cast
+        rw [zpow_neg]
+        field_simp
+        rw [pow_add]
+        congr
+        omega
+      . have : -(n': ℤ) + (m':ℤ) = m' - n' := by omega
+        rw [this]
+        simp at h2
+        have : (m': ℤ) - (n':ℤ) = (((m' - n'): ℕ): ℤ) := by rw [Int.natCast_sub h2.le]
+        rw [this]
+        rw [pow_eq_pow]
+        rw [pow_add]
+        congr
+        omega
+    . subst m
+      rw [zpow_neg]
+      field_simp
+      have : -(n': ℤ) + (-(m':ℤ)) = -(n' + m') := by omega
+      rw [this]
+      norm_cast
+      rw [zpow_neg]
+      field_simp
+      rw [pow_add]
 
 /-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.mul_zpow (x y:Real) (n:ℤ) : (x*y)^n = x^n * y^n := by sorry
+theorem Real.zpow_mul (x:Real) (n m:ℤ) : (x^n)^m = x^(n*m) := by
+  obtain ⟨m', hm'⟩ := Int.eq_nat_or_neg m
+  rcases hm' with ⟨rfl | rfl⟩
+  . norm_cast
+    obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+    rcases hn' with ⟨rfl | rfl⟩
+    . norm_cast
+      exact pow_mul _ _ _
+    . subst n
+      rw [zpow_neg]
+      field_simp
+      norm_cast
+      rw [pow_mul]
+  . subst m
+    obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+    rcases hn' with ⟨rfl | rfl⟩
+    . norm_cast
+      rw [zpow_neg]
+      field_simp
+      norm_cast
+      rw [pow_mul]
+    . subst n
+      rw [zpow_neg, zpow_neg]
+      field_simp
+      norm_cast
+      exact pow_mul _ _ _
+
+/-- Analogue of Proposition 4.3.12(a) -/
+theorem Real.mul_zpow (x y:Real) (n:ℤ) : (x*y)^n = x^n * y^n := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . norm_cast
+    rw [mul_pow]
+  . subst n
+    repeat rw [zpow_neg]
+    field_simp
+    rw [mul_pow]
 
 /-- Analogue of Proposition 4.3.12(b) -/
-theorem Real.zpow_pos {x:Real} (n:ℤ) (hx: x > 0) : x^n > 0 := by sorry
+theorem Real.zpow_pos {x:Real} (n:ℤ) (hx: x > 0) : x^n > 0 := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . norm_cast
+    exact pow_pos n' hx
+  . subst n
+    rw [zpow_neg]
+    field_simp
 
 /-- Analogue of Proposition 4.3.12(b) -/
-theorem Real.zpow_ge_zpow {x y:Real} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by sorry
+theorem Real.zpow_ge_zpow {x y:Real} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . apply pow_ge_pow _ _ _ hxy
+    exact le_of_lt hy
+  . exfalso
+    linarith
 
 theorem Real.zpow_ge_zpow_ofneg {x y:Real} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n < 0) : x^n ≤ y^n := by
-  sorry
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . exfalso
+    linarith
+  . subst n
+    repeat rw [zpow_neg]
+    have := pow_ge_pow _ _ n' hxy (le_of_lt hy)
+    simp only [Int.neg_neg_iff_pos, Int.natCast_pos] at hn
+    have hyp : y ^ n' > 0 := by exact pow_pos n' hy
+    exact one_div_le_one_div_of_le hyp this
+
+theorem pow_nat_inj {x y:Real} {n:ℕ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
+  rw [pow_left_inj₀ hx.le hy.le hn] at hxy
+  exact hxy
 
 /-- Analogue of Proposition 4.3.12(c) -/
 theorem Real.zpow_inj {x y:Real} {n:ℤ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
-  sorry
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . norm_cast at hn
+    exact pow_nat_inj hx hy hn hxy
+  . subst n
+    rw [zpow_neg, zpow_neg] at hxy
+    norm_cast at hn
+    simp only [and_true] at hn
+    apply pow_nat_inj hx hy hn
+    simp only [one_div, inv_inj] at hxy
+    exact hxy
+
+theorem pow_nat_abs (x:Real) (n:ℕ): |x|^n = |x^n| := by
+  induction' n with n ih
+  . rw [pow_zero, pow_zero]
+    norm_num
+  . rw [pow_add, pow_add]
+    rw [abs_mul]
+    rw [ih]
+    rw [pow_one, pow_one]
 
 /-- Analogue of Proposition 4.3.12(d) -/
-theorem Real.zpow_abs (x:Real) (n:ℤ) : |x|^n = |x^n| := by sorry
+theorem Real.zpow_abs (x:Real) (n:ℤ) : |x|^n = |x^n| := by
+  obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+  rcases hn' with ⟨rfl | rfl⟩
+  . exact pow_nat_abs x n'
+  . subst n
+    rw [zpow_neg, zpow_neg]
+    rw [pow_nat_abs]
+    rw [abs_one_div]
 
 /-- Definition 5.6.2.  We permit ``junk values'' when `x` is negative or `n` vanishes. -/
 noncomputable abbrev Real.root (x:Real) (n:ℕ) : Real := sSup { y:Real | y ≥ 0 ∧ y^n ≤ x }
@@ -230,7 +380,9 @@ noncomputable abbrev Real.sqrt (x:Real) := x.root 2
 /-- Lemma 5.6.5 (Existence of n^th roots) -/
 theorem Real.rootset_nonempty {x:Real} (hx: x ≥ 0) (n:ℕ) (hn: n ≥ 1) : { y:Real | y ≥ 0 ∧ y^n ≤ x }.Nonempty := by
   use 0
-  sorry
+  simp
+  rw [zero_pow (by linarith)]
+  exact hx
 
 theorem Real.rootset_bddAbove {x:Real} (n:ℕ) (hn: n ≥ 1) : BddAbove { y:Real | y ≥ 0 ∧ y^n ≤ x } := by
   -- This proof is written to follow the structure of the original text.
@@ -239,12 +391,28 @@ theorem Real.rootset_bddAbove {x:Real} (n:ℕ) (hn: n ≥ 1) : BddAbove { y:Real
   . use 1; intro y hy; simp at hy
     by_contra! hy'
     replace hy' : 1 < y^n := by
-      sorry
+      rw [show (1:Real) = 1^n by simp]
+      rw [pow_lt_pow_iff_left₀ (by norm_num) (by linarith) (by linarith)]
+      exact hy'
     linarith
   use x; intro y hy; simp at hy
   by_contra! hy'
   replace hy' : x < y^n := by
-    sorry
+    by_cases hnone: n = 1
+    . subst n
+      simpa
+    replace hn : n > 1 := by
+      simp at hn
+      rw [le_iff_lt_or_eq] at hn
+      have :1 ≠ n := by exact fun a ↦ hnone (id (Eq.symm a))
+      simp [this] at hn
+      exact hn
+    have : y > 1 := by linarith
+    suffices h: y < y ^ n by
+      exact lt_trans hy' h
+    have hyeq: y = y ^ 1 := by simp
+    conv_lhs => rw [hyeq]
+    exact pow_lt_pow_right₀ this hn
   linarith
 
 /-- Lemma 5.6.6 (ab) / Exercise 5.6.1 -/

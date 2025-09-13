@@ -665,6 +665,8 @@ noncomputable instance Real.instLinearOrder : LinearOrder Real where
 
   toDecidableLE := Classical.decRel _
 
+#check |(3:Real)|
+
 /--
   (Not from textbook) Linear Orders come with a definition of absolute value |.|
   Show that it agrees with our earlier definition.

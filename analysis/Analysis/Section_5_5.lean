@@ -678,6 +678,13 @@ theorem Real.irrat_between {x y:Real} (hxy: x < y) :
 noncomputable instance Real.inst_SupSet : SupSet Real where
   sSup E := ((ExtendedReal.sup E):Real)
 
+-- /-- Use the `sSup` operation to build a conditionally complete lattice structure on `Real`-/
+-- noncomputable instance Real.inst_conditionallyCompleteLattice :
+--     ConditionallyCompleteLattice Real :=
+--   conditionallyCompleteLatticeOfsSup Real (fun _ _ ↦ Set.Finite.bddAbove (by norm_num))
+--   (fun _ _ ↦ Set.Finite.bddBelow (by norm_num))
+--   (by intros; solve_by_elim [ExtendedReal.sup_of_bounded])
+
 /-- Use the `sSup` operation to build a conditionally complete lattice structure on `Real`-/
 noncomputable instance Real.inst_conditionallyCompleteLattice :
     ConditionallyCompleteLattice Real :=

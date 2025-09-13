@@ -761,6 +761,34 @@ theorem zpow_add (x:ℚ) (n m:ℤ) (hx: x ≠ 0) : x^n * x^m = x^(n+m) := by
       rw [pow_add]
 
 /-- Proposition 4.3.12(a) (Properties of exponentiation, II) / Exercise 4.3.4 -/
+theorem zpow_mul (x:ℚ) (n m:ℤ) : (x^n)^m = x^(n*m) := by
+  obtain ⟨m', hm'⟩ := Int.eq_nat_or_neg m
+  rcases hm' with ⟨rfl | rfl⟩
+  . norm_cast
+    obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+    rcases hn' with ⟨rfl | rfl⟩
+    . norm_cast
+      exact pow_mul _ _ _
+    . subst n
+      rw [zpow_neg]
+      field_simp
+      norm_cast
+      rw [pow_mul]
+  . subst m
+    obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
+    rcases hn' with ⟨rfl | rfl⟩
+    . norm_cast
+      rw [zpow_neg]
+      field_simp
+      norm_cast
+      rw [pow_mul]
+    . subst n
+      rw [zpow_neg, zpow_neg]
+      field_simp
+      norm_cast
+      exact pow_mul _ _ _
+
+/-- Proposition 4.3.12(a) (Properties of exponentiation, II) / Exercise 4.3.4 -/
 theorem mul_zpow (x y:ℚ) (n:ℤ) : (x*y)^n = x^n * y^n := by
   obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
   rcases hn' with ⟨rfl | rfl⟩
@@ -803,7 +831,7 @@ theorem zpow_ge_zpow_ofneg {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n <
     have hyp : y ^ n' > 0 := by exact pow_pos n' hy
     exact one_div_le_one_div_of_le hyp this
 
-theorem zpow_nat_inj {x y:ℚ} {n:ℕ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
+theorem pow_nat_inj {x y:ℚ} {n:ℕ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
   wlog h: x ≤ y
   . have hxy' : y ≤ x := by exact le_of_not_ge h
     exact (this hy hx hn hxy.symm hxy').symm
@@ -818,16 +846,16 @@ theorem zpow_inj {x y:ℚ} {n:ℤ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: 
   rcases hn' with ⟨rfl | rfl⟩
   . repeat rw [pow_eq_zpow] at hxy
     norm_cast at hn
-    exact zpow_nat_inj hx hy hn hxy
+    exact pow_nat_inj hx hy hn hxy
   . subst n
     rw [zpow_neg, zpow_neg] at hxy
     norm_cast at hn
     simp only [and_true] at hn
-    apply zpow_nat_inj hx hy hn
+    apply pow_nat_inj hx hy hn
     simp only [one_div, inv_inj] at hxy
     exact hxy
 
-theorem zpow_nat_abs (x:ℚ) (n:ℕ): |x|^n = |x^n| := by
+theorem pow_nat_abs (x:ℚ) (n:ℕ): |x|^n = |x^n| := by
   induction' n with n ih
   . rw [pow_zero, pow_zero]
     rfl
@@ -846,10 +874,10 @@ theorem zpow_abs (x:ℚ) (n:ℤ): |x|^n = |x^n| := by
   obtain ⟨n', hn'⟩ := Int.eq_nat_or_neg n
   rcases hn' with ⟨rfl | rfl⟩
   . repeat rw [pow_eq_zpow]
-    exact zpow_nat_abs x n'
+    exact pow_nat_abs x n'
   . subst n
     rw [zpow_neg, zpow_neg]
-    rw [zpow_nat_abs]
+    rw [pow_nat_abs]
     rw [abs_one_div]
 
 /-- Exercise 4.3.5 -/

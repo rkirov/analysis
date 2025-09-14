@@ -415,9 +415,67 @@ theorem Real.rootset_bddAbove {x:Real} (n:ℕ) (hn: n ≥ 1) : BddAbove { y:Real
     exact pow_lt_pow_right₀ this hn
   linarith
 
+theorem pow_sub_pow {a b: Real} (hb: a < b) {n: ℕ}:
+    b ^ n - a ^ n = (b - a) * ∑ i ∈ (Finset.range n), b ^ i * a ^ (n - 1 - i) := by
+  have := Commute.geom_sum₂ (Commute.all b a) (by linarith) n
+  symm at this
+  have hneq: b - a ≠ 0 := by linarith
+  have := congrArg (. * (b - a)) this
+  field_simp at this
+  rw [mul_comm] at this
+  exact this
+
 -- taken from baby Rudin page 10
-theorem pow_sub_pow {a b: Real} {n: ℕ} (hn: 1 < n) (ha: 0 ≤ a) (hb: a < b) :
-  b ^ n - a ^ n < (b - a) * n * (b ^ (n - 1)) := by sorry
+theorem pow_sub_pow_lt {a b: Real} {n: ℕ} (hn: 1 < n) (ha: 0 ≤ a) (hb: a < b) :
+  b ^ n - a ^ n < (b - a) * n * (b ^ (n - 1)) := by
+  rw [pow_sub_pow hb]
+  have claim1 {i:ℕ} (h: i ∈ Finset.range n) : b ^ i * a ^ (n - 1 - i) ≤ b ^ (n - 1) := by
+    have hi: i < n := by exact Finset.mem_range.mp h
+    have : a ^ (n - 1 - i) ≤ b ^ (n - 1 - i) := Real.pow_ge_pow _ _ _ hb.le ha
+    calc
+      _ ≤ b ^ i * b ^ (n - 1 - i) := by
+        gcongr
+        have : 0 < b := by linarith
+        left
+        exact Real.pow_pos i this
+      _ = b ^ (n - 1) := by
+        rw [← pow_add]
+        congr
+        omega
+
+  have claim1': a ^ (n - 1) < b ^ (n - 1) := Real.pow_gt_pow _ _ _ hb ha (by omega)
+
+  have claim2 : ∑ i ∈ (Finset.range n), b ^ i * a ^ (n - 1 - i) < n * (b ^ (n - 1)) := by
+    have zero_in_range : 0 ∈ Finset.range n := by
+      rw [Finset.mem_range]
+      omega
+    rw [← Finset.sum_erase_add _ _ zero_in_range]
+    simp
+    calc
+      _ < ∑ i ∈ (Finset.range n).erase 0, b ^ i * a ^ (n - 1 - i) + b ^ (n - 1) := by
+        gcongr
+      _ ≤ ∑ i ∈ (Finset.range n).erase 0, b ^ (n - 1) + b ^ (n - 1) := by
+        gcongr with i hi
+        simp at hi
+        specialize claim1 (i:=i) (by
+          rw [Finset.mem_range]
+          exact hi.2
+        )
+        exact claim1
+      _ = (n - 1) * (b ^ (n - 1)) + b ^ (n - 1) := by
+        rw [Finset.sum_const]
+        simp [zero_in_range]
+        left
+        have : 1 ≤ n := by omega -- norm_cast needs some help
+        norm_cast
+
+      _ = n * (b ^ (n - 1)) := by ring
+  rw [mul_assoc]
+  exact mul_lt_mul_of_pos_of_nonneg (by linarith) claim2 (by linarith) (by
+    apply mul_nonneg
+    . exact Nat.cast_nonneg' n
+    . apply pow_nonneg (lt_of_le_of_lt ha hb).le
+  )
 
 /-- Lemma 5.6.6 (ab) / Exercise 5.6.1 -/
 theorem Real.eq_root_iff_pow_eq {x y:Real} (hx: x ≥ 0) (hy: y ≥ 0) {n:ℕ} (hn: n ≥ 1) :
@@ -456,7 +514,7 @@ theorem Real.eq_root_iff_pow_eq {x y:Real} (hx: x ≥ 0) (hy: y ≥ 0) {n:ℕ} (
     have : 0 ≠ x := by exact fun a ↦ hn0 (id (Eq.symm a))
     simp [this] at hx
     exact hx
-  -- have to deal with n = 0 case separately
+  -- have to deal with n = 1 case separately
   -- todo: see if this can be avioded
   by_cases hnone: n = 1
   . subst n
@@ -532,7 +590,7 @@ theorem Real.eq_root_iff_pow_eq {x y:Real} (hx: x ≥ 0) (hy: y ≥ 0) {n:ℕ} (
             _ ≤ y ^ n - (y - ε) ^ n := by
               gcongr
               linarith
-            _ < _ := by exact pow_sub_pow (a:=y - ε) (b:=y) hn (by linarith) (by linarith)
+            _ < _ := by exact pow_sub_pow_lt (a:=y - ε) (b:=y) hn (by linarith) (by linarith)
             _ = ε * n * y ^ (n - 1) := by simp
             _ = (y ^ n - x) / (n * y ^ (n - 1)) *  n * y ^ (n - 1) := by
               unfold ε
@@ -573,7 +631,7 @@ theorem Real.eq_root_iff_pow_eq {x y:Real} (hx: x ≥ 0) (hy: y ≥ 0) {n:ℕ} (
         . linarith
         . have :=
             calc
-              (y + ε) ^ n - y ^ n < _ := pow_sub_pow (a:=y) (b:= y + ε) hn (by linarith) (by linarith)
+              (y + ε) ^ n - y ^ n < _ := pow_sub_pow_lt (a:=y) (b:= y + ε) hn (by linarith) (by linarith)
               _ ≤ ε * n * (y + 1)^(n - 1) := by simp; gcongr
               _ < (x - y^n) / (n * (y + 1)^(n - 1)) *  n * (y + 1)^(n - 1) := by gcongr
               _ = x - y^n := by field_simp; ring

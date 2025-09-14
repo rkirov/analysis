@@ -658,8 +658,6 @@ noncomputable instance Real.instLinearOrder : LinearOrder Real where
 
   toDecidableLE := Classical.decRel _
 
-#check |(3:Real)|
-
 /-- Proposition 5.4.8 -/
 theorem Real.inv_of_pos {x:Real} (hx: x.IsPos) : x⁻¹.IsPos := by
   observe hnon: x ≠ 0

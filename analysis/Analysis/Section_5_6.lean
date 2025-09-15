@@ -871,9 +871,25 @@ theorem Real.pow_root_eq_pow_root {a a':ℤ} {b b':ℕ} (hb: b > 0) (hb' : b' > 
         push_cast at *; ring_nf at *; simp [hq]
       specialize this hb hb' hq (by linarith)
       simpa [zpow_neg] using this
-    have : a' = 0 := by sorry
+    have : a' = 0 := by
+      subst a
+      simp at hq
+      symm at hq
+      rw [div_eq_zero_iff] at hq
+      norm_cast at hq
+      cases' hq with hq hq
+      . exact hq
+      . linarith
     simp_all
-  have : a' > 0 := by sorry
+  have : a' > 0 := by
+    rw [div_eq_div_iff] at hq
+    . norm_cast at hq
+      have : 0 < a * b' := by positivity
+      rw [hq] at this
+      apply Int.pos_of_mul_pos_left this
+      positivity
+    . positivity
+    . positivity
   field_simp at hq
   lift a to ℕ using by order
   lift a' to ℕ using by order
@@ -891,29 +907,152 @@ theorem Real.ratPow_def {x:Real} (hx: x > 0) (a:ℤ) {b:ℕ} (hb: b > 0) : x^(a/
   . have := q.den_nz; omega
   rw [Rat.num_div_den q]
 
-theorem Real.ratPow_eq_root {x:Real} (hx: x > 0) {n:ℕ} (hn: n ≥ 1) : x^(1/n:ℚ) = x.root n := by sorry
+theorem Real.ratPow_eq_root {x:Real} (hx: x > 0) {n:ℕ} (hn: n ≥ 1) : x^(1/n:ℚ) = x.root n := by
+  have := ratPow_def hx 1 (b:=n) (by linarith)
+  simp only [Int.cast_one, one_div, zpow_one] at this
+  simp only [one_div] at ⊢
+  exact this
 
-theorem Real.ratPow_eq_pow {x:Real} (hx: x > 0) (n:ℤ) : x^(n:ℚ) = x^n := by sorry
+theorem Real.ratPow_eq_pow {x:Real} (hx: x > 0) (n:ℤ) : x^(n:ℚ) = x^n := by
+  have := ratPow_def hx n (b:=1) (by linarith)
+  simp at this
+  rwa [root_one hx] at this
 
 /-- Lemma 5.6.9(a) / Exercise 5.6.2 -/
-theorem Real.ratPow_pos {x:Real} (hx: x > 0) (q:ℚ) : x^q > 0 := by
-  sorry
+theorem Real.ratPow_nonneg {x:Real} (hx: x > 0) (q:ℚ) : x^q > 0 := by
+  obtain ⟨a, b, hb, rfl⟩ := Rat.eq_quot q
+  rw [ratPow_def hx a hb]
+  exact Real.zpow_pos a ((Real.root_pos hx.le hb).mpr hx)
 
 /-- Lemma 5.6.9(b) / Exercise 5.6.2 -/
 theorem Real.ratPow_add {x:Real} (hx: x > 0) (q r:ℚ) : x^(q+r) = x^q * x^r := by
-  sorry
+  obtain ⟨a, b, hb, rfl⟩ := Rat.eq_quot q
+  obtain ⟨c, d, hd, rfl⟩ := Rat.eq_quot r
+  have hbd: b * d > 0 := by positivity
+  have h1 : (a/b:ℚ) + (c/d:ℚ) = ((a*d + b*c):ℤ)/((b*d):ℕ) := by
+    field_simp; ring
+  rw [h1]
+  rw [ratPow_def hx _ hb]
+  rw [ratPow_def hx _ hd]
+  rw [ratPow_def hx _ hbd]
+
+  have hrb: x.root b > 0 := by exact (Real.root_pos hx.le hb).mpr hx
+  rw [← ratPow_eq_pow hrb a]
+  conv_rhs => rw [show (a:ℚ) = ((a * d):ℤ) / d by field_simp]
+  rw [ratPow_def hrb _ hd]
+
+  have hrd: x.root d > 0 := by exact (Real.root_pos hx.le hd).mpr hx
+  rw [← ratPow_eq_pow hrd c]
+  conv_rhs => rw [show (c:ℚ) = ((c * b):ℤ) / b by field_simp]
+  rw [ratPow_def hrd _ hb]
+  rw [root_root hx.le (by linarith) (by linarith)]
+  rw [root_root hx.le (by linarith) (by linarith)]
+  rw [mul_comm b d]
+  have hbdr : x.root (d * b) > 0 := by
+    rw [mul_comm d b]
+    exact (Real.root_pos hx.le hbd).mpr hx
+  rw [zpow_add _ _ _ (by linarith)]
+  rw [mul_comm _ c]
+
+theorem Real.root_pos' {x: Real} (hx: x > 0) {a: ℕ} (ha: a ≥ 1) : x.root a > 0 := by
+  exact (Real.root_pos hx.le ha).mpr hx
+
+theorem Real.root_pow_swap {x: Real} (a: ℤ) (b: ℕ) (hb: b > 0) (hx: x > 0) :
+  (x.root b)^a = (x^a).root b := by
+  rw [eq_root_iff_pow_eq (by positivity) (by
+    apply zpow_nonneg
+    exact (root_pos' hx (by linarith)).le
+  ) (by linarith)]
+  rw [← pow_eq_pow]
+  rw [zpow_mul]
+  rw [mul_comm]
+  rw [← zpow_mul]
+  simp only [zpow_natCast]
+  rw [pow_of_root (Or.inl hx) hb]
 
 /-- Lemma 5.6.9(b) / Exercise 5.6.2 -/
 theorem Real.ratPow_ratPow {x:Real} (hx: x > 0) (q r:ℚ) : (x^q)^r = x^(q*r) := by
-  sorry
+  obtain ⟨a, b, hb, rfl⟩ := Rat.eq_quot q
+  obtain ⟨c, d, hd, rfl⟩ := Rat.eq_quot r
+  have hbd: b * d > 0 := by positivity
+  have h1 : (a/b:ℚ) * (c/d:ℚ) = ((a*c):ℤ)/((b*d):ℕ) := by
+    field_simp
+  rw [h1]
+  rw [ratPow_def hx _ hb]
+  rw [ratPow_def (by
+    apply zpow_pos
+    exact root_pos' hx hb
+  ) _ hd]
+  rw [ratPow_def hx _ hbd]
+  rw [← root_pow_swap a d hd (by exact root_pos' hx hb)]
+  rw [root_root hx.le (by linarith) (by linarith)]
+  rw [zpow_mul]
 
 /-- Lemma 5.6.9(c) / Exercise 5.6.2 -/
 theorem Real.ratPow_neg {x:Real} (hx: x > 0) (q:ℚ) : x^(-q) = 1 / x^q := by
-  sorry
+  have : x^q > 0 := by exact Real.ratPow_nonneg hx q
+  field_simp [this]
+  rw [<- ratPow_add hx]
+  simp
+  rfl
+
+-- missing theorems, upstream
+theorem Real.pow_gt_pow' (x y:Real) (n:ℕ) (hxy: x^n > y^n) (hx: x > 0) (hn: n ≠ 0) : x > y := by
+  by_cases h: x = y
+  . subst x
+    linarith
+  have := Real.trichotomous' x y
+  by_contra h'
+  have hxy' : y > x := by tauto
+  have hn': n > 0 := by omega
+  have := Real.pow_gt_pow y x n hxy' hx.le hn'
+  linarith
+
+theorem Real.zpow_gt_zpow' (x y:Real) (n:ℤ) (hxy: x^n > y^n) (hx: x > 0) (hn: n > 0) : x > y := by
+  by_cases h: x = y
+  . subst x
+    linarith
+  have := Real.trichotomous' x y
+  by_contra h'
+  have hxy' : y > x := by tauto
+  have := Real.zpow_ge_zpow hxy'.le hx hn
+  linarith
+
+theorem Real.zpow_mono {x y:Real} (hx: x > 0) (hy: y > 0) {z:ℤ} (h: z > 0) : x > y ↔ x^z > y^z := by
+  simp
+  constructor
+  . intro h'
+    have := zpow_ge_zpow h'.le hy h
+    by_cases h'' : x = y
+    . linarith
+    . simp at h''
+      have hnot: ¬ y ^ z = x ^ z := by
+        contrapose! h''
+        symm at h''
+        exact zpow_inj hx hy (by linarith) h''
+      simp at this
+      rw [le_iff_lt_or_eq] at this
+      simp [hnot] at this
+      exact this
+  . intro h
+    by_cases h' : x = y
+    . subst y
+      linarith
+    . have hy': y ^ z > 0 := by exact zpow_pos _ hy
+      exact zpow_gt_zpow' _ _ _ h hx (by linarith)
 
 /-- Lemma 5.6.9(d) / Exercise 5.6.2 -/
 theorem Real.ratPow_mono {x y:Real} (hx: x > 0) (hy: y > 0) {q:ℚ} (h: q > 0) : x > y ↔ x^q > y^q := by
-  sorry
+  obtain ⟨a, b, hb, rfl⟩ := Rat.eq_quot q
+  rw [ratPow_def hx _ hb]
+  rw [ratPow_def hy _ hb]
+  have : 0 < a := by
+    simp at h
+    rw [div_pos_iff] at h
+    norm_cast at h
+    tauto
+  rw [Real.root_mono hx.le hy.le hb]
+  rw [Real.zpow_mono (root_pos' hx hb) (root_pos' hy hb) this]
 
 /-- Lemma 5.6.9(e) / Exercise 5.6.2 -/
 theorem Real.ratPow_mono_of_gt_one {x:Real} (hx: x > 1) {q r:ℚ} : x^q > x^r ↔ q > r := by

@@ -1067,7 +1067,29 @@ theorem Real.ratPow_mul {x y:Real} (hx: x > 0) (hy: y > 0) (q:ℚ) : (x*y)^q = x
   sorry
 
 /-- Exercise 5.6.3 -/
-theorem Real.pow_even (x:Real) {n:ℕ} (hn: Even n) : x^n ≥ 0 := by sorry
+theorem Real.pow_even (x:Real) {n:ℕ} (hn: Even n) : x^n ≥ 0 := by
+  sorry
+
+theorem Real.root_zero (n:ℕ) (h: n > 0) : (0:Real).root n = 0 := by
+  symm
+  rw [eq_root_iff_pow_eq (by norm_num) (by norm_num) h]
+  simp only [pow_eq_zero_iff', ne_eq, true_and]
+  linarith
+
+/-- Exercise 5.6.4 -/
+theorem Real.abs_eq_pow_sqrt (x:Real) : |x| = (x^2).root 2 := by
+  rcases trichotomous' x 0 with (h | h | h)
+  . rw [abs_of_nonneg h.le]
+    have hx2 : x^2 ≥ 0 := by positivity
+    rw [eq_root_iff_pow_eq hx2 h.le (by norm_num)]
+  . rw [_root_.abs_of_neg h]
+    have hx2 : x^2 ≥ 0 := by positivity
+    rw [eq_root_iff_pow_eq hx2 (by linarith) (by norm_num)]
+    ring
+  . subst x
+    simp
+    symm
+    exact Real.root_zero 2 (by norm_num)
 
 /-- Exercise 5.6.5 -/
 theorem Real.max_ratPow {x y:Real} (hx: x > 0) (hy: y > 0) {q:ℚ} (hq: q > 0) :

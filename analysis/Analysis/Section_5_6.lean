@@ -1198,7 +1198,7 @@ theorem Real.root_zero (n:ℕ) (h: n > 0) : (0:Real).root n = 0 := by
 /-- Exercise 5.6.4 -/
 theorem Real.abs_eq_pow_sqrt (x:Real) : |x| = (x^2).root 2 := by
   rcases trichotomous' x 0 with (h | h | h)
-  . rw [abs_of_nonneg h.le]
+  . rw [_root_.abs_of_nonneg h.le]
     have hx2 : x^2 ≥ 0 := by positivity
     rw [eq_root_iff_pow_eq hx2 h.le (by norm_num)]
   . rw [_root_.abs_of_neg h]

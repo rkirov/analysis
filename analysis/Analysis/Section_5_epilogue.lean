@@ -27,6 +27,7 @@ Users of the companion who have completed the exercises in this section are welc
 namespace Chapter5
 
 
+
 @[ext]
 structure DedekindCut where
   E : Set ℚ
@@ -40,13 +41,38 @@ theorem isLowerSet_iff (E: Set ℚ) : IsLowerSet E ↔ ∀ q r, r < q → q ∈ 
 
 abbrev Real.toSet_Rat (x:Real) : Set ℚ := { q | (q:Real) < x }
 
-lemma Real.toSet_Rat_nonempty (x:Real) : x.toSet_Rat.Nonempty := by sorry
+lemma Real.toSet_Rat_nonempty (x:Real) : x.toSet_Rat.Nonempty := by
+  obtain ⟨q, hq1, hq2⟩ := rat_between (x:=x - 1) (y:=x) (by linarith)
+  use q
+  rw [Set.mem_setOf_eq]
+  exact hq2
 
-lemma Real.toSet_Rat_bounded (x:Real) : BddAbove x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_bounded (x:Real) : BddAbove x.toSet_Rat := by
+  obtain ⟨q, hq1, hq2⟩ := rat_between (x:=x) (y:=x + 1) (by linarith)
+  use q
+  rw [mem_upperBounds]
+  intro y hy
+  rw [Set.mem_setOf_eq] at hy
+  have : (y:Real) < (q:Real) := by linarith
+  norm_cast at this
+  exact this.le
 
-lemma Real.toSet_Rat_lower (x:Real) : IsLowerSet x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_lower (x:Real) : IsLowerSet x.toSet_Rat := by
+  rw [isLowerSet_iff]
+  intro q r hr hq
+  rw [Set.mem_setOf_eq] at hq ⊢
+  have : (r:Real) < (q:Real) := by norm_cast
+  linarith
 
-lemma Real.toSet_Rat_nomax {x:Real} : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by sorry
+lemma Real.toSet_Rat_nomax {x:Real} : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by
+  intro q hq
+  rw [Set.mem_setOf_eq] at hq
+  obtain ⟨q', hq1, hq2⟩ := rat_between (x:=(q:Real)) (y:=x) hq
+  use q'
+  constructor
+  . rw [Set.mem_setOf_eq]
+    exact hq2
+  . norm_cast at hq1
 
 abbrev Real.toCut (x:Real) : DedekindCut :=
  {
@@ -59,9 +85,23 @@ abbrev Real.toCut (x:Real) : DedekindCut :=
 
 abbrev DedekindCut.toSet_Real (c: DedekindCut) : Set Real := (fun (q:ℚ) ↦ (q:Real)) '' c.E
 
-lemma DedekindCut.toSet_Real_nonempty (c: DedekindCut) : c.toSet_Real.Nonempty := by sorry
+lemma DedekindCut.toSet_Real_nonempty (c: DedekindCut) : c.toSet_Real.Nonempty := by
+  obtain ⟨q, hq⟩ := c.nonempty
+  use (q:Real)
+  rw [Set.mem_image]
+  simp only [Rat.cast_inj, exists_eq_right]
+  exact hq
 
-lemma DedekindCut.toSet_Real_bounded (c: DedekindCut) : BddAbove c.toSet_Real := by sorry
+lemma DedekindCut.toSet_Real_bounded (c: DedekindCut) : BddAbove c.toSet_Real := by
+  obtain ⟨q, hq⟩ := c.bounded
+  use (q:Real)
+  rw [mem_upperBounds] at hq ⊢
+  intro y hy
+  rw [Set.mem_image] at hy
+  obtain ⟨r, hr1, hr2⟩ := hy
+  specialize hq r hr1
+  subst y
+  norm_cast
 
 noncomputable abbrev DedekindCut.toReal (c: DedekindCut) : Real := sSup c.toSet_Real
 
@@ -72,23 +112,112 @@ noncomputable abbrev Real.equivCut : Real ≃ DedekindCut where
   toFun := toCut
   invFun := DedekindCut.toReal
   left_inv x := by
-    sorry
+    unfold toCut DedekindCut.toReal
+    dsimp [DedekindCut.toSet_Real]
+    dsimp [toSet_Rat]
+    apply IsLUB.csSup_eq
+    . rw [isLUB_def]
+      constructor
+      . rw [upperBounds, Set.mem_setOf_eq]
+        intro q hq
+        rw [Set.mem_image] at hq
+        obtain ⟨r, hr1, hr2⟩ := hq
+        simp at hr1
+        subst q
+        exact hr1.le
+      . intro y hy
+        by_contra h
+        simp at h
+        rw [upperBound_def] at hy
+        have ⟨q, hq1, hq2⟩ := rat_between (x:=y) (y:=x) h
+        specialize hy q
+        simp at hy
+        specialize hy hq2
+        linarith
+    . simp
+      exact toSet_Rat_nonempty x
   right_inv c := by
-    sorry
-
+    unfold toCut DedekindCut.toReal
+    dsimp [DedekindCut.toSet_Real]
+    dsimp [toSet_Rat]
+    ext q
+    simp
+    set S := (fun (q:ℚ) ↦ (q:Real)) '' c.E
+    have S_def (q:ℚ): q ∈ c.E ↔ (q:Real) ∈ S := by
+      unfold S
+      simp
+    have S_def' (r:Real): r ∈ S ↔ ∃ q ∈ c.E, (q:Real) = r := by
+      unfold S
+      simp
+    rw [S_def]
+    have S_bdd : BddAbove S := by exact DedekindCut.toSet_Real_bounded c
+    have S_nonempty : Set.Nonempty S := by exact DedekindCut.toSet_Real_nonempty c
+    have hlub := ExtendedReal.sSup_of_bounded S_nonempty S_bdd
+    rw [isLUB_def] at hlub
+    obtain ⟨h1, h2⟩ := hlub
+    rw [upperBound_def] at h1
+    constructor
+    . intro h
+      have : ¬ (q:Real) ∈ upperBounds S := by
+        intro h'
+        specialize h2 (q:Real) h'
+        linarith
+      rw [upperBound_def] at this
+      push_neg at this
+      obtain ⟨s, hs1, hs2⟩ := this
+      rw [S_def'] at hs1
+      obtain ⟨q', hq1, rfl⟩ := hs1
+      norm_cast at hs2
+      have := c.lower hs2.le hq1
+      rwa [S_def] at this
+    . intro h
+      obtain ⟨q', hq1, hq2⟩ := c.nomax q (by unfold S at h; simp at h; exact h)
+      rw [S_def] at hq1
+      specialize h1 q' hq1
+      have : (q:Real) < (q':Real) := by norm_cast
+      linarith
 end Chapter5
 
 /-- Now to develop analogous results for the Mathlib reals. -/
 
 abbrev Real.toSet_Rat (x:ℝ) : Set ℚ := { q | (q:ℝ) < x }
 
-lemma Real.toSet_Rat_nonempty (x:ℝ) : x.toSet_Rat.Nonempty := by sorry
+-- same theorems as above, but use `exists_rat_btwn`
+lemma Real.toSet_Rat_nonempty (x:ℝ) : x.toSet_Rat.Nonempty := by
+  have : x - 1 < x := by linarith
+  obtain ⟨q, hq1, hq2⟩ := exists_rat_btwn this
+  use q
+  rw [Set.mem_setOf_eq]
+  exact hq2
 
-lemma Real.toSet_Rat_bounded (x:ℝ) : BddAbove x.toSet_Rat := by sorry
 
-lemma Real.toSet_Rat_lower (x:ℝ) : IsLowerSet x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_bounded (x:ℝ) : BddAbove x.toSet_Rat := by
+  obtain ⟨q, hq1, hq2⟩ := exists_rat_btwn (x:=x) (y:=x + 1) (by linarith)
+  use q
+  rw [mem_upperBounds]
+  intro y hy
+  rw [Set.mem_setOf_eq] at hy
+  have : (y:Real) < (q:Real) := by linarith
+  norm_cast at this
+  exact this.le
 
-lemma Real.toSet_Rat_nomax (x:ℝ) : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by sorry
+
+lemma Real.toSet_Rat_lower (x:ℝ) : IsLowerSet x.toSet_Rat := by
+  rw [Chapter5.isLowerSet_iff]
+  intro q r hr hq
+  rw [Set.mem_setOf_eq] at hq ⊢
+  have : (r:Real) < (q:Real) := by norm_cast
+  linarith
+
+lemma Real.toSet_Rat_nomax (x:ℝ) : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by
+  intro q hq
+  rw [Set.mem_setOf_eq] at hq
+  obtain ⟨q', hq1, hq2⟩ := exists_rat_btwn (x:=(q:Real)) (y:=x) hq
+  use q'
+  constructor
+  . rw [Set.mem_setOf_eq]
+    exact hq2
+  . norm_cast at hq1
 
 abbrev Real.toCut (x:ℝ) : Chapter5.DedekindCut :=
  {

@@ -1,5 +1,8 @@
 import Mathlib.Tactic
 import Analysis.Section_5_6
+import Mathlib.Data.Set.Basic
+open scoped Pointwise -- to use `s + t` for sets
+
 
 /-!
 # Analysis I, Chapter 5 epilogue: Isomorphism with the Mathlib real numbers
@@ -136,6 +139,7 @@ noncomputable abbrev Real.equivCut : Real ≃ DedekindCut where
         linarith
     . simp
       exact toSet_Rat_nonempty x
+
   right_inv c := by
     unfold toCut DedekindCut.toReal
     dsimp [DedekindCut.toSet_Real]
@@ -190,7 +194,6 @@ lemma Real.toSet_Rat_nonempty (x:ℝ) : x.toSet_Rat.Nonempty := by
   rw [Set.mem_setOf_eq]
   exact hq2
 
-
 lemma Real.toSet_Rat_bounded (x:ℝ) : BddAbove x.toSet_Rat := by
   obtain ⟨q, hq1, hq2⟩ := exists_rat_btwn (x:=x) (y:=x + 1) (by linarith)
   use q
@@ -232,9 +235,23 @@ namespace Chapter5
 
 abbrev DedekindCut.toSet_R (c: DedekindCut) : Set ℝ := (fun (q:ℚ) ↦ (q:ℝ)) '' c.E
 
-lemma DedekindCut.toSet_R_nonempty (c: DedekindCut) : c.toSet_R.Nonempty := by sorry
+lemma DedekindCut.toSet_R_nonempty (c: DedekindCut) : c.toSet_R.Nonempty := by
+  obtain ⟨q, hq⟩ := c.nonempty
+  use (q:ℝ)
+  rw [Set.mem_image]
+  simp only [Rat.cast_inj, exists_eq_right]
+  exact hq
 
-lemma DedekindCut.toSet_R_bounded (c: DedekindCut) : BddAbove c.toSet_R := by sorry
+lemma DedekindCut.toSet_R_bounded (c: DedekindCut) : BddAbove c.toSet_R := by
+  obtain ⟨q, hq⟩ := c.bounded
+  use (q:ℝ)
+  rw [mem_upperBounds] at hq ⊢
+  intro y hy
+  rw [Set.mem_image] at hy
+  obtain ⟨r, hr1, hr2⟩ := hy
+  specialize hq r hr1
+  subst y
+  norm_cast
 
 noncomputable abbrev DedekindCut.toR (c: DedekindCut) : ℝ := sSup c.toSet_R
 
@@ -247,9 +264,75 @@ noncomputable abbrev Real.equivCut : ℝ ≃ Chapter5.DedekindCut where
   toFun := _root_.Real.toCut
   invFun := Chapter5.DedekindCut.toR
   left_inv x := by
-    sorry
+    unfold toCut Chapter5.DedekindCut.toR
+    dsimp [Chapter5.DedekindCut.toSet_R]
+    dsimp [toSet_Rat]
+    apply IsLUB.csSup_eq
+    . rw [isLUB_iff_le_iff]
+      intro b
+      constructor
+      . rw [upperBounds, Set.mem_setOf_eq]
+        intro q r
+        simp
+        intro y hy hyq
+        subst r
+        linarith
+      . intro h
+        rw [upperBounds] at h
+        simp at h
+        by_contra h'
+        simp at h'
+        have ⟨q, hq1, hq2⟩ := exists_rat_btwn (x:=b) (y:=x) h'
+        specialize h q hq2
+        linarith
+    . simp
+      exact toSet_Rat_nonempty x
   right_inv c := by
-    sorry
+    unfold toCut Chapter5.DedekindCut.toR
+    dsimp [Chapter5.DedekindCut.toSet_R]
+    dsimp [toSet_Rat]
+    ext q
+    simp
+    set S := (fun (q:ℚ) ↦ (q:Real)) '' c.E
+    have S_def (q:ℚ): q ∈ c.E ↔ (q:Real) ∈ S := by
+      unfold S
+      simp
+    have S_def' (r:Real): r ∈ S ↔ ∃ q ∈ c.E, (q:Real) = r := by
+      unfold S
+      simp
+    rw [S_def]
+    have S_bdd : BddAbove S := by exact Chapter5.DedekindCut.toSet_R_bounded c
+    have S_nonempty : Set.Nonempty S := by exact Chapter5.DedekindCut.toSet_R_nonempty c
+    have hlub := isLUB_csSup S_nonempty S_bdd
+    rw [isLUB_iff_le_iff] at hlub
+
+    constructor
+    . intro h
+      have : ¬ (q:ℝ) ∈ upperBounds S := by
+        intro h'
+        specialize hlub q
+        simp [h'] at hlub
+        linarith
+      rw [upperBounds] at this
+      simp at this
+      obtain ⟨s, hs1, hs2⟩ := this
+      rw [S_def'] at hs1
+      obtain ⟨q', hq1, rfl⟩ := hs1
+      norm_cast at hs2
+      have := c.lower hs2.le hq1
+      rwa [S_def] at this
+    . intro h
+      specialize hlub (q:ℝ)
+      rw [upperBounds] at hlub
+      simp at hlub
+      obtain ⟨q', hq1, hq2⟩ := c.nomax q (by unfold S at h; simp at h; exact h)
+      rw [S_def] at hq1
+      by_contra h'
+      simp at h'
+      rw [hlub] at h'
+      specialize h' hq1
+      have : (q:Real) < (q':Real) := by norm_cast
+      linarith
 
 namespace Chapter5
 
@@ -352,7 +435,15 @@ lemma Real.equivR_eq (x: Real) : ∃(a : ℕ → ℚ) (ha: Sequence.IsCauchy a),
 /-- The isomorphism preserves order and ring operations -/
 noncomputable abbrev Real.equivR_ordered_ring : Real ≃+*o ℝ where
   toEquiv := equivR
-  map_add' := by sorry
+  map_add' := by
+    intro x y
+    symm
+    rw [Equiv.toFun_as_coe]
+    rw [Real.equivR_iff]
+    ext q
+    simp
+    sorry
+
   map_mul' := by sorry
   map_le_map_iff' := by sorry
 

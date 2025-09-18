@@ -401,11 +401,7 @@ noncomputable abbrev Real.equivCut : ℝ ≃ Chapter5.DedekindCut where
 namespace Chapter5
 
 /-- The isomorphism between the Chapter 5 reals and the Mathlib reals. -/
-noncomputable abbrev Real.equivR : Real ≃ ℝ := Real.equivCut.trans _root_.Real.equivCut.symm
-
-lemma Real.equivR_iff (x : Real) (y : ℝ) : y = Real.equivR x ↔ y.toCut = x.toCut := by
-  simp only [equivR, Equiv.trans_apply, ←Equiv.apply_eq_iff_eq_symm_apply]
-  rfl
+-- noncomputable abbrev Real.equivR : Real ≃ ℝ := Real.equivCut.trans _root_.Real.equivCut.symm
 
 -- In order to use this definition, we need some machinery
 -----
@@ -586,7 +582,7 @@ noncomputable abbrev R.equivCut_ordered_ring : ℝ ≃+*o DedekindCut where
       exact lt_of_lt_of_le hq h
 
 /-- The isomorphism preserves order and ring operations -/
-noncomputable abbrev Real.equivR_ordered_ring : Real ≃+*o ℝ :=
+noncomputable abbrev Real.equivR : Real ≃+*o ℝ :=
   Real.equivCut_ordered_ring.trans R.equivCut_ordered_ring.symm
 
 -- helpers for converting properties between Real and ℝ
@@ -600,16 +596,138 @@ theorem Real.equivR_map_pos {x: Real} : 0 < x ↔ 0 < equivR x := by sorry
 
 theorem Real.equivR_map_nonneg {x: Real} : 0 ≤ x ↔ 0 ≤ equivR x := by sorry
 
+lemma Real.equivR_iff' (x : Real) (y : ℝ) : y = Real.equivR x ↔ y.toCut = x.toCut := by
+  constructor
+  · intro h
+    subst h
+    unfold equivR
+    exact _root_.Real.equivCut.right_inv (x.toCut)
+  · intro h
+    rw [(_root_.Real.equivCut.left_inv y).symm]
+    unfold equivR
+    simp
+    rw [h]
+    rfl
 
 -- Showing equivalence of the different pows
+
 theorem Real.pow_of_equivR (x:Real) (n:ℕ) : equivR (x^n) = (equivR x)^n := by
-  sorry
+  induction' n with n ih
+  . symm
+    rw [equivR_iff]
+    simp
+    ext q
+    simp
+    norm_cast
+  . rw [pow_succ]
+    rw [_root_.pow_succ]
+    rw [map_mul]
+    rw [ih]
 
 theorem Real.zpow_of_equivR (x:Real) (n:ℤ) : equivR (x^n) = (equivR x)^n := by
-  sorry
+  by_cases h : n ≥ 0
+  . lift n to ℕ using h
+    exact Real.pow_of_equivR x n
+  . push_neg at h
+    have hn_pos : 0 < -n := Int.neg_pos.mpr h
+    set m := Int.natAbs n with hm_def
+    have : n = - (m:ℤ) := by
+      have := Int.eq_neg_natAbs_of_nonpos h.le
+      linarith
+    rw [this]
+    simp only [zpow_neg]
+    simp only [_root_.zpow_neg, inv_eq_one_div]
+    rw [map_div₀]
+    have : equivR 1 = 1 := by
+      exact map_one equivR
+    rw [this]
+    congr
+    exact Real.pow_of_equivR x m
 
-theorem Real.ratPow_of_equivR (x:Real) (q:ℚ) : equivR (x^q) = (equivR x)^(q:ℝ) := by
-  sorry
+lemma root_inv {x y: ℝ} {n: ℕ} (hx: x > 0) (hy: y > 0) (hn : n ≠ 0) : x^(1/(n:ℝ)) = y ↔ x = y ^ n := by
+  constructor
+  . intro h
+    subst y
+    rw [show (x ^ (1/(n:ℝ))) ^ n = (x ^ (1/(n:ℝ))) ^ (n:ℝ) by
+      symm
+      exact Real.rpow_natCast _ _
+    ]
+    rw [← Real.rpow_mul hx.le]
+    field_simp [hx]
+  . intro h
+    subst x
+    rw [← Real.rpow_natCast _ _]
+    rw [← Real.rpow_mul _]
+    field_simp [hn]
+    exact hy.le
 
+theorem Real.ratPow_natCast {x:Real} {n:ℕ} (hx: x > 0) : (x^(n:ℚ)) = x^n := by
+  induction' n with n ih
+  . simp
+    exact rfl
+  . push_cast
+    rw [ratPow_add]
+    rw [← pow_add]
+    rw [ih]
+    congr!
+    . simp
+      exact ratPow_one hx
+    . exact hx
+
+theorem Real.equivR_z : equivR 0 = 0 := by
+  exact map_zero equivR
+
+theorem Real.eq_of_equivR (x y : Real) : x = y ↔ equivR x = equivR y := by
+  exact Iff.symm (EmbeddingLike.apply_eq_iff_eq equivR)
+
+theorem Real.le_of_equivR (x y : Real) : x ≤ y ↔ equivR x ≤ equivR y := by
+  exact Iff.symm (map_le_map_iff equivR)
+
+theorem Real.lt_of_equivR (x y : Real) : x < y ↔ equivR x < equivR y := by
+  exact Iff.symm (map_lt_map_iff equivR)
+
+theorem Real.pos_of_equivR (x : Real) : 0 < x ↔ 0 < equivR x := by
+  conv_rhs => rw [← Real.equivR_z]
+  rw [← Real.lt_of_equivR]
+
+set_option maxHeartbeats 1000000 in
+theorem Real.pow_of_equivR_inv {x:Real} {n:ℕ} (hx: x > 0) (hn: n ≠ 0): equivR (x^(1/(n:ℚ))) = (equivR x)^(1/(n:ℝ)) := by
+  symm
+  rw [root_inv (by exact (pos_of_equivR x).mp hx) (by
+    apply (pos_of_equivR _).mp
+    exact Real.ratPow_nonneg hx _
+  ) hn]
+  rw [← Real.pow_of_equivR]
+  congr
+  rw [show (x ^ (1/(n:ℚ))) ^ n = (x ^ (1/(n:ℚ))) ^ (n:ℚ) by
+    rw [ratPow_natCast]
+    rw [ratPow_eq_root hx (by omega)]
+    have : n ≥ 1 := by omega
+    exact Real.root_pos' hx this
+  ]
+  rw [Real.ratPow_ratPow hx]
+  field_simp
+  exact Eq.symm (ratPow_one hx)
+
+theorem Real.ratPow_of_equivR (x:Real) (hx: x > 0) (q:ℚ) : equivR (x^q) = (equivR x)^(q:ℝ) := by
+  rw [← Rat.num_div_den q]
+  have hqnz: q.den ≥ 1 := by
+    have := q.den_nz
+    omega
+  rw [ratPow_def hx _ hqnz]
+  rw [Real.zpow_of_equivR]
+  rw [show equivR x ^ ((((q.num:ℚ) / (q.den:ℚ)): ℚ ): ℝ) = (equivR x ^ (((1 / q.den):ℚ):ℝ)) ^ q.num by
+    rw [← Real.rpow_intCast]
+    rw [← Real.rpow_mul _ _]
+    congr
+    field_simp
+    exact ((pos_of_equivR x).mp hx).le
+  ]
+  congr
+  rw [← ratPow_eq_root hx hqnz]
+  rw [pow_of_equivR_inv hx q.den_nz]
+  congr!
+  push_cast
+  rfl
 
 end Chapter5

@@ -304,9 +304,77 @@ instance : Add DedekindCut := ⟨DedekindCut.add⟩
 theorem DedekindCut.add_def (x: ℚ) (D D' : DedekindCut) : x ∈ (D + D').E ↔ ∃ r ∈ D.E, ∃ s ∈ D'.E, x = r + s := by
   rfl
 
+instance DedekindCut.instZero : Zero DedekindCut where
+  zero := Real.toCut 0
+
+instance : LE DedekindCut := ⟨fun D D' ↦ D.E ⊆ D'.E⟩
+instance : LT DedekindCut := ⟨fun D D' ↦ D.E ⊂ D'.E⟩
+
+def DedekindCut.neg (D : DedekindCut) : DedekindCut where
+  E := {q : ℚ | ∃ r ∉ D.E, q = -r}
+  nonempty := by
+    obtain ⟨r, hr⟩ := D.bounded
+    rw [mem_upperBounds] at hr
+    use -r
+    simp
+    by_contra h
+    have := D.nomax r h
+    obtain ⟨r', hr'1, hr'2⟩ := this
+    specialize hr r' hr'1
+    linarith
+
+  bounded := by
+    obtain ⟨M, hM⟩ := D.bounded
+    rw [mem_upperBounds] at hM
+    have : M ∉ D.E := by
+      by_contra h
+      have := D.nomax M h
+      obtain ⟨r', hr'1, hr'2⟩ := this
+      specialize hM r' hr'1
+      linarith
+    use -M
+    rw [mem_upperBounds]
+    intro x hx
+    simp at hx
+    obtain ⟨r, hr1, hr2⟩ := hx
+    sorry
+
+  lower := by
+    rw [isLowerSet_iff]
+    intro q p hp hq
+    simp at hq ⊢
+    obtain ⟨r, hr1, hr2⟩ := hq
+    subst q
+    use -p
+    simp
+    contrapose! hr1
+    have := D.lower
+    rw [isLowerSet_iff] at this
+    specialize this (-p) r (by linarith) hr1
+    exact this
+
+  nomax := by
+    sorry
+
+noncomputable instance DedekindCut.instNeg : Neg DedekindCut where
+  neg := DedekindCut.neg
+
+theorem DedekindCut.le_def (D D' : DedekindCut) : D ≤ D' ↔ D.E ⊆ D'.E := by
+  rfl
+
+open Classical in
 def DedekindCut.mul (D D' : DedekindCut) : DedekindCut where
   -- need to change to include negative cuts.
-  E := {q : ℚ | ∃ r ∈ D.E, ∃ s ∈ D'.E, 0 ≤ r ∧ 0 ≤ s ∧ q ≤ r * s}
+  E :=
+    if D ≥ 0 then
+      if D' ≥ 0 then
+        {q : ℚ | ∃ r ∈ D.E, ∃ s ∈ D'.E, 0 ≤ r ∧ 0 ≤ s ∧ q ≤ r * s}
+      else (-mul D (-D')).E
+    else if D' ≥ 0 then
+        (-mul (-D) D').E
+      else
+        (mul (-D) (-D')).E
+
   nonempty := by
     sorry
   bounded := by
@@ -318,10 +386,6 @@ def DedekindCut.mul (D D' : DedekindCut) : DedekindCut where
 
 instance : Mul DedekindCut := ⟨DedekindCut.mul⟩
 
-instance : LE DedekindCut := ⟨fun D D' ↦ D.E ⊆ D'.E⟩
-
-theorem DedekindCut.le_def (D D' : DedekindCut) : D ≤ D' ↔ D.E ⊆ D'.E := by
-  rfl
 
 theorem DedekindCut.mul_def (x: ℚ) (D D' : DedekindCut) : x ∈ (D * D').E ↔ ∃ r ∈ D.E, ∃ s ∈ D'.E, 0 ≤ r ∧ 0 ≤ s ∧ x ≤ r * s := by
   rfl

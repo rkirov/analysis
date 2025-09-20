@@ -383,6 +383,31 @@ theorem Sequence.IsCauchy_CauSeq (a: ℕ -> ℚ) (ha: Sequence.IsCauchy a) :
     linarith
   norm_cast
 
+theorem Sequence.CauSeq_IsCauchy (a: ℕ -> ℚ) (h: IsCauSeq abs (fun (n: ℕ) ↦ (a n : ℝ))) :
+    Sequence.IsCauchy a := by
+  dsimp [IsCauSeq] at h
+  rw [IsCauchy.coe]
+  intro ε hε
+  obtain ⟨q, hq1, hq2⟩ := exists_rat_btwn (x:=0) (y:=ε/2) (by linarith)
+  norm_cast at hq1
+  have : 0 < (q:ℝ) := by norm_cast
+  specialize h q this
+  obtain ⟨N, hN⟩ := h
+  use N
+  intro j hj k hk
+  have h1 := hN j hj
+  have h2 := hN k hk
+  rw [Section_4_3.dist_eq]
+  norm_cast at h1 h2 hq2
+  rw [le_iff_lt_or_eq]
+  left
+  calc
+    _ ≤ |a j - a N| + |a N - a k| := abs_sub_le (a j) (a N) (a k)
+    _ ≤ q + q := by
+      rw [abs_sub_comm (a N) _]
+      linarith
+    _ < ε := by linarith
+
 theorem Real.LIM_lt_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequence.IsCauchy b):
     LIM a < LIM b ↔ ∃ c: ℕ → ℚ, Sequence.IsCauchy c ∧ (BoundedAwayPos c) ∧ Sequence.Equiv (b - a) c := by
   rw [antisymm]
@@ -408,6 +433,12 @@ theorem Real.LIM_lt_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Seq
       . rw [LIM_eq_LIM (Sequence.IsCauchy.sub hb ha) hc1]
         exact hc3
 
+theorem Real.LIM_eq_LIM' {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequence.IsCauchy b):
+    LIM a = LIM b ↔ Sequence.Equiv (b - a) 0 := by
+  rw [LIM_eq_LIM ha hb]
+  rw [Sequence.equiv_iff, Sequence.equiv_iff]
+  simp [abs_sub_comm]
+
 -- todo: find a tactic to operate only on the different internal terms
 -- right now this does too much packing and unpacking
 theorem Real.LIM_le_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequence.IsCauchy b):
@@ -418,15 +449,13 @@ theorem Real.LIM_le_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Seq
   rw [LIM_lt_LIM ha hb]
   constructor
   . rintro (h1 | h2)
-    . rw [LIM_eq_LIM ha hb] at h1
+    . rw [Real.LIM_eq_LIM' ha hb] at h1
       use 0
-      simp
       constructor
       . exact Sequence.IsCauchy.const 0
-      . rw [Sequence.equiv_iff] at h1 ⊢
-        simp_all
-        simp [abs_sub_comm]
-        exact h1
+      . constructor
+        . right; rfl
+        . exact h1
     . obtain ⟨c, hc1, hc2, hc3⟩ := h2
       use c
       constructor
@@ -440,17 +469,43 @@ theorem Real.LIM_le_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Seq
     . right
       use c
     . left
-      rw [LIM_eq_LIM ha hb]
-      rw [Sequence.equiv_iff] at hc3 ⊢
-      simp_all
-      simp [abs_sub_comm] at hc3
+      rw [LIM_eq_LIM' ha hb]
+      subst c
       exact hc3
 
-
-theorem CauSeq.lim_sub {α : Type} [Field α] [LinearOrder α] [IsStrictOrderedRing α] {β : Type u_2} [Ring β]
+theorem CauSeq.lim_sub.{u_1, u_2} {α : Type u_1} [Field α] [LinearOrder α] [IsStrictOrderedRing α] {β : Type u_2} [Ring β]
   {abv : β → α} [IsAbsoluteValue abv] [CauSeq.IsComplete β abv] (f g : CauSeq β abv) : f.lim - g.lim = (f - g).lim := by
   rw [sub_eq_add_neg, sub_eq_add_neg]
   rw [← CauSeq.lim_neg, CauSeq.lim_add f (-g)]
+
+theorem CauSeq.pos_equiv_pos_1d (f g : CauSeq ℝ abs) (h: f ≈ g) (hf: f.Pos): g.Pos := by
+  rw [CauSeq.Pos] at hf ⊢
+  obtain ⟨ε, hε, N, hf⟩ := hf
+  use (ε / 2), by linarith
+  specialize h (ε / 2) (by linarith)
+  obtain ⟨M, hM⟩ := h
+  use max N M
+  intro n hn
+  specialize hf n (by exact le_of_max_le_left hn)
+  specialize hM n (by exact le_of_max_le_right hn)
+  simp at hM
+  calc
+    ε / 2 = ε - (ε / 2) := by ring
+    _ ≤ (f n : ℝ) - (ε / 2) := by gcongr
+    _ ≤ (f n : ℝ) - |(f n : ℝ) - (g n : ℝ)| := by gcongr
+    _ ≤ (f n : ℝ) - ((f n : ℝ) - (g n : ℝ)) := by
+      have := le_abs_self ((f n : ℝ) - (g n : ℝ))
+      gcongr
+    _ = (g n : ℝ) := by ring_nf
+
+theorem CauSeq.pos_equiv_pos (f g : CauSeq ℝ abs) (h: f ≈ g):
+    f.Pos ↔ g.Pos := by
+  constructor
+  . intro hf
+    exact pos_equiv_pos_1d f g h hf
+  . intro hg
+    have : g ≈ f := by exact id (Setoid.symm h)
+    exact pos_equiv_pos_1d g f this hg
 
 theorem R.lim_lt_lim {a b : ℕ → ℚ}
     (ha : IsCauSeq abs fun (n: ℕ) ↦ (a n : ℝ))
@@ -459,7 +514,89 @@ theorem R.lim_lt_lim {a b : ℕ → ℚ}
       CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩ ↔ ∃ c: ℕ → ℚ, Sequence.IsCauchy c ∧
       (BoundedAwayPos c) ∧ Sequence.Equiv (b - a) c
      := by
-  sorry
+  have ha' := Sequence.CauSeq_IsCauchy a ha
+  have hb' := Sequence.CauSeq_IsCauchy b hb
+  rw [show
+    (CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩ <
+      CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩) ↔
+      0 < (CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩ -
+        CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩)
+    by constructor <;> (intro h; linarith)]
+  rw [CauSeq.lim_sub]
+  rw [← CauSeq.const_pos]
+  -- for some reason, I couldn't pass the whole expression to `CauSeq.equiv_lim`
+  -- so break it down and put it together
+  have h1 := CauSeq.equiv_lim
+   (⟨fun (n: ℕ) ↦ ↑(b n), hb⟩: CauSeq ℝ abs)
+  have h2 := CauSeq.equiv_lim
+   (⟨fun (n: ℕ) ↦ ↑(a n), ha⟩: CauSeq ℝ abs)
+  have := CauSeq.sub_equiv_sub h1 h2
+  rw [← CauSeq.const_sub] at this
+  rw [CauSeq.lim_sub] at this
+  have := CauSeq.pos_equiv_pos _ _ this
+  rw [← this]
+  dsimp [CauSeq.Pos]
+  constructor
+  . intro h
+    obtain ⟨ε, hε1, N, h⟩ := h
+    obtain ⟨q, hq1, hq2⟩ := exists_rat_btwn (x:=0) (y:=ε) hε1
+    set f := fun n ↦ if n < N then q else b n - a n
+    use f
+    have heq: Sequence.Equiv (b - a) f := by
+      rw [Sequence.equiv_iff]
+      intro ε' hε'
+      use N
+      intro n hn
+      unfold f
+      have : ¬ n < N := by linarith
+      simp [this]
+      exact hε'.le
+    constructor
+    . rw [← Sequence.isCauchy_of_equiv heq]
+      exact Sequence.IsCauchy.sub hb' ha'
+    . constructor
+      . rw [BoundedAwayPos]
+        use q
+        norm_cast at hq1
+        constructor
+        . exact hq1
+        . intro n
+          unfold f
+          by_cases hn: n < N
+          . simp [hn]
+          . simp [hn]
+            specialize h n (by linarith)
+            suffices h': (b n: ℝ) - (a n: ℝ) ≥ (q: ℝ) by
+              norm_cast at h'
+            linarith
+      . exact heq
+  . intro h
+    obtain ⟨c, hc1, hc2, hc3⟩ := h
+    rw [Sequence.equiv_iff] at hc3
+    rw [BoundedAwayPos] at hc2
+    obtain ⟨ε, hε, h⟩ := hc2
+    specialize hc3 (ε / 2) (by linarith)
+    obtain ⟨N, hN⟩ := hc3
+    use ε / 2
+    constructor
+    . positivity
+    . use N
+      intro n hn
+      specialize hN n hn
+      specialize h n
+      simp at hN
+      norm_cast
+      calc
+        _ = ε - (ε / 2) := by ring
+        _ ≤ c n - (ε / 2) := by gcongr
+        _ ≤ c n - |b n - a n - c n| := by gcongr
+        _ = c n - |c n + a n - b n| := by
+          rw [abs_sub_comm]
+          ring_nf
+        _ ≤ c n - (c n + a n - b n) := by
+          gcongr
+          exact le_abs_self (c n + a n - b n)
+        _ = b n - a n := by ring_nf
 
 theorem R.lim_eq_lim {a b : ℕ → ℚ}
     (ha : IsCauSeq abs fun (n: ℕ) ↦ (a n : ℝ))

@@ -384,18 +384,166 @@ theorem Sequence.IsCauchy_CauSeq (a: ℕ -> ℚ) (ha: Sequence.IsCauchy a) :
   norm_cast
 
 theorem Real.LIM_lt_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequence.IsCauchy b):
-    LIM a < LIM b ↔ ∃ ε:ℚ, ε > 0 ∧ ∃ N, ∀ n ≥ N, a n < b n - ε := by
-  sorry
+    LIM a < LIM b ↔ ∃ c: ℕ → ℚ, Sequence.IsCauchy c ∧ (BoundedAwayPos c) ∧ Sequence.Equiv (b - a) c := by
+  rw [antisymm]
+  rw [LIM_sub hb ha]
+  rw [isPos_def]
+  constructor
+  . intro h
+    obtain ⟨c, hc1, hc2, hc3⟩ := h
+    use c
+    constructor
+    . exact hc2
+    . constructor
+      . exact hc1
+      . rw [LIM_eq_LIM (Sequence.IsCauchy.sub hb ha) hc2] at hc3
+        exact hc3
+  . intro h
+    obtain ⟨c, hc1, hc2, hc3⟩ := h
+    use c
+    constructor
+    . exact hc2
+    . constructor
+      . exact hc1
+      . rw [LIM_eq_LIM (Sequence.IsCauchy.sub hb ha) hc1]
+        exact hc3
 
-theorem R.lim_le_lim {a b : ℕ → ℝ} (ha : IsCauSeq abs a) (hb : IsCauSeq abs b):
-    CauSeq.lim ⟨a, ha⟩ ≤ CauSeq.lim ⟨b, hb⟩ ↔ ∃ ε:ℚ, ε > 0 ∧ ∃ N, ∀ n ≥ N, a n < b n - ε
-      ∨ ∀ ε:ℚ, ε > 0 → ∃ N, ∀ n ≥ N, |a n - b n| ≤ ε
+-- todo: find a tactic to operate only on the different internal terms
+-- right now this does too much packing and unpacking
+theorem Real.LIM_le_LIM {a b : ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequence.IsCauchy b):
+    LIM a ≤ LIM b ↔ ∃ c: ℕ → ℚ, Sequence.IsCauchy c ∧
+      ((BoundedAwayPos c) ∨ c = 0)
+      ∧ Sequence.Equiv (b - a) c := by
+  rw [le_iff_eq_or_lt]
+  rw [LIM_lt_LIM ha hb]
+  constructor
+  . rintro (h1 | h2)
+    . rw [LIM_eq_LIM ha hb] at h1
+      use 0
+      simp
+      constructor
+      . exact Sequence.IsCauchy.const 0
+      . rw [Sequence.equiv_iff] at h1 ⊢
+        simp_all
+        simp [abs_sub_comm]
+        exact h1
+    . obtain ⟨c, hc1, hc2, hc3⟩ := h2
+      use c
+      constructor
+      . exact hc1
+      . constructor
+        . left; exact hc2
+        . exact hc3
+  . intro h
+    obtain ⟨c, hc1, hc2, hc3⟩ := h
+    cases hc2
+    . right
+      use c
+    . left
+      rw [LIM_eq_LIM ha hb]
+      rw [Sequence.equiv_iff] at hc3 ⊢
+      simp_all
+      simp [abs_sub_comm] at hc3
+      exact hc3
+
+
+theorem CauSeq.lim_sub {α : Type} [Field α] [LinearOrder α] [IsStrictOrderedRing α] {β : Type u_2} [Ring β]
+  {abv : β → α} [IsAbsoluteValue abv] [CauSeq.IsComplete β abv] (f g : CauSeq β abv) : f.lim - g.lim = (f - g).lim := by
+  rw [sub_eq_add_neg, sub_eq_add_neg]
+  rw [← CauSeq.lim_neg, CauSeq.lim_add f (-g)]
+
+theorem R.lim_lt_lim {a b : ℕ → ℚ}
+    (ha : IsCauSeq abs fun (n: ℕ) ↦ (a n : ℝ))
+    (hb : IsCauSeq abs fun (n: ℕ) ↦ (b n : ℝ)):
+    CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩ <
+      CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩ ↔ ∃ c: ℕ → ℚ, Sequence.IsCauchy c ∧
+      (BoundedAwayPos c) ∧ Sequence.Equiv (b - a) c
      := by
   sorry
 
-theorem R.lim_lt_lim {a b : ℕ → ℝ} (ha : IsCauSeq abs a) (hb : IsCauSeq abs b):
-    CauSeq.lim ⟨a, ha⟩ < CauSeq.lim ⟨b, hb⟩ ↔ ∃ ε:ℚ, ε > 0 ∧ ∃ N, ∀ n ≥ N, a n < b n - ε := by
-  sorry
+theorem R.lim_eq_lim {a b : ℕ → ℚ}
+    (ha : IsCauSeq abs fun (n: ℕ) ↦ (a n : ℝ))
+    (hb : IsCauSeq abs fun (n: ℕ) ↦ (b n : ℝ)):
+    CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩ = CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩ ↔
+      Sequence.Equiv a b := by
+  rw [show
+    (CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩ =
+      CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩) ↔
+      (CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩ -
+        CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩ = 0)
+      by constructor <;> (intro h; linarith)]
+  rw [CauSeq.lim_sub]
+  rw [CauSeq.lim_eq_zero_iff]
+  rw [CauSeq.LimZero]
+  rw [Sequence.equiv_iff]
+  simp
+  constructor
+  . intro h
+    intro ε hε
+    have : 0 < (ε:ℝ) := by norm_cast
+    specialize h ε this
+    obtain ⟨N, hN⟩ := h
+    use N
+    intro n hn
+    specialize hN n hn
+    norm_cast at hN
+    exact hN.le
+  . intro h
+    intro ε hε
+    obtain ⟨q, hq1, hq2⟩ := exists_rat_btwn (x:=0) (y:=ε) hε
+    norm_cast at hq1
+    specialize h q hq1
+    obtain ⟨N, hN⟩ := h
+    use N
+    intro n hn
+    specialize hN n hn
+    suffices h : |(a n : ℝ) - (b n : ℝ)| ≤ (q:ℝ) by
+      linarith
+    norm_cast
+
+theorem R.lim_le_lim {a b : ℕ → ℚ}
+    (ha : IsCauSeq abs fun (n: ℕ) ↦ (a n : ℝ))
+    (hb : IsCauSeq abs fun (n: ℕ) ↦ (b n : ℝ)):
+    CauSeq.lim ⟨fun (n: ℕ) ↦ (a n : ℝ), ha⟩ ≤
+      CauSeq.lim ⟨fun (n: ℕ) ↦ (b n : ℝ), hb⟩ ↔
+   ∃ c: ℕ → ℚ, Sequence.IsCauchy c ∧
+      ((BoundedAwayPos c) ∨ c = 0)
+      ∧ Sequence.Equiv (b - a) c := by
+  constructor
+  . intro h
+    rw [le_iff_eq_or_lt] at h
+    cases' h with h h
+    . rw [R.lim_eq_lim] at h
+      use 0
+      simp
+      constructor
+      . exact Sequence.IsCauchy.const 0
+      . rw [Sequence.equiv_iff] at h ⊢
+        simp_all
+        simp [abs_sub_comm]
+        exact h
+    . rw [R.lim_lt_lim ha hb] at h
+      obtain ⟨c, hc1, hc2, hc3⟩ := h
+      use c
+      constructor
+      . exact hc1
+      . constructor
+        . left; exact hc2
+        . exact hc3
+  . intro h
+    rw [le_iff_eq_or_lt]
+    obtain ⟨c, hc1, hc2, hc3⟩ := h
+    cases' hc2 with h h
+    . right
+      rw [R.lim_lt_lim ha hb]
+      use c
+    . left
+      subst c
+      rw [R.lim_eq_lim ha hb]
+      rw [Sequence.equiv_iff] at hc3 ⊢
+      simp_all
+      simp [abs_sub_comm] at hc3
+      exact hc3
 
 theorem Real.equivR_LIM (a: ℕ -> ℚ) (ha: Sequence.IsCauchy a) :
     equivR (LIM a) = CauSeq.lim ⟨fun (n: ℕ) ↦ (a n :ℝ), Sequence.IsCauchy_CauSeq a ha⟩ := by
@@ -410,8 +558,8 @@ theorem Real.equivR_LIM (a: ℕ -> ℚ) (ha: Sequence.IsCauchy a) :
   have hca := Sequence.IsCauchy_CauSeq a ha
   have : CauSeq.lim (CauSeq.const _root_.abs (q:ℝ)) = (q:ℝ) := CauSeq.lim_const (q:ℝ)
   rw [← this]
-  -- rw [R.lim_lt_lim] -- why doesn't apply, maybe const is problem?
-  sorry
+  rw [CauSeq.const]
+  rw [R.lim_lt_lim]
 
 theorem Real.equivR_add (x y : Real) : equivR (x + y) = equivR x + equivR y := by
   obtain ⟨q, hq, rfl⟩ := Real.eq_lim x
@@ -428,7 +576,7 @@ theorem Real.equivR_mul (x y : Real) : equivR (x * y) = equivR x * equivR y := b
   obtain ⟨r, hr, rfl⟩ := Real.eq_lim y
   rw [LIM_mul hq hr]
   rw [equivR_LIM _ hq, equivR_LIM _ hr, equivR_LIM _ (Sequence.IsCauchy.mul hq hr)]
-  rw [CauSeq.lim_mul]
+  rw [CauSeq.lim_mul_lim]
   congr
   ext n
   simp only [Pi.mul_apply, Rat.cast_mul]
@@ -438,7 +586,7 @@ theorem Real.equivR_le {x y : Real} : equivR x ≤ equivR y ↔ x ≤ y := by
   obtain ⟨r, hr, rfl⟩ := Real.eq_lim y
   rw [equivR_LIM _ hq, equivR_LIM _ hr]
   rw [R.lim_le_lim]
-  sorry
+  rw [Real.LIM_le_LIM hq hr]
 
 noncomputable abbrev Real.equivR_ordered_ring : Real ≃+*o ℝ where
   toEquiv := equivR

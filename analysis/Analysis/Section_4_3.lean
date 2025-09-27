@@ -378,7 +378,6 @@ theorem close_mono {ε ε' x y:ℚ} (hxy: ε.Close x y) (hε: ε' ≥ ε) :
 
 /-- Proposition 4.3.7(f) / Exercise 4.3.2 -/
 theorem close_between {ε x y z w:ℚ} (hxy: ε.Close x y) (hxz: ε.Close x z)
-theorem close_between {ε x y z w:ℚ} (hxy: ε.Close x y) (hxz: ε.Close x z)
   (hbetween: (y ≤ w ∧ w ≤ z) ∨ (z ≤ w ∧ w ≤ y)) : ε.Close x w := by
   wlog h: y ≤ w ∧ w ≤ z
   . have hb2 := Or.symm hbetween

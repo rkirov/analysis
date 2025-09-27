@@ -864,7 +864,7 @@ theorem Function.glue' {X Y Z:Set} (f: Function X Z) (g: Function Y Z)
       intro x
       simp only [eval_of]
       unfold F
-      simp only [eval_of, Subtype.coe_eta, dite_eq_right_iff, x.prop]
+      simp only [eval_of, Subtype.coe_eta, dite_eq_right_iff]
       intro hx
       have hxy : x.val ∈ X ∩ Y := by
         rw [SetTheory.Set.mem_inter]

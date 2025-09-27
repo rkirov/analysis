@@ -311,7 +311,7 @@ theorem SetTheory.Set.pair_self (a:Object) : ({a,a}:Set) = {a} := by
 theorem SetTheory.Set.pair_eq_pair {a b c d:Object} (h: ({a,b}:Set) = {c,d}) :
     a = c ∧ b = d ∨ a = d ∧ b = c := by
   rw [SetTheory.Set.ext_iff] at h
-  simp [mem_pair] at h
+  simp only [mem_insert, mem_singleton] at h
   have h1 := h a
   have h2 := h b
   have h3 := h c
@@ -1308,9 +1308,8 @@ theorem SetTheory.Set.specification_from_replacement {A:Set} {P: A → Prop} :
     . intro x
       rw [h]
       intro h1
-      obtain ⟨x1, rfl, h1', h1''⟩ := h1
-      subst x
-      exact x1.property.prop
+      obtain ⟨x1, rfl, h1'⟩ := h1
+      exact x1.prop
     . intro x
       rw [h]
       simp

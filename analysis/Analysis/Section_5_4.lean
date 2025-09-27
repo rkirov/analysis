@@ -666,12 +666,6 @@ noncomputable instance Real.instLinearOrder : LinearOrder Real where
 
 #check |(3:Real)|
 
-/--
-  (Not from textbook) Linear Orders come with a definition of absolute value |.|
-  Show that it agrees with our earlier definition.
--/
-theorem Real.abs_eq_abs (x:Real) : |x| = abs x := by sorry
-
 /-- Proposition 5.4.8 -/
 theorem Real.inv_of_pos {x:Real} (hx: x.IsPos) : x⁻¹.IsPos := by
   observe hnon: x ≠ 0
@@ -760,6 +754,17 @@ instance Real.instIsStrictOrderedRing : IsStrictOrderedRing Real where
     rw [lt_iff]
     simp only [zero_sub, neg_iff_pos_of_neg, neg_neg]
     exact (pos_of_coe ↑1).mpr rfl
+
+lemma Real.abs_eq_abs (x: Real): |x| = x.abs := by
+  rcases trichotomous x with h | h | h
+  . subst x
+    simp only [abs_zero, abs_of_zero]
+  . have : 0 < x := by exact (isPos_iff x).mp h
+    simp only [h, abs_of_pos, abs_eq_self, ge_iff_le]
+    exact le_of_lt this
+  . have : x < 0 := by exact (isNeg_iff x).mp h
+    simp only [h, abs_of_neg, abs_eq_neg_self, ge_iff_le]
+    exact le_of_lt this
 
 /-- Proposition 5.4.9 (The non-negative reals are closed)-/
 theorem Real.LIM_of_nonneg {a: ℕ → ℚ} (ha: ∀ n, a n ≥ 0) (hcauchy: (a:Sequence).IsCauchy) :
@@ -932,7 +937,7 @@ theorem Real.le_mul {ε:Real} (hε: ε.IsPos) (x:Real) : ∃ M:ℕ, M > 0 ∧ M 
   use 1; simp_all [isPos_iff]; linarith
 
 /-- Exercise 5.4.3 -/
-theorem Real.floor_exist (x:Real) : ∃!! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by
+theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by
   apply existsUnique_of_exists_of_unique
   . wlog hx : x > 0
     . simp at hx
@@ -979,7 +984,7 @@ theorem Real.floor_exist (x:Real) : ∃!! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)
     exact Int.le_antisymm h1' h2'
 
 /-- Exercise 5.4.4 -/
-theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ (N:ℤ):ℤ, N>0 ∧ (N:Real)⁻¹ < x := by
+theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ N:ℤ, N>0 ∧ (N:Real)⁻¹ < x := by
   obtain ⟨N, hN, h⟩ := (Real.floor_exist (1/x)).exists
   rw [isPos_iff] at hx
   use N + 1
@@ -1033,17 +1038,6 @@ theorem Real.abs_nonneg' (x:Real): x.abs ≥ 0 := by
   have := abs_nonneg x
   rw [antisymm]
   aesop
-
-lemma Real.abs_eq_abs (x: Real): |x| = x.abs := by
-  rcases trichotomous x with h | h | h
-  . subst x
-    simp
-  . have : 0 < x := by exact (isPos_iff x).mp h
-    simp [h]
-    exact le_of_lt this
-  . have : x < 0 := by exact (isNeg_iff x).mp h
-    simp [h]
-    exact le_of_lt this
 
 /-- Exercise 5.4.6 -/
 theorem Real.dist_lt_iff (ε x y:Real) : |x-y| < ε ↔ y-ε < x ∧ x < y+ε := by

@@ -788,14 +788,4 @@ theorem Sequence.isBounded_mul {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (h
     rw [← abs_mul] at this
     rwa [op_mul n] at this
 
-/-- Exercise 5.1.2 -/
-theorem Sequence.isBounded_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
-    (a + b:Sequence).IsBounded := by sorry
-
-theorem Sequence.isBounded_sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
-    (a - b:Sequence).IsBounded := by sorry
-
-theorem Sequence.isBounded_mul {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
-    (a * b:Sequence).IsBounded := by sorry
-
 end Chapter5

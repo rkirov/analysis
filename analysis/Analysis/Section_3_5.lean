@@ -806,9 +806,8 @@ theorem SetTheory.Set.Fin.toFin_eq_of_val_eq {n m: ℕ} (i: Fin n) (j: Fin m)
   have hj := toNat_spec j
   obtain ⟨hi1, hi2⟩ := hi
   obtain ⟨hj1, hj2⟩ := hj
-  simp [h] at hi2
-  rw [hi2]
-  simp only [coe_toNat]
+  rw [hi2, hj2]
+  simp [h]
 
 theorem SetTheory.Set.Fin.val_eq_natCast {n: ℕ} (i: Fin n) (m: ℕ) :
     i.val = (m:ℕ) ↔ toNat i = m := by
@@ -982,7 +981,7 @@ theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
     simp only at h
     let S : Set := iUnion (Fin n) (fun i ↦ ({(tx i).val}:Set))
     have h1 : tX = S := by
-      apply SetTheory.Set.Set.ext
+      apply SetTheory.Set.ext
       intro y
       constructor
       . intro h2
@@ -1002,7 +1001,7 @@ theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
         exact (tx i).property
     let S' : Set := iUnion (Fin n) (fun i ↦ ({(tx' i).val}:Set))
     have hS : S = S' := by
-      apply SetTheory.Set.Set.ext
+      apply SetTheory.Set.ext
       intro y
       unfold S S'
       constructor
@@ -1028,7 +1027,7 @@ theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n):
         rw [mem_singleton]
     -- repeat for tX', there must be a way to do with wlog?
     have h1' : tX' = S' := by
-      apply SetTheory.Set.Set.ext
+      apply SetTheory.Set.ext
       intro y
       constructor
       . intro h2
@@ -1431,7 +1430,7 @@ def SetTheory.Set.diff_of_prod :
   use {0}
   use {0}
   by_contra! h
-  rw [SetTheory.Set.Set.ext_iff] at h
+  rw [SetTheory.Set.ext_iff] at h
   specialize h (⟨0, 1⟩: OrderedPair).toObject
   have : {0, 1} \ {0} = ({1}:Set) := by
     rw [SetTheory.Set.ext_iff]
@@ -1697,7 +1696,7 @@ theorem SetTheory.Set.graph_inj {X Y:Set} (f f': X → Y) :
   . intro h
     repeat rw [graph] at h
     ext x
-    rw [SetTheory.Set.Set.ext_iff] at h
+    rw [SetTheory.Set.ext_iff] at h
     specialize h (⟨( ⟨x, f x⟩:OrderedPair), by
       rw [mem_cartesian]
       use x
@@ -1761,7 +1760,7 @@ theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
       simp [h']
   . intro f f' h h'
     rw [graph] at h h'
-    rw [SetTheory.Set.Set.ext_iff] at h h'
+    rw [SetTheory.Set.ext_iff] at h h'
     ext x
     specialize hvert x
     obtain ⟨ y, hp ⟩ := hvert.exists
@@ -1880,7 +1879,6 @@ lemma nat_equiv_zero : SetTheory.Set.nat_equiv 0 = 0 := by rfl
 lemma nat_equiv_cast (n: ℕ) : SetTheory.Set.nat_equiv.symm (n: Nat) = n := by
   simp_all only [SetTheory.Set.nat_equiv_coe_of_coe]
 
-set_option pp.proofs true in
 /-- Exercise 3.5.12, with errata from web site incorporated -/
 theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
     ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by

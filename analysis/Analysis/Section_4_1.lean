@@ -298,7 +298,7 @@ theorem Int.sub_eq_formal_sub (a b:ℕ) : (a:Int) - (b:Int) = a —— b := by
   rw [neg_eq]
   rw [add_eq]
   rw [eq]
-  simp only [add_zero, zero_add, Nat.add_left_cancel_iff]
+  simp only [add_zero, zero_add]
 
 /-- Proposition 4.1.8 (No zero divisors) / Exercise 4.1.5 -/
 theorem Int.mul_eq_zero {a b:Int} (h: a * b = 0) : a = 0 ∨ b = 0 := by
@@ -647,31 +647,31 @@ theorem Int.neg_one_mul (a:Int) : -1 * a = -a := by
   rw [neg_eq]
   rw [mul_eq]
   rw [eq]
-  simp only [zero_mul, one_mul, zero_add, Nat.add_left_cancel_iff]
+  simp only [zero_mul, one_mul, zero_add]
 
 /-- Exercise 4.1.8 -/
 theorem Int.no_induction : ∃ P: Int → Prop, (P 0 ∧ ∀ n, P n → P (n+1)) ∧ ¬ ∀ n, P n := by
   use fun x ↦ 0 ≤ x
   constructor
-  . exact Int.le_refl 0
-  . intro n hn
-    constructor
+  . constructor
+    . exact Int.le_refl 0
+    intro n hn
     . rw [le_iff] at hn ⊢
       obtain ⟨t, ht⟩ := hn
       use t + 1
       rw [ht]
       simp only [zero_add, Nat.cast_add, Nat.cast_one]
-    . push_neg
-      use -1
-      rw [lt_iff]
-      constructor
-      . use 1
-        simp only [Nat.cast_one, neg_add_cancel]
-      . repeat rw [ofNat_eq]
-        rw [neg_eq]
-        intro h
-        rw [eq] at h
-        simp only [add_zero, zero_add, zero_ne_one] at h
+  . push_neg
+    use -1
+    rw [lt_iff]
+    constructor
+    . use 1
+      simp only [Nat.cast_one, neg_add_cancel]
+    . repeat rw [ofNat_eq]
+      rw [neg_eq]
+      intro h
+      rw [eq] at h
+      simp only [add_zero, zero_add, zero_ne_one] at h
 
 /-- A nonnegative number squared is nonnegative. This is a special case of 4.1.9 that's useful for proving the general case. --/
 lemma Int.sq_nonneg_of_pos (n:Int) (h: 0 ≤ n) : 0 ≤ n*n := by

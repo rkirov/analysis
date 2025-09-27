@@ -127,6 +127,9 @@ theorem SetTheory.Set.Fin_sub_nat (n: ℕ) : Fin n ⊆ nat := by
   have := specification_axiom h
   exact this
 
+theorem SetTheory.Set.has_card_iff (X:Set) (n:ℕ) :
+    X.has_card n ↔ ∃ f: X → Fin n, Function.Bijective f := by
+  simp [has_card, HasEquiv.Equiv, Setoid.r, EqualCard]
 
 /-- Remark 3.6.6 -/
 theorem SetTheory.Set.Remark_3_6_6 (n:ℕ) :
@@ -142,12 +145,7 @@ theorem SetTheory.Set.Remark_3_6_6 (n:ℕ) :
       rw [mem_Fin] at hx
       obtain ⟨ m, hm, hmn ⟩ := hx
       simp [hmn]
-      change nat_equiv.symm ⟨↑m, _⟩ < n
-      suffices h: nat_equiv.symm ⟨↑m, _⟩ = m by
-        rw [h]
-        exact hm
-      rw [Equiv.symm_apply_eq]
-      rfl
+      exact hm
   ⟩
   constructor
   . intro x y hxy
@@ -175,12 +173,7 @@ theorem SetTheory.Set.Remark_3_6_6 (n:ℕ) :
     rw [Subtype.mk.injEq]
     rw [Equiv.symm_apply_eq] at hn'
     rw [Subtype.mk.injEq] at hn'
-    conv_rhs => rw [hn']
-    simp only [Nat.succ_eq_add_one]
-    rw [Subtype.val_inj]
-    congr!
-    rw [Equiv.symm_apply_eq]
-    rfl
+    rw [hn']
 
 /-- Example 3.6.7 -/
 theorem SetTheory.Set.Example_3_6_7a (a:Object) : ({a}:Set).has_card 1 := by
@@ -210,11 +203,6 @@ theorem SetTheory.Set.Example_3_6_7b {a b c d:Object} (hab: a ≠ b) (hac: a ≠
   · use ⟨b, by aesop⟩; aesop
   · use ⟨c, by aesop⟩; aesop
   · use ⟨d, by aesop⟩; aesop
-
-theorem SetTheory.Set.card_fin_eq (n:ℕ) : (Fin n).has_card n := by
-  rw [has_card_iff]
-  use id
-  exact Function.bijective_id
 
 theorem SetTheory.Set.card_fin_eq (n:ℕ) : (Fin n).has_card n := by
   rw [has_card_iff]
@@ -406,9 +394,7 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
         have hx'' : hx.choose.val ∈ X' := hX'mem hx.choose hneq
         use ⟨hx.choose, hx''⟩
         specialize hg_def ⟨hx.choose, hx''⟩
-        have : ι ⟨↑hx.choose, hx''⟩ = hx.choose := by rfl
-        simp [this, hx', h] at hg_def
-        rwa [Fin.toNat_inj] at hg_def
+        aesop
       .
         set hx := hf.surjective (Fin_mk _ (y + 1) (by
           have hy := Fin.toNat_lt y
@@ -419,7 +405,7 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
           by_contra! he
           rw [he] at hx'
           rw [hx'] at hm₀f
-          simp only [Fin.coe_toNat] at hm₀f
+          simp only at hm₀f
           have : (Fin.toNat y) + 1 = m₀ := by rwa [Object.natCast_inj] at hm₀f
           linarith
         have hx'': hx.choose.val ∈ X' := hX'mem hx.choose hneq
@@ -427,8 +413,8 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
         specialize hg_def ⟨hx.choose, hx''⟩
         have : ι ⟨↑hx.choose, hx''⟩ = hx.choose := by rfl
         have h': ¬ ((Fin.toNat y) + 1 < m₀) := by exact Mathlib.Tactic.Order.not_lt_of_not_le h
-        simp [this, hx', h'] at hg_def
-        rwa [Fin.toNat_inj] at hg_def
+        simp at hg_def
+        aesop
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/
@@ -457,7 +443,8 @@ lemma SetTheory.Set.Example_3_6_8_a: ({0,1,2}:Set).has_card 3 := by
   use id
   exact Function.bijective_id
 
-lemma ex2: ({3,4}:Set).has_card 2 := by
+open Classical in
+lemma Example_3_6_8_b: ({3,4}:Set).has_card 2 := by
   rw [SetTheory.Set.has_card_iff]
   have : SetTheory.Set.Fin 2 = {0,1} := by
     apply SetTheory.Set.ext
@@ -488,9 +475,11 @@ lemma ex2: ({3,4}:Set).has_card 2 := by
   · intro x1 x2
     aesop
   intro y
-  have := Fin.toNat_lt y
-  have : y = (0:ℕ) ∨ y = (1:ℕ) := by omega
-  aesop
+  by_cases h: y.val = 0
+  . use ⟨3, by rw [SetTheory.Set.mem_pair]; aesop⟩
+    aesop
+  . use ⟨4, by rw [SetTheory.Set.mem_pair]; aesop⟩
+    aesop
 
 lemma SetTheory.Set.Example_3_6_8_c : ¬({0,1,2}:Set) ≈ ({3,4}:Set) := by
   by_contra h
@@ -575,7 +564,7 @@ theorem SetTheory.Set.EquivCard_to_has_card_eq {X Y:Set} {n: ℕ} (h: X ≈ Y): 
 theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.card := by
   by_cases hX: X.finite <;> by_cases hY: Y.finite <;> try rw [finite] at hX hY
   . choose nX hXn using hX; choose nY hYn using hY
-    simp [has_card_to_card hXn, has_card_to_card hYn, EquivCard_to_has_card_eq h] at *
+    simp [has_card_to_card _ _ hXn, has_card_to_card _ _ hYn, EquivCard_to_has_card_eq h] at *
     solve_by_elim [card_uniq]
   . choose nX hXn using hX; rw [EquivCard_to_has_card_eq h] at hXn; tauto
   . choose nY hYn using hY; rw [←EquivCard_to_has_card_eq h] at hYn; tauto
@@ -584,7 +573,19 @@ theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.ca
 
 /-- Exercise 3.6.2 -/
 theorem SetTheory.Set.empty_iff_card_eq_zero {X:Set} : X = ∅ ↔ X.finite ∧ X.card = 0 := by
-  sorry
+  constructor
+  . intro h
+    subst X
+    have : (∅: Set).finite := by
+      use 0
+      rw [has_card_zero]
+    constructor
+    . exact this
+    . rw [has_card_to_card]
+      rw [has_card_zero]
+  . rintro ⟨hfin, hcard⟩
+    rw [← has_card_zero]
+    exact card_to_has_card_fin X hfin hcard
 
 lemma SetTheory.Set.empty_of_card_eq_zero {X:Set} (hX : X.finite) : X.card = 0 → X = ∅ := by
   intro h
@@ -622,6 +623,7 @@ theorem SetTheory.Set.singleton_finite (x:Object) : ({x}:Set).finite := by
   use 1
   exact Example_3_6_7a x
 
+open Classical in
 /-- Proposition 3.6.14 (a) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X) :
     (X ∪ {x}).finite ∧ (X ∪ {x}).card = X.card + 1 := by
@@ -654,10 +656,10 @@ theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X
       by_cases hz1: z1 = x
       . simp [f', hz1] at h
         by_cases hz2: z2 = x
-        . simp [f', hz2] at h
+        . simp [hz2] at h
           rw [← Subtype.val_inj]
           rw [hz1, hz2]
-        . simp [f', hz2] at h
+        . simp [hz2] at h
           exfalso
           generalize_proofs a at h
           have := (f ⟨z2, a⟩).prop
@@ -668,23 +670,18 @@ theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X
           linarith
       . simp [f', hz1] at h
         by_cases hz2: z2 = x
-        . simp [f', hz2] at h
+        . simp [hz2] at h
           exfalso
           generalize_proofs a at h
           have := (f ⟨z1, a⟩).prop
           rw [mem_Fin] at this
-          rw [h] at this
-          obtain ⟨ m, hm, hmn ⟩ := this
-          have : n = m := by exact (ofNat_inj' n m).mp hmn
-          linarith
-        . simp [f', hz2] at h
-          rw [Subtype.val_inj] at h
-          have := hf.injective h
-          obtain ⟨z1', hz1'⟩ := z1
-          obtain ⟨z2', hz2'⟩ := z2
-          simp only at this
-          rw [Subtype.mk.injEq] at this ⊢
-          exact this
+          simp [h] at this
+        . simp [hz2] at h
+          rw [Fin.toNat_inj] at h
+          apply hf.injective at h
+          rw [Subtype.mk.injEq] at h
+          rw [coe_inj] at h
+          exact h
     . intro z
       by_cases hz: z = ⟨n, by rw [mem_Fin]; use n; simp⟩
       . use ⟨x, by rw [mem_union]; right; rw [mem_singleton]⟩
@@ -970,6 +967,7 @@ theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite
           rw [h1, h2]
           omega
 
+open Classical in
 /--
   The proof roughly goes as follows:
   - use induction on `n`
@@ -1314,6 +1312,21 @@ theorem SetTheory.Set.card_image_inj {X Y:Set} (hX: X.finite) {f: X → Y}
   have h2 := has_card_to_card _ _ this
   rw [h1, h2]
 
+
+theorem SetTheory.Set.natToObject_toFin {n m: ℕ} (hm: (n:Object) ∈ Fin m):
+    ((⟨n, hm⟩: Fin m) : ℕ) = n := by
+  exact (Fin.coe_eq_iff ⟨↑n, hm⟩).mp rfl
+
+theorem SetTheory.Set.toFin_iff_toNat_eq {n m n' m': ℕ} {hm: (n:Object) ∈ Fin m}
+    {hm': (n':Object) ∈ Fin m'} :
+    ((⟨n, hm⟩: Fin m): Object) = ((⟨n', hm'⟩: Fin m'): Object) ↔ n = n' := by
+  constructor
+  . intro h
+    simp_all
+  . intro h
+    subst h
+    rfl
+
 /-- Proposition 3.6.14 (e) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
     (X ×ˢ Y).finite ∧ (X ×ˢ Y).card = X.card * Y.card := by
@@ -1356,8 +1369,8 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
       have yas := Classical.choose_spec ya
       have xbs := Classical.choose_spec xb
       have ybs := Classical.choose_spec yb
-      have hmy1: choose ya % m = choose ya := Nat.mod_eq_of_lt yas.1
-      have hmy2: choose yb % m = choose yb := Nat.mod_eq_of_lt ybs.1
+      have hmy1: Classical.choose ya % m = Classical.choose ya := Nat.mod_eq_of_lt yas.1
+      have hmy2: Classical.choose yb % m = Classical.choose yb := Nat.mod_eq_of_lt ybs.1
       have h_mod := congr_arg (· % m) h
       simp at h_mod
       rw [hmy1, hmy2] at h_mod
@@ -1369,14 +1382,14 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
       rw [mk_cartesian_inj]
       constructor
       . apply hfX.injective
-        rw [Subtype.mk.injEq]
+        rw [← Fin.toNat_inj]
         rw [xas.2, xbs.2]
         cases' h with h h'
         . rw [h]
         . exfalso
           omega
       . apply hfY.injective
-        rw [Subtype.mk.injEq]
+        rw [← Fin.toNat_inj]
         rw [yas.2, ybs.2]
         rw [yeq]
     . intro z
@@ -1405,17 +1418,18 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
         . dsimp [y]
       ⟩
       use mk_cartesian x' y'
-      simp
-      rw [Subtype.mk.injEq]
+      simp only [fst_of_mk_cartesian, Fin.coe_eq_iff, snd_of_mk_cartesian, Fin.coe_inj]
+      simp at hkm
       rw [hkm]
-      simp only [Object.natCast_inj, x, y]
+
       generalize_proofs a b
       have hxa := (Classical.choose_spec a).2
       have hya := (Classical.choose_spec b).2
       conv_lhs at hxa => rw [hx']
       conv_lhs at hya => rw [hy']
-      simp only [Object.natCast_inj, x, y] at hxa hya
-      rw [← hxa, ← hya]
+      simp only [x, y] at hxa hya
+      simp [← hxa, ← hya]
+      simp [natToObject_toFin]
       exact Nat.div_add_mod' k m
   constructor
   . rw [finite]
@@ -1469,6 +1483,7 @@ lemma div_lemma {a b c d n: ℕ} (hb: b < n) (hd: d < n)
   . subst n
     contradiction
 
+open Classical in
 /-- Proposition 3.6.14 (f) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
     (X ^ Y).finite ∧ (X ^ Y).card = X.card ^ Y.card := by
@@ -1515,8 +1530,11 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
           obtain ⟨a, ha⟩ := empty_pow_inhabited ∅
           use a, ha
           rw [Subtype.mk.injEq]
-          exact hx''.symm
-      . simp [hn]
+          symm
+          rw [← Fin.coe_toNat]
+          rw [hx'']
+          rfl
+      . simp only [pow_zero]
         have := pos_card_nonempty (by exact Nat.one_le_iff_ne_zero.mpr hn) hX'
         apply nonempty_def at this
         obtain ⟨x, hx⟩ := this
@@ -1541,13 +1559,15 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
             use empty_fn
             rfl
           use ⟨F, hF⟩
-          simp only [F]
+          simp only
           have zp := z.property
           rw [mem_Fin] at zp
           simp at zp
           symm
           rw [← Subtype.val_inj]
-          exact zp
+          rw [← Fin.coe_toNat]
+          rw [zp]
+          rfl
     . have := hfY.surjective ⟨m, by rw [mem_Fin]; use m; aesop⟩
       obtain ⟨y, hy⟩ := this
       let Y' := Y \ {y.val}
@@ -1614,15 +1634,18 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
           rw [Subtype.val_inj]
           apply hfX.injective
           rw [Subtype.mk.injEq]
-          rw [he.2, hi.2]
-          simp only [Object.natCast_inj]
-          exact h.2
+          rw [Subtype.val_inj]
+          have h := h.2
+          rw [← he.2, ← hi.2] at h
+          rw [Fin.toNat_inj] at h
+          exact h
         . have hd' := hd.2
           have hh'' := hh'.2
           have := h.1
           rw [← Object.natCast_inj] at this
           rw [← hh'', ← hd'] at this
-          rw [Subtype.val_inj] at this
+          rw [Object.natCast_inj] at this
+          rw [Fin.toNat_inj] at this
           apply hgY.injective at this
           rw [← Subtype.val_inj] at this
           simp only at this
@@ -1693,7 +1716,7 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
         generalize_proofs a b c d e f' g
         rw [← Subtype.val_inj]
         rw [hkm]
-        simp only [Object.natCast_inj, Fs, fs, f]
+        simp only [Object.natCast_inj]
         have hb := Classical.choose_spec b
         rw [coe_of_fun] at hb
         rw [object_of_inj] at hb
@@ -1725,7 +1748,7 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
           rw [← Object.natCast_inj]
           rw [← hf']
           rw [hb]
-          simp only [↓reduceDIte, ys, xs, Y', fs, f, Fs]
+          simp only [↓reduceDIte, xs]
           rw [hx']
         rw [he1, hf'1]
         simp [xs, ys]
@@ -1792,8 +1815,8 @@ theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
     simp only [coe_of_fun_inj]
     ext c'
     rw [Subtype.val_inj]
-    have hl := (choose a c').prop
-    have hr := (choose c c').prop
+    have hl := (Classical.choose a c').prop
+    have hr := (Classical.choose c c').prop
     rw [powerset_axiom] at hl hr
     obtain ⟨f, hf⟩ := hl
     obtain ⟨f', hf'⟩ := hr
@@ -1841,13 +1864,13 @@ theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
     have hc2 := Classical.choose_spec h2
     -- ughh, I guessed that there is some rewriting possible and had exact? find it
     -- can this be done with a simpler rw?
-    have : choose h1 = fun c ↦ fn_to_powerset fun b ↦ g (mk_cartesian b c) := by exact
-      (coe_of_fun_inj (choose h1) fun c ↦ fn_to_powerset fun b ↦ g (mk_cartesian b c)).mp hc1
+    have : Classical.choose h1 = fun c ↦ fn_to_powerset fun b ↦ g (mk_cartesian b c) := by exact
+      (coe_of_fun_inj (Classical.choose h1) fun c ↦ fn_to_powerset fun b ↦ g (mk_cartesian b c)).mp hc1
     conv_rhs at hc2 => rw [this]
     simp at hc2
     -- same trick
-    have : choose h2 = fun b ↦ g (mk_cartesian b (snd bc)) := by exact
-      (coe_of_fun_inj (choose h2) fun b ↦ g (mk_cartesian b (snd bc))).mp hc2
+    have : Classical.choose h2 = fun b ↦ g (mk_cartesian b (snd bc)) := by exact
+      (coe_of_fun_inj (Classical.choose h2) fun b ↦ g (mk_cartesian b (snd bc))).mp hc2
     rw [this]
     simp only [mk_cartesian_fst_snd_eq]
 
@@ -2022,13 +2045,13 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
           constructor
           . exact Nat.lt_add_right c hm
           . exact hmb
-        . use m
+        . exact SetTheory.Set.Fin.toNat_lt x
       ⟩
   have hB := SetTheory.Set.EquivCard_to_card_eq Beq
   have hB'card := SetTheory.Set.Fin_card b
   rw [hB'card] at hB
   have hBfin : B.finite := by
-    have := SetTheory.Set.EquivCard_to_has_card_eq b Beq
+    have := SetTheory.Set.EquivCard_to_has_card_eq (n:=b) Beq
     rw [SetTheory.Set.finite]
     use b
     rw [this]
@@ -2052,7 +2075,7 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
         generalize_proofs _ c at m
         have hc := Classical.choose_spec c
         simp [m]
-        have : choose c - b = hm' - b := by
+        have : Classical.choose c - b = hm' - b := by
           have := hc.2.2
           simp at this
           rw [this] at h3
@@ -2067,7 +2090,7 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
       have h1 := Classical.choose_spec p1
       have h2 := Classical.choose_spec p2
       simp at h
-      have : choose p1 = choose p2 := by
+      have : Classical.choose p1 = Classical.choose p2 := by
         rw [← Nat.sub_add_cancel h1.1, ← Nat.sub_add_cancel h2.1]
         rw [h]
       rw [this] at h1
@@ -2096,16 +2119,19 @@ example (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
       simp
       generalize_proofs p1 p2
       have h1 := Classical.choose_spec p1
-      have : m = choose p1 - b := by omega
-      rw [← SetTheory.Object.natCast_inj m (choose p1 - b)] at this
+      have : m = Classical.choose p1 - b := by omega
+      rw [← SetTheory.Object.natCast_inj m (Classical.choose p1 - b)] at this
       rw [← hmb] at this
-      rw [← Subtype.val_inj]
-      rw [this]
+      rw [SetTheory.Set.Fin.toNat_inj]
+      simp at this
+      rw [Subtype.mk.injEq]
+      rw [← this]
+      simp
   have hC := SetTheory.Set.EquivCard_to_card_eq Ceq
   have hC'card := SetTheory.Set.Fin_card c
   rw [hC'card] at hC
   have hCfin : C.finite := by
-    have := SetTheory.Set.EquivCard_to_has_card_eq c Ceq
+    have := SetTheory.Set.EquivCard_to_has_card_eq (n:=c) Ceq
     rw [SetTheory.Set.finite]
     use c
     rw [this]
@@ -2174,6 +2200,7 @@ theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.fini
       . exact hinc
       . exact eA.injective
 
+open Classical in
 /-- Exercise 3.6.8 -/
 theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A → B)
   (hf: Function.Injective f) : ∃ g:B → A, Function.Surjective g := by
@@ -2622,6 +2649,7 @@ lemma SetTheory.Set.fin_to_fin_surjective_of_injective {n: ℕ} {f: Fin n → Fi
     contrapose hy
     simp_all
     rw [Subtype.val_inj] at hy
+    rw [Fin.toNat_inj]
     exact hy
   have : image f (Fin n) = Fin n := SetTheory.Set.finite_eq_of_subset_eq_card
     (Fin_finite n) (image_in_codomain f (Fin n)) him
@@ -2790,11 +2818,10 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
         .
           by_cases hb: Fin.toNat (choose b i) < Fin.toNat (choose b n')
           . simp [ha, hb] at this
-            rwa [Subtype.val_inj] at this
+            exact Fin.coe_inj.mpr this
           . simp [ha, hb] at this
-            rw [Fin.val_eq_natCast] at this
             rw [hx1] at ha
-            have hb_le : Fin.toNat (choose b n') ≠ Fin.toNat (choose b i) := by
+            have hb_le : Fin.toNat (Classical.choose b n') ≠ Fin.toNat (Classical.choose b i) := by
               intro h
               rw [Fin.toNat_inj] at h
               apply hba.injective at h
@@ -2802,7 +2829,7 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
               contradiction
             omega
         .
-          have ha_le : Fin.toNat (choose b n') ≠ Fin.toNat (choose a i) := by
+          have ha_le : Fin.toNat (Classical.choose b n') ≠ Fin.toNat (Classical.choose a i) := by
             intro h
             rw [Fin.toNat_inj] at h
             rw [← hx1] at h
@@ -2812,26 +2839,25 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
           by_cases hb: Fin.toNat (choose b i) < Fin.toNat (choose b n')
           . simp [ha, hb] at this
             symm at this
-            rw [Fin.val_eq_natCast] at this
             rw [hx1] at ha
             simp at ha
 
             omega
           . simp [ha, hb] at this
-            have hb_le : Fin.toNat (choose b n') ≠ Fin.toNat (choose b i) := by
+            have hb_le : Fin.toNat (Classical.choose b n') ≠ Fin.toNat (Classical.choose b i) := by
               intro h
               rw [Fin.toNat_inj] at h
               apply hba.injective at h
               symm at h
               contradiction
-            have ha_neq : Fin.toNat (choose a i) ≠ 0 := by
+            have ha_neq : Fin.toNat (Classical.choose a i) ≠ 0 := by
               simp only [not_lt] at ha
               rw [hx1] at ha
               contrapose! ha
               rw [ha]
               rw [ha] at ha_le
               exact Nat.zero_lt_of_ne_zero ha_le
-            have ha_neq : Fin.toNat (choose b i) ≠ 0 := by
+            have ha_neq : Fin.toNat (Classical.choose b i) ≠ 0 := by
               simp only [not_lt] at hb
               contrapose! hb
               rw [hb]
@@ -2867,7 +2893,6 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
           . let i' : Fin n := Fin_mk _ i (by have := Fin.toNat_lt i; omega)
             by_cases hix: Fin.toNat (f i') < Fin.toNat x
             . simp [hix, i']
-              rw [Fin.Fin_embed_toNat]
             . simp [hix, i']
 
       let F' := function_to_object (Fin (n + 1)) (Fin (n + 1)) f'
@@ -2951,7 +2976,7 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
       constructor
       . generalize_proofs a b
         have ha := Classical.choose_spec a
-        have : choose a = f' := by
+        have : Classical.choose a = f' := by
           have := ha.2
           rw [EmbeddingLike.apply_eq_iff_eq] at this
           exact this.symm
@@ -2966,7 +2991,7 @@ theorem SetTheory.Set.Permutations_ih (n: ℕ):
         rw [EmbeddingLike.apply_eq_iff_eq]
         generalize_proofs b
         have hb := Classical.choose_spec b
-        have : choose b = f' := by
+        have : Classical.choose b = f' := by
           have := hb.2
           rw [EmbeddingLike.apply_eq_iff_eq] at this
           exact this.symm
@@ -3090,7 +3115,7 @@ theorem SetTheory.Set.Fin_mathlib_eq (n: ℕ) : ∃ f: (Fin n) → (_root_.Fin n
     generalize_proofs a b at hxy
     have ha := Classical.choose_spec a
     have hb := Classical.choose_spec b
-    rw [Subtype.mk.injEq]
+    rw [← Fin.toNat_inj]
     rw [ha.2, hb.2]
     rw [hxy]
   . intro z
@@ -3171,29 +3196,6 @@ theorem SetTheory.Set.finite_iff_finite {X:Set} : X.finite ↔ Finite X := by
 theorem SetTheory.Set.finite_iff_set_finite {X:Set} :
     X.finite ↔ (X :_root_.Set Object).Finite := by
   rw [finite_iff_finite]
-  rfl
-
-/-- Connections with Mathlib's `Nat.card` -/
-theorem SetTheory.Set.card_eq_nat_card {X:Set} : X.card = Nat.card X := by
-  by_cases hf : X.finite
-  · by_cases hz : X.card = 0
-    · rw [hz]; symm
-      have : X = ∅ := empty_of_card_eq_zero hf hz
-      rw [this, Nat.card_eq_zero, isEmpty_iff]
-      aesop
-    symm
-    have hc := has_card_card hf
-    obtain ⟨f, hf⟩ := hc
-    apply Nat.card_eq_of_equiv_fin
-    exact (Equiv.ofBijective f hf).trans (Fin.Fin_equiv_Fin X.card)
-  simp only [card, hf, ↓reduceDIte]; symm
-  rw [Nat.card_eq_zero, ←not_finite_iff_infinite]
-  right
-  rwa [finite_iff_set_finite] at hf
-
-/-- Connections with Mathlib's `Set.ncard` -/
-theorem SetTheory.Set.card_eq_ncard {X:Set} : X.card = (X: _root_.Set Object).ncard := by
-  rw [card_eq_nat_card]
   rfl
 
 end Chapter3

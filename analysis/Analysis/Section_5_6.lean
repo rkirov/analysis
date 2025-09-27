@@ -200,7 +200,7 @@ lemma Real.zpow_neg {x:Real} (n:ℕ) : x^(-n:ℤ) = 1 / (x^n) := by simp
 lemma Real.div_eq_mul_inv (x y: Real) : x / y = x * (1 / y) := by field_simp
 
 /-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.zpow_add (x:Real) (n m:ℤ) (hx: x ≠ 0)(hx: x ≠ 0): x^n * x^m = x^(n+m) := by
+theorem Real.zpow_add (x:Real) (n m:ℤ) (hx: x ≠ 0): x^n * x^m = x^(n+m) := by
   wlog hnm : n ≥ m
   . simp only [ge_iff_le, not_le] at hnm
     have := this x m n hx (by exact Int.le_of_lt hnm)
@@ -794,7 +794,7 @@ theorem Real.root_mono_of_lt_one {x : Real} (hx0: 0 < x) (hx: x < 1) {k l: ℕ} 
     linarith
 
 /-- Lemma 5.6.6 (e) / Exercise 5.6.1 -/
-theorem Real.root_of_one {k: ℕ} (hk: k ≥ 1) (hk: k ≥ 1): (1:Real).root k = 1 := by
+theorem Real.root_of_one {k: ℕ} (hk: k ≥ 1): (1:Real).root k = 1 := by
   have h1 := Real.eq_root_iff_pow_eq (x:=1) (y:=1) (n:=k) (by norm_num) (by norm_num) hk
   simp at h1
   rw [← h1]

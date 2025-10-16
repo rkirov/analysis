@@ -163,11 +163,58 @@ instance Chapter5.Sequence.inst_coe_sequence : Coe Chapter5.Sequence Sequence wh
 @[simp]
 theorem Chapter5.coe_sequence_eval (a: Chapter5.Sequence) (n:ℤ) : (a:Sequence) n = (a n:ℝ) := rfl
 
+theorem Chapter5.from_of_rat (n: ℤ) (a: Chapter5.Sequence):
+    (Sequence.from (a: Sequence) n) = (a.from n:Sequence) := by
+  simp only [Sequence.mk.injEq, ge_iff_le, sup_le_iff, dite_eq_ite, true_and]
+  ext m
+  by_cases h:a.n₀ ≤ m <;> simp [h]
+  by_cases h': n ≤ m <;> simp [h']
+
 theorem Sequence.is_steady_of_rat (ε:ℚ) (a: Chapter5.Sequence) :
-    ε.Steady a ↔ (ε:ℝ).Steady (a:Sequence) := by sorry
+    ε.Steady a ↔ (ε:ℝ).Steady (a:Sequence) := by
+  constructor
+  · intro h
+    rw [Real.steady_def]
+    intro n hn m hm
+    rw [Rat.steady_def] at h
+    specialize h n hn m hm
+    rw [Real.close_def, Real.dist_eq]
+    rw [Rat.Close] at h
+    push_cast
+    exact_mod_cast h
+  · intro h
+    rw [Rat.steady_def]
+    intro n hn m hm
+    rw [Real.steady_def] at h
+    specialize h n hn m hm
+    rw [Real.close_def, Real.dist_eq] at h
+    rw [Rat.Close]
+    push_cast at h
+    exact_mod_cast h
 
 theorem Sequence.is_eventuallySteady_of_rat (ε:ℚ) (a: Chapter5.Sequence) :
-    ε.EventuallySteady a ↔ (ε:ℝ).EventuallySteady (a:Sequence) := by sorry
+    ε.EventuallySteady a ↔ (ε:ℝ).EventuallySteady (a:Sequence) := by
+  constructor
+  · intro h
+    rw [Rat.eventuallySteady_def] at h
+    rw [Real.eventuallySteady_def]
+    obtain ⟨ N, hN, h' ⟩ := h
+    use N
+    constructor
+    . exact_mod_cast hN
+    . have := (is_steady_of_rat ε _).mp h'
+      rw [Chapter5.from_of_rat]
+      exact this
+  · intro h
+    rw [Rat.eventuallySteady_def]
+    rw [Real.eventuallySteady_def] at h
+    obtain ⟨ N, hN, h' ⟩ := h
+    use N
+    constructor
+    . exact_mod_cast hN
+    . rw [Chapter5.from_of_rat] at h'
+      have := (is_steady_of_rat ε _).mpr h'
+      exact this
 
 /-- Proposition 6.1.4 -/
 theorem Sequence.isCauchy_of_rat (a: Chapter5.Sequence) : a.IsCauchy ↔ (a:Sequence).IsCauchy := by
@@ -228,7 +275,34 @@ theorem Sequence.tendsTo_def (a:Sequence) (L:ℝ) :
 
 /-- Exercise 6.1.2 -/
 theorem Sequence.tendsTo_iff (a:Sequence) (L:ℝ) :
-  a.TendsTo L ↔ ∀ ε > 0, ∃ N, ∀ n ≥ N, |a n - L| ≤ ε := by sorry
+  a.TendsTo L ↔ ∀ ε > 0, ∃ N, ∀ n ≥ N, |a n - L| ≤ ε := by
+  rw [tendsTo_def]
+  constructor
+  . intro h ε hε
+    specialize h ε hε
+    rw [Real.eventuallyClose_def] at h
+    obtain ⟨ N, hN, h' ⟩ := h
+    use N
+    rw [Real.closeSeq_def] at h'
+    intro n hn
+    simp at h'
+    have h : a.m ≤ n := by linarith
+    specialize h' n h hn
+    rw [Real.dist_eq] at h'
+    simp [h, hn] at h'
+    exact h'
+  . intro h ε hε
+    choose N hN using h ε hε
+    use max N a.m
+    constructor
+    . exact le_max_right _ _
+    . rw [Real.closeSeq_def]
+      intro n hn
+      simp at hn
+      rw [Real.dist_eq]
+      simp [hn]
+      specialize hN n hn.1
+      exact hN
 
 noncomputable def seq_6_1_6 : Sequence := (fun (n:ℕ) ↦ 1-(10:ℝ)^(-(n:ℤ)-1):Sequence)
 
@@ -250,10 +324,45 @@ example : ¬ (0.01:ℝ).CloseSeq seq_6_1_6 1 := by
   intro h; specialize h 0 (by positivity); simp [seq_6_1_6] at h; norm_num at h
 
 /-- Examples 6.1.6 -/
-example : (0.01:ℝ).EventuallyClose seq_6_1_6 1 := by sorry
+example : (0.01:ℝ).EventuallyClose seq_6_1_6 1 := by
+  rw [Real.eventuallyClose_def]
+  use 1
+  rw [seq_6_1_6]
+  simp
+  rw [Real.CloseSeq]
+  intro h hn
+  simp at hn
+  rw [Real.close_def, Real.dist_eq]
+  simp [hn]
+  have : 0 ≤ h := by linarith
+  simp [this]
+  rw [abs_of_nonneg (by positivity)]
+  rw [show (1e-2:ℝ) = (10:ℝ)^(-2:ℤ) by norm_num]
+  gcongr <;> grind
+
 
 /-- Examples 6.1.6 -/
-example : seq_6_1_6.TendsTo 1 := by sorry
+example : seq_6_1_6.TendsTo 1 := by
+  rw [Sequence.tendsTo_def]
+  intro ε hε
+  rw [Real.eventuallyClose_def]
+  obtain ⟨n, hn⟩ := exists_int_gt (1 / ε)
+  use n
+  rw [seq_6_1_6]
+  simp
+  constructor
+  . have : 1 / ε > 0 := by positivity
+    have : 0 < (n:ℝ) := by linarith
+    apply le_of_lt
+    exact_mod_cast this
+  . rw [Real.CloseSeq]
+    intro m hm
+    simp at hm
+    rw [Real.close_def, Real.dist_eq]
+    simp [hm]
+    have : 0 ≤ m := by linarith
+    rw [abs_of_nonneg (by positivity)]
+    sorry
 
 /-- Proposition 6.1.7 (Uniqueness of limits) -/
 theorem Sequence.tendsTo_unique (a:Sequence) {L L':ℝ} (h:L ≠ L') :

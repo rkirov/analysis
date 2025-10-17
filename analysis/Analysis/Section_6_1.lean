@@ -340,29 +340,55 @@ example : (0.01:ℝ).EventuallyClose seq_6_1_6 1 := by
   rw [show (1e-2:ℝ) = (10:ℝ)^(-2:ℤ) by norm_num]
   gcongr <;> grind
 
+lemma pow_archimedian (ε: ℝ) (hε: 0 < ε): ∃ N: ℤ, 0 < N ∧ (10:ℝ) ^ (N + 1) > 1 / ε := by
+  obtain ⟨ N, hN ⟩ := exists_nat_gt (1 / ε)
+  use N
+  constructor
+  . by_cases h: N = 0
+    . subst N
+      simp at hN
+      linarith
+    . positivity
+  . simp_all
+    suffices (N: ℝ) < 10 ^ (↑N + 1) by
+      exact hN.trans this
+    norm_cast
+    have := Nat.lt_pow_self (a:=10) (n:=N+1) (by omega)
+    linarith
 
 /-- Examples 6.1.6 -/
 example : seq_6_1_6.TendsTo 1 := by
   rw [Sequence.tendsTo_def]
   intro ε hε
   rw [Real.eventuallyClose_def]
-  obtain ⟨n, hn⟩ := exists_int_gt (1 / ε)
+  obtain ⟨n, hn1, hn2⟩ := pow_archimedian ε (by positivity)
+  simp at hn2
   use n
   rw [seq_6_1_6]
   simp
   constructor
-  . have : 1 / ε > 0 := by positivity
-    have : 0 < (n:ℝ) := by linarith
-    apply le_of_lt
-    exact_mod_cast this
+  . exact hn1.le
   . rw [Real.CloseSeq]
     intro m hm
     simp at hm
-    rw [Real.close_def, Real.dist_eq]
+    rw [Real.close_def]
+    rw [Real.dist_eq]
     simp [hm]
-    have : 0 ≤ m := by linarith
     rw [abs_of_nonneg (by positivity)]
-    sorry
+    calc
+      _ ≤ (10:ℝ) ^ (-n - 1) := by
+        gcongr
+        . norm_num
+        . exact hm.2
+      _ = (10:ℝ) ^ (-n - 1) := by norm_cast
+      _ = (10:ℝ) ^ (- (n + 1)) := by simp; ring
+      _ ≤ 1 / ε⁻¹ := by
+        have := one_div_lt_one_div_of_lt (by positivity) hn2
+        simp at this ⊢
+        rw [← zpow_neg] at this
+        simp at this
+        exact this.le
+      _ = ε := by field_simp
 
 /-- Proposition 6.1.7 (Uniqueness of limits) -/
 theorem Sequence.tendsTo_unique (a:Sequence) {L L':ℝ} (h:L ≠ L') :
@@ -446,16 +472,75 @@ theorem Sequence.lim_harmonic :
 
 /-- Proposition 6.1.12 / Exercise 6.1.5 -/
 theorem Sequence.IsCauchy.convergent {a:Sequence} (h:a.Convergent) : a.IsCauchy := by
-  sorry
+  rw [Sequence.isCauchy_def]
+  rw [Sequence.convergent_def] at h
+  obtain ⟨ L, hL ⟩ := h
+  intro ε hε
+  rw [Sequence.tendsTo_def] at hL
+  specialize hL (ε / 2) (by positivity)
+  rw [Real.eventuallyClose_def] at hL
+  obtain ⟨ N, hN, h' ⟩ := hL
+  rw [Real.eventuallySteady_def]
+  use N
+  constructor
+  . exact hN
+  . rw [Real.Steady]
+    intro n hn m hm
+    rw [Real.close_def, Real.dist_eq]
+    simp [hn, hm]
+    rw [Real.closeSeq_def] at h'
+    have h1 := h' n hn
+    have h2 := h' m hm
+    simp [Real.dist_eq] at h1 h2
+    simp at hn hm
+    simp [hn, hm] at h1 h2
+    calc
+      _ = |a.seq n - L + (L - a.seq m)| := by ring
+      _ ≤ |a.seq n - L| + |L - a.seq m| := by exact abs_add_le _ _
+      _ = |a.seq n - L| + |a.seq m - L| := by simp; rw [abs_sub_comm]
+      _ ≤ ε / 2 + ε / 2 := by linarith
+      _ = ε := by ring
 
 /-- Example 6.1.13 -/
-example : ¬ (0.1:ℝ).EventuallySteady ((fun n ↦ (-1:ℝ)^n):Sequence) := by sorry
+lemma ex1 : ¬ (0.1:ℝ).EventuallySteady ((fun n ↦ (-1:ℝ)^n):Sequence) := by
+  rw [Real.eventuallySteady_def]
+  push_neg
+  intro N hN
+  simp at hN
+  have hN' : N + 1 ≥ 0 := by omega
+  rw [Real.steady_def]
+  push_neg
+  use N
+  simp
+  use hN
+  use (N + 1)
+  simp
+  use hN'
+  rw [Real.dist_eq]
+  simp [hN, hN']
+  lift N to ℕ using hN
+  simp
+  by_cases h: Even N
+  . simp [h]
+    norm_num
+  . have : Odd N := by exact Nat.not_even_iff_odd.mp h
+    simp [this]
+    norm_num
 
 /-- Example 6.1.13 -/
-example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).IsCauchy := by sorry
+lemma ex2 : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).IsCauchy := by
+  rw [Sequence.isCauchy_def]
+  push_neg
+  use (0.1:ℝ)
+  constructor
+  . norm_num
+  . exact ex1
 
 /-- Example 6.1.13 -/
-example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).Convergent := by sorry
+example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).Convergent := by
+  have := ex2
+  contrapose! this
+  exact Sequence.IsCauchy.convergent this
 
 /-- Proposition 6.1.15 / Exercise 6.1.6 (Formal limits are genuine limits)-/
 theorem Sequence.lim_eq_LIM {a:ℕ → ℚ} (h: (a:Chapter5.Sequence).IsCauchy) :

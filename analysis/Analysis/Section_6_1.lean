@@ -544,7 +544,16 @@ example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).Convergent := by
 
 /-- Proposition 6.1.15 / Exercise 6.1.6 (Formal limits are genuine limits)-/
 theorem Sequence.lim_eq_LIM {a:ℕ → ℚ} (h: (a:Chapter5.Sequence).IsCauchy) :
-    ((a:Chapter5.Sequence):Sequence).TendsTo (Chapter5.Real.equivR (Chapter5.LIM a)) := by sorry
+    ((a:Chapter5.Sequence):Sequence).TendsTo (Chapter5.Real.equivR (Chapter5.LIM a)) := by
+  rw [Sequence.tendsTo_iff]
+  intro ε hε
+  by_contra h'
+  push_neg at h'
+  specialize h' 0
+  obtain ⟨ N, hN, h'' ⟩ := h'
+  simp [hN] at h''
+  sorry
+
 
 /-- Definition 6.1.16 -/
 abbrev Sequence.BoundedBy (a:Sequence) (M:ℝ) : Prop :=
@@ -561,18 +570,109 @@ abbrev Sequence.IsBounded (a:Sequence) : Prop := ∃ M ≥ 0, a.BoundedBy M
 lemma Sequence.isBounded_def (a:Sequence) :
   a.IsBounded ↔ ∃ M ≥ 0, a.BoundedBy M := by rfl
 
+-- finitie sequences are bounded
+abbrev BoundedBy {n:ℕ} (a: Fin n → ℝ) (M:ℝ) : Prop := ∀ i, |a i| ≤ M
+
+-- copy/pasted the proof 6.1.16
+lemma IsBounded.finite {n:ℕ} (a: Fin n → ℝ) : ∃ M ≥ 0, BoundedBy a M := by
+  -- this proof is written to follow the structure of the original text.
+  induction' n with n hn
+  . use 0; simp
+  set a' : Fin n → ℝ := fun m ↦ a m.castSucc
+  choose M hpos hM using hn a'
+  have h1 : BoundedBy a' (M + |a (Fin.ofNat _ n)|) := fun m ↦ (hM m).trans (by simp)
+  have h2 : |a (Fin.ofNat _ n)| ≤ M + |a (Fin.ofNat _ n)| := by simp [hpos]
+  refine ⟨ M + |a (Fin.ofNat _ n)|, by positivity, ?_ ⟩
+  intro m; obtain ⟨ j, rfl ⟩ | rfl := Fin.eq_castSucc_or_eq_last m
+  . grind
+  convert h2; simp
+
 theorem Sequence.bounded_of_cauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded := by
-  sorry
+  -- copy/pasted the proof 5.1, with minor modifications
+  rw [Sequence.isCauchy_def] at h
+  rw [Sequence.isBounded_def]
+  specialize h 1 (by norm_num)
+  simp [Real.eventuallySteady_def] at h
+  obtain ⟨N, hN, h⟩ := h
+  have := IsBounded.finite (n:= (N - a.m).toNat) (fun n ↦ a (a.m + n))
+  obtain ⟨M, hM, h'⟩ := this
+  use max M (|(a N)| + 1)
+  constructor
+  . exact le_sup_of_le_left hM
+  . rw [Sequence.boundedBy_def]
+    intro n
+    by_cases hn: n < N
+    . rw [Chapter6.BoundedBy] at h'
+      by_cases hnn : n ≥ a.m
+      .
+        simp only [le_sup_iff]
+        left
+        let n': Fin (N - a.m).toNat := ⟨(n - a.m).toNat, by omega⟩
+        specialize h' n'
+        unfold n' at h'
+        have : (n - a.m).toNat + a.m = n := by omega
+        rw [← this]
+        rw [add_comm]
+        exact h'
+      . simp only [le_sup_iff]
+        right
+        simp only [ge_iff_le, not_le] at hnn
+        rw [a.vanish n hnn]
+        simp only [abs_zero]
+        positivity
+    . simp at hn
+      rw [Real.steady_def] at h
+      simp at h
+      specialize h n (by linarith) hn N hN (by rfl)
+      rw [Real.dist_eq] at h
+      have hn': a.m ≤ n := by linarith
+      simp [hN, hn', hn] at h
+      have : |a.seq n| ≤ 1 + |a.seq N| := by
+        calc
+          |a.seq n| = |a.seq N - (a.seq N - a.seq n)| := by ring_nf
+          _ ≤ |a.seq N| + |a.seq N - a.seq n| := by exact abs_sub _ _
+          _ ≤ |a.seq N| + |a.seq n - a.seq N| := by rw [abs_sub_comm]
+          _ ≤ |a.seq N| + 1 := by linarith [h]
+          _ = 1 + |a.seq N| := by ring
+      rw [add_comm] at this
+      apply le_trans this
+      exact le_max_right _ _
+
 
 /-- Corollary 6.1.17 -/
 theorem Sequence.bounded_of_convergent {a:Sequence} (h: a.Convergent) : a.IsBounded := by
-  sorry
+  exact Sequence.bounded_of_cauchy (IsCauchy.convergent h)
 
 /-- Example 6.1.18 -/
-example : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).IsBounded := by sorry
+lemma ex3: ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).IsBounded := by
+  rw [Sequence.isBounded_def]
+  push_neg
+  intro M hM
+  rw [Sequence.boundedBy_def]
+  simp
+  let B := ⌊M⌋ + 1
+  have hB : 0 ≤ B := by positivity
+  use B
+  simp [hB]
+  rw [abs_of_nonneg (by positivity)]
+  norm_cast
+  suffices h : M < (B:ℝ) by
+    trans
+    . exact h
+    . push_cast
+      have : (B.toNat : ℝ) = (B : ℝ) := by
+        norm_cast
+        rw [Int.toNat_of_nonneg hB]
+      rw [this]
+      linarith
+  unfold B
+  simp only [Int.cast_add, Int.cast_one, Int.lt_floor_add_one]
 
 /-- Example 6.1.18 -/
-example : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).Convergent := by sorry
+example : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).Convergent := by
+  by_contra h
+  have := Sequence.bounded_of_convergent h
+  exact ex3 this
 
 instance Sequence.inst_add : Add Sequence where
   add a b := {
@@ -584,6 +684,9 @@ instance Sequence.inst_add : Add Sequence where
 @[simp]
 theorem Sequence.add_eval {a b: Sequence} (n:ℤ) : (a + b) n = a n + b n := rfl
 
+theorem Sequence.add_idx (a b:Sequence) (n:ℤ) :
+  (a + b) n = a n + b n := rfl
+
 theorem Sequence.add_coe (a b: ℕ → ℝ) : (a:Sequence) + (b:Sequence) = (fun n ↦ a n + b n) := by
   ext n; rfl
   by_cases h:n ≥ 0 <;> simp [h]
@@ -592,11 +695,40 @@ theorem Sequence.add_coe (a b: ℕ → ℝ) : (a:Sequence) + (b:Sequence) = (fun
     in applications. -/
 theorem Sequence.tendsTo_add {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :
   (a+b).TendsTo (L+M) := by
-  sorry
+  rw [Sequence.tendsTo_iff] at ha hb ⊢
+  intro ε hε
+  specialize ha (ε / 2) (by positivity)
+  specialize hb (ε / 2) (by positivity)
+  choose N₁ hN₁ using ha
+  choose N₂ hN₂ using hb
+  let N := max N₁ N₂
+  use N
+  intro n hn
+  specialize hN₁ n (by omega)
+  specialize hN₂ n (by omega)
+  calc
+    _ = |a n - L + (b n - M)| := by
+      congr
+      rw [add_idx a b n]
+      ring
+    _ ≤ |a n - L| + |b n - M| := by exact abs_add_le _ _
+    _ ≤ ε / 2 + ε / 2 := by linarith [hN₁, hN₂]
+    _ = ε := by ring
 
 theorem Sequence.lim_add {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
   (a + b).Convergent ∧ lim (a + b) = lim a + lim b := by
-  sorry
+  have ha2 := ha
+  have hb2 := hb
+  rw [Sequence.convergent_def] at ha hb ⊢
+  choose L ha' using ha
+  choose M hb' using hb
+  have := Sequence.tendsTo_add ha' hb'
+  constructor
+  . use L + M
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    have ⟨_, hLM⟩ := lim_eq.mp this
+    rw [hL, hM, hLM]
 
 instance Sequence.inst_mul : Mul Sequence where
   mul a b := {

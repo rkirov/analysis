@@ -748,7 +748,23 @@ theorem Sequence.mul_coe (a b: ℕ → ℝ) : (a:Sequence) * (b:Sequence) = (fun
     in applications. -/
 theorem Sequence.tendsTo_mul {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :
     (a * b).TendsTo (L * M) := by
-  sorry
+  have hba := Sequence.bounded_of_convergent ((Sequence.convergent_def a).mpr ⟨L, ha⟩)
+  rw [Sequence.isBounded_def] at hba
+  obtain ⟨ B, hBpos, hB ⟩ := hba
+
+  have hbb := Sequence.bounded_of_convergent ((Sequence.convergent_def b).mpr ⟨M, hb⟩)
+  rw [Sequence.isBounded_def] at hbb
+  obtain ⟨ C, hCpos, hC ⟩ := hbb
+
+  rw [Sequence.tendsTo_iff] at ha hb ⊢
+  intro ε hε
+  by_cases hL : L = 0
+  . subst L
+    specialize ha ε / BN hε
+    specialize hb ε hε
+    obtain ⟨ N₁, hN₁⟩ := ha
+
+
 
 theorem Sequence.lim_mul {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
     (a * b).Convergent ∧ lim (a * b) = lim a * lim b := by

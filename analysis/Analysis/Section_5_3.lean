@@ -290,10 +290,7 @@ theorem Sequence.IsCauchy.mul {a b:ℕ → ℚ}  (ha: (a:Sequence).IsCauchy) (hb
       suffices |a k| ≤ M1 by exact le_trans this (le_max_left _ _)
       exact haBound k
   apply (Section_4_3.close_mono . h'')
-  -- pass arguments explicitly to make it faster
-  exact Section_4_3.close_mul_mul'
-    (ε:= (ε / 2) / M) (δ:= (ε / 2) / M) (x:= a j) (y := a k)
-    (z := b j) (w := b k) h1 h2
+  exact Section_4_3.close_mul_mul' h1 h2
 
 /-- Proposition 5.3.10 (Product of equivalent sequences is equivalent) / Exercise 5.3.2 -/
 theorem Sequence.mul_equiv_left {a a':ℕ → ℚ} (b:ℕ → ℚ) (hb : (b:Sequence).IsCauchy) (haa': Equiv a a') :

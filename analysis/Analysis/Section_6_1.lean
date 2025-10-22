@@ -740,6 +740,9 @@ instance Sequence.inst_mul : Mul Sequence where
 @[simp]
 theorem Sequence.mul_eval {a b: Sequence} (n:ℤ) : (a * b) n = a n * b n := rfl
 
+theorem Sequence.mul_idx (a b:Sequence) (n:ℤ) :
+  (a * b) n = a n * b n := rfl
+
 theorem Sequence.mul_coe (a b: ℕ → ℝ) : (a:Sequence) * (b:Sequence) = (fun n ↦ a n * b n) := by
   ext n; rfl
   by_cases h:n ≥ 0 <;> simp [h]
@@ -751,25 +754,88 @@ theorem Sequence.tendsTo_mul {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.T
   have hba := Sequence.bounded_of_convergent ((Sequence.convergent_def a).mpr ⟨L, ha⟩)
   rw [Sequence.isBounded_def] at hba
   obtain ⟨ B, hBpos, hB ⟩ := hba
-
-  have hbb := Sequence.bounded_of_convergent ((Sequence.convergent_def b).mpr ⟨M, hb⟩)
-  rw [Sequence.isBounded_def] at hbb
-  obtain ⟨ C, hCpos, hC ⟩ := hbb
-
   rw [Sequence.tendsTo_iff] at ha hb ⊢
+  by_cases hBneg : B = 0
+  . subst B
+    rw [Sequence.boundedBy_def] at hB
+    have : ∀ n, a n = 0 := by
+      intro n
+      specialize hB n
+      simp at hB
+      exact hB
+    simp [this] at ha
+    have : L = 0 := by
+      by_contra hL
+      have : |L| > 0 := by positivity
+      specialize ha (|L| / 2) (by positivity)
+      obtain ⟨ N, hN ⟩ := ha
+      specialize hN N (by linarith)
+      linarith
+    subst L
+    have : ∀ n, (a * b) n = 0 := by
+      intro n
+      specialize this n
+      rw [mul_idx]
+      simp [this]
+    intro ε hε
+    use 0
+    intro n hn
+    specialize this n
+    simp [this]
+    exact hε.le
   intro ε hε
-  by_cases hL : L = 0
-  . subst L
-    specialize ha ε / BN hε
-    specialize hb ε hε
-    obtain ⟨ N₁, hN₁⟩ := ha
-
-
+  specialize ha (ε / (2 * (1 + |M|))) (by positivity)
+  specialize hb (ε / (2 * B)) (by positivity)
+  obtain ⟨ N₁, hN₁ ⟩ := ha
+  obtain ⟨ N₂, hN₂ ⟩ := hb
+  let N := max N₁ N₂
+  use N
+  intro n hn
+  specialize hN₁ n (by omega)
+  specialize hN₂ n (by omega)
+  calc
+    _ = |a n * b n - L * M| := by rw [mul_idx]
+    _ = |a n * b n - a n * M + (a n * M - L * M)| := by ring_nf
+    _ ≤ |a n * b n - a n * M| + |a n * M - L * M| := by exact abs_add _ _
+    _ = |a n * (b n - M)| + |M * (a n - L)| := by
+      congr
+      . ring_nf
+      . ring_nf
+    _ ≤ |a n| * |b n - M| + |M| * |a n - L| := by
+      rw [abs_mul, abs_mul]
+    _ ≤ B * (ε / (2 * B)) + |M| * (ε / (2 * (1 + |M|))) := by
+      gcongr
+      exact hB n
+    _ = ε / 2 + |M| * (ε / (2 * (1 + |M|))) := by
+      suffices B * (ε / (2 * B)) = ε / 2 by rw [this]
+      field_simp [hBneg]
+      ring
+    _ ≤ ε / 2 + ε / 2 := by
+      gcongr
+      field_simp [hBneg]
+      calc
+        _ ≤ (|M| + 1) * (ε / (2 * (1 + |M|))) := by
+          rw [show |M| * ε / (2 * (1 + |M|)) = |M| * (ε / (2 * (1 + |M|))) by ring]
+          apply mul_le_mul_of_nonneg_right
+          . linarith
+          . positivity
+        _ = ε / 2 := by field_simp [hBneg]; ring
+    _ = ε := by ring
 
 theorem Sequence.lim_mul {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
     (a * b).Convergent ∧ lim (a * b) = lim a * lim b := by
-  sorry
-
+  have ha2 := ha
+  have hb2 := hb
+  rw [Sequence.convergent_def] at ha hb ⊢
+  choose L ha' using ha
+  choose M hb' using hb
+  have := Sequence.tendsTo_mul ha' hb'
+  constructor
+  . use L * M
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    have ⟨_, hLM⟩ := lim_eq.mp this
+    rw [hL, hM, hLM]
 
 instance Sequence.inst_smul : SMul ℝ Sequence where
   smul c a := {

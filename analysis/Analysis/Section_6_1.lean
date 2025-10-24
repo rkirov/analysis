@@ -547,13 +547,17 @@ theorem Sequence.lim_eq_LIM {a:ℕ → ℚ} (h: (a:Chapter5.Sequence).IsCauchy) 
     ((a:Chapter5.Sequence):Sequence).TendsTo (Chapter5.Real.equivR (Chapter5.LIM a)) := by
   rw [Sequence.tendsTo_iff]
   intro ε hε
-  by_contra h'
-  push_neg at h'
-  specialize h' 0
-  obtain ⟨ N, hN, h'' ⟩ := h'
-  simp [hN] at h''
+  rw [Chapter5.Sequence.IsCauchy.coe] at h
+  obtain ⟨ε', hε', hε''⟩ := exists_pos_rat_lt hε
+  specialize h ε' hε'
+  obtain ⟨ M, hM ⟩ := h
+  use M
+  intro n hn
+  specialize hM n.toNat (by omega)
+  have : 0 ≤ n := by omega
+  lift n to ℕ using this
+  simp
   sorry
-
 
 /-- Definition 6.1.16 -/
 abbrev Sequence.BoundedBy (a:Sequence) (M:ℝ) : Prop :=
@@ -685,13 +689,14 @@ instance Sequence.inst_add : Add Sequence where
       rw [add_zero]
   }
 
+@[simp]
 theorem Sequence.add_idx (a b:Sequence) (n:ℤ) :
   (a + b) n = a n + b n := by rfl
 
 theorem Sequence.add_coe (a b: ℕ → ℝ) : (a:Sequence) + (b:Sequence) = (fun n ↦ a n + b n) := by
   ext n; rfl
   simp
-  split_ifs with h <;> rw [add_idx] <;> simp [h]
+  split_ifs with h <;> simp
 
 /-- Theorem 6.1.19(a) (limit laws).  The `tendsTo` version is more usable than the `lim` version
     in applications. -/
@@ -744,13 +749,14 @@ instance Sequence.inst_mul : Mul Sequence where
       rw [mul_zero]
   }
 
+@[simp]
 theorem Sequence.mul_idx (a b:Sequence) (n:ℤ) :
   (a * b) n = a n * b n := by rfl
 
 theorem Sequence.mul_coe (a b: ℕ → ℝ) : (a:Sequence) * (b:Sequence) = (fun n ↦ a n * b n) := by
   ext n; rfl
   simp
-  split_ifs with h <;> rw [mul_idx] <;> simp [h]
+  grind
 
 /-- Theorem 6.1.19(b) (limit laws).  The `tendsTo` version is more usable than the `lim` version
     in applications. -/
@@ -853,22 +859,60 @@ theorem Sequence.smul_coe (c:ℝ) (a:ℕ → ℝ) : (c • (a:Sequence)) = (fun 
   ext n; rfl
   by_cases h:n ≥ 0 <;> simp [h, HSMul.hSMul, SMul.smul]
 
+@[simp]
+theorem Sequence.smul_idx (c:ℝ) (a:Sequence) (n:ℤ) :
+  (c • a) n = c * a n := by rfl
+
 /-- Theorem 6.1.19(c) (limit laws).  The `tendsTo` version is more usable than the `lim` version
     in applications. -/
 theorem Sequence.tendsTo_smul (c:ℝ) {a:Sequence} {L:ℝ} (ha: a.TendsTo L) :
     (c • a).TendsTo (c * L) := by
-  sorry
+
+  rw [Sequence.tendsTo_iff] at ha ⊢
+  intro ε hε
+  by_cases h:c = 0
+  . subst c
+    simp at ha ⊢
+    use 0
+    intro n hn
+    exact hε.le
+  specialize ha (ε / |c|) (by positivity)
+  obtain ⟨ N, hN ⟩ := ha
+  use N
+  intro n hn
+  specialize hN n (by omega)
+  calc
+    _ = |c * a n - c * L| := by simp
+    _ = |c| * |a n - L| := by rw [show c * a n - c * L = c * (a n - L) by ring, abs_mul]
+    _ ≤ |c| * (ε / |c|) := by gcongr
+    _ = ε := by field_simp
 
 theorem Sequence.lim_smul (c:ℝ) {a:Sequence} (ha: a.Convergent) :
     (c • a).Convergent ∧ lim (c • a) = c * lim a := by
-  sorry
+  rw [Sequence.convergent_def] at ha ⊢
+  obtain ⟨ L, ha' ⟩ := ha
+  constructor
+  . use c * L
+    exact tendsTo_smul c ha'
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hCL⟩ := lim_eq.mp (tendsTo_smul c ha')
+    grind only
 
 instance Sequence.inst_sub : Sub Sequence where
   sub a b := {
-    m := max a.m b.m
-    seq n := if n ≥ max a.m b.m then a n - b n else 0
-    vanish := by grind
+    m := min a.m b.m
+    seq n := a n - b n
+    vanish := by
+      intro n hn
+      rw [lt_iff_not_ge] at hn
+      simp at hn
+      rw [a.vanish n hn.1, b.vanish n hn.2]
+      rw [sub_zero]
   }
+
+@[simp]
+theorem Sequence.sub_idx (a b:Sequence) (n:ℤ) :
+  (a - b) n = a n - b n := by rfl
 
 theorem Sequence.sub_coe (a b: ℕ → ℝ) : (a:Sequence) - (b:Sequence) = (fun n ↦ a n - b n) := by
   ext n; rfl
@@ -878,11 +922,32 @@ theorem Sequence.sub_coe (a b: ℕ → ℝ) : (a:Sequence) - (b:Sequence) = (fun
     in applications. -/
 theorem Sequence.tendsTo_sub {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :
     (a - b).TendsTo (L - M) := by
-  sorry
+  rw [show (a - b) = a + ((-1: ℝ) • b) by
+    ext n
+    . rw [HSub.hSub, inst_sub, instHSub, Sub.sub, HSMul.hSMul, instHSMul, SMul.smul, inst_smul]
+      rw [HAdd.hAdd, inst_add, instHAdd, Add.add]
+    . simp
+      exact rfl
+  ]
+  apply Sequence.tendsTo_add ha
+  convert Sequence.tendsTo_smul (-1:ℝ) hb
+  ext x
+  simp only [neg_mul, one_mul]
 
 theorem Sequence.LIM_sub {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
     (a - b).Convergent ∧ lim (a - b) = lim a - lim b := by
-  sorry
+  have ha2 := ha
+  have hb2 := hb
+  rw [Sequence.convergent_def] at ha hb ⊢
+  choose L ha' using ha
+  choose M hb' using hb
+  have := Sequence.tendsTo_sub ha' hb'
+  constructor
+  . use L - M
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    have ⟨_, hLM⟩ := lim_eq.mp this
+    rw [hL, hM, hLM]
 
 noncomputable instance Sequence.inst_inv : Inv Sequence where
   inv a := {
@@ -890,6 +955,10 @@ noncomputable instance Sequence.inst_inv : Inv Sequence where
     seq n := (a n)⁻¹
     vanish n hn := by simp [a.vanish n hn]
   }
+
+@[simp]
+theorem Sequence.inv_idx (a:Sequence) (n:ℤ) :
+  (a⁻¹) n = (a n)⁻¹ := by rfl
 
 theorem Sequence.inv_coe (a: ℕ → ℝ) : (a:Sequence)⁻¹ = (fun n ↦ (a n)⁻¹) := by
   ext n; rfl
@@ -902,20 +971,30 @@ theorem Sequence.tendsTo_inv {a:Sequence} {L:ℝ} (ha: a.TendsTo L) (hnon: L ≠
     (a⁻¹).TendsTo (L⁻¹) := by
   sorry
 
+
 theorem Sequence.lim_inv {a:Sequence} (ha: a.Convergent) (hnon: lim a ≠ 0) :
   (a⁻¹).Convergent ∧ lim (a⁻¹) = (lim a)⁻¹ := by
   sorry
 
 noncomputable instance Sequence.inst_div : Div Sequence where
   div a b := {
-    m := max a.m b.m
-    seq n := if n ≥ max a.m b.m then a n / b n else 0
-    vanish := by grind
+    m := min a.m b.m
+    seq n := a n / b n
+    vanish := by
+      intro n hn
+      rw [lt_iff_not_ge] at hn
+      simp at hn
+      rw [a.vanish n hn.1, b.vanish n hn.2]
+      rw [zero_div]
   }
+
+@[simp]
+theorem Sequence.div_idx (a b:Sequence) (n:ℤ) :
+  (a / b) n = a n / b n := by rfl
 
 theorem Sequence.div_coe (a b: ℕ → ℝ) : (a:Sequence) / (b:Sequence) = (fun n ↦ a n / b n) := by
   ext n; rfl
-  by_cases h:n ≥ 0 <;> simp [h, HDiv.hDiv, Div.div]
+  by_cases h:n ≥ 0 <;> simp [h]
 
 /-- Theorem 6.1.19(f) (limit laws).  The `tendsTo` version is more usable than the `lim` version
     in applications. -/
@@ -925,18 +1004,41 @@ theorem Sequence.tendsTo_div {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.T
 
 theorem Sequence.lim_div {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) (hnon: lim b ≠ 0) :
   (a / b).Convergent ∧ lim (a / b) = lim a / lim b := by
-  sorry
+  have ha2 := ha
+  have hb2 := hb
+  rw [Sequence.convergent_def] at ha hb ⊢
+  choose L ha' using ha
+  choose M hb' using hb
+  have : M ≠ 0 := by
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    grind only
+  have := Sequence.tendsTo_div ha' hb' this
+  constructor
+  . use L / M
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    have ⟨_, hLM⟩ := lim_eq.mp this
+    rw [hL, hM, hLM]
 
 instance Sequence.inst_max : Max Sequence where
   max a b := {
-    m := max a.m b.m
-    seq n := if n ≥ max a.m b.m then max (a n) (b n) else 0
-    vanish := by grind
+    m := min a.m b.m
+    seq n := max (a n) (b n)
+    vanish := by
+      intro n hn
+      rw [lt_iff_not_ge] at hn
+      simp at hn
+      rw [a.vanish n hn.1, b.vanish n hn.2]
+      norm_num
   }
+
+@[simp]
+theorem Sequence.max_idx (a b:Sequence) (n:ℤ) :
+  (a ⊔ b) n = a n ⊔ b n := by rfl
 
 theorem Sequence.max_coe (a b: ℕ → ℝ) : (a:Sequence) ⊔ (b:Sequence) = (fun n ↦ max (a n) (b n)) := by
   ext n; rfl
-  by_cases h:n ≥ 0 <;> simp [h, Max.max]
+  by_cases h:n ≥ 0 <;> simp [h]
 
 /-- Theorem 6.1.19(g) (limit laws).  The `tendsTo` version is more usable than the `lim` version
     in applications. -/
@@ -950,14 +1052,23 @@ theorem Sequence.lim_max {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
 
 instance Sequence.inst_min : Min Sequence where
   min a b := {
-    m := max a.m b.m
-    seq n := if n ≥ max a.m b.m then min (a n) (b n) else 0
-    vanish := by grind
+    m := min a.m b.m
+    seq n := min (a n) (b n)
+    vanish := by
+      intro n hn
+      rw [lt_iff_not_ge] at hn
+      simp at hn
+      rw [a.vanish n hn.1, b.vanish n hn.2]
+      norm_num
   }
+
+@[simp]
+theorem Sequence.min_idx (a b:Sequence) (n:ℤ) :
+  (a ⊓ b) n = a n ⊓ b n := by rfl
 
 theorem Sequence.min_coe (a b: ℕ → ℝ) : (a:Sequence) ⊓ (b:Sequence) = (fun n ↦ min (a n) (b n)) := by
   ext n; rfl
-  by_cases h:n ≥ 0 <;> simp [h, Min.min]
+  by_cases h:n ≥ 0 <;> simp [h]
 
 /-- Theorem 6.1.19(h) (limit laws) -/
 theorem Sequence.tendsTo_min {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :

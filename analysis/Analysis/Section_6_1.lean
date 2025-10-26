@@ -957,12 +957,72 @@ theorem Sequence.inv_coe (a: ℕ → ℝ) : (a:Sequence)⁻¹ = (fun n ↦ (a n)
     in applications. -/
 theorem Sequence.tendsTo_inv {a:Sequence} {L:ℝ} (ha: a.TendsTo L) (hnon: L ≠ 0) :
     (a⁻¹).TendsTo (L⁻¹) := by
-  sorry
-
+  rw [Sequence.tendsTo_iff] at ha ⊢
+  have hLpos : |L| > 0 := by positivity
+  have hB := ha ( |L| / 2 ) (by positivity)
+  obtain ⟨ N₁, hN₁ ⟩ := hB
+  intro ε hε
+  specialize ha (ε * |L|^2 / 2) (by positivity)
+  obtain ⟨ N₂, hN₂ ⟩ := ha
+  let N := max N₁ N₂
+  use N
+  intro n hn
+  have hanon: 0 < |a n| := by
+    specialize hN₁ n (by omega)
+    have : |L| / 2 ≤ |a n| := by
+      calc
+        _ = |L| - |L| / 2 := by ring
+        _ ≤ |L| - |a n - L| := by linarith
+        _ ≤ |a n| := by
+          calc
+            _ ≤ |L - (L - a n )| := by
+              rw [abs_sub_comm]
+              exact abs_sub_abs_le_abs_sub _ _
+            _ = |a n| := by ring_nf
+    linarith
+  have hanon': a n ≠ 0 := by
+    intro h
+    simp [h] at hanon
+  calc
+    _ = |(a n)⁻¹ - L⁻¹| := by rw [inv_idx]
+    _ = |L - a n| / (|a n| * |L|) := by
+      rw [← abs_mul, ← abs_div]
+      congr
+      field_simp [hnon, hanon]
+    _ ≤ |L - a n| / (|L| / 2 * |L|) := by
+      gcongr
+      specialize hN₁ n (by omega)
+      calc
+        _ = |L| - |L| / 2 := by ring
+        _ ≤ |L| - |a n - L| := by gcongr
+        _ ≤ |L - (L - a n)| := by
+          rw [abs_sub_comm]
+          exact abs_sub_abs_le_abs_sub L (L - a.seq n)
+        _ = |a n| := by ring_nf
+    _ = 2 * |L - a n| / (|L|^2) := by
+      field_simp [hnon]
+      ring
+    _ ≤ _ := by
+      specialize hN₂ n (by omega)
+      rw [abs_sub_comm]
+      calc
+        _ ≤ 2 * (ε * |L|^2 / 2) / |L|^2 := by gcongr
+        _ = ε := by field_simp [hnon]
 
 theorem Sequence.lim_inv {a:Sequence} (ha: a.Convergent) (hnon: lim a ≠ 0) :
   (a⁻¹).Convergent ∧ lim (a⁻¹) = (lim a)⁻¹ := by
-  sorry
+  rw [Sequence.convergent_def] at ha ⊢
+  obtain ⟨ L, ha' ⟩ := ha
+  have hL : L ≠ 0 := by
+    have ⟨_, hL⟩ := lim_eq.mp ha'
+    rw [← hL]
+    exact hnon
+  have := Sequence.tendsTo_inv ha' hL
+  constructor
+  · use L⁻¹
+  · have ⟨_, hL'⟩ := lim_eq.mp ha'
+    have ⟨_, hLinv⟩ := lim_eq.mp this
+    rw [hL', hLinv]
 
 noncomputable instance Sequence.inst_div : Div Sequence where
   div a b := {
@@ -982,7 +1042,9 @@ theorem Sequence.div_coe (a b: ℕ → ℝ) : (a:Sequence) / (b:Sequence) = (fun
     in applications. -/
 theorem Sequence.tendsTo_div {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) (hnon: M ≠ 0) :
     (a / b).TendsTo (L / M) := by
-  sorry
+  rw [show a / b = a * (b⁻¹) by rfl]
+  apply Sequence.tendsTo_mul ha
+  exact Sequence.tendsTo_inv hb hnon
 
 theorem Sequence.lim_div {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) (hnon: lim b ≠ 0) :
   (a / b).Convergent ∧ lim (a / b) = lim a / lim b := by
@@ -1020,11 +1082,71 @@ theorem Sequence.max_coe (a b: ℕ → ℝ) : (a:Sequence) ⊔ (b:Sequence) = (f
     in applications. -/
 theorem Sequence.tendsTo_max {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :
     (max a b).TendsTo (max L M) := by
-  sorry
+  wlog h: L ≥ M generalizing L M a b ha hb
+  · specialize this hb ha
+    simp at h
+    specialize this h.le
+    have h: max a b = max b a := by
+      ext n
+      · exact min_comm a.m b.m
+      · exact max_comm (a.seq n) (b.seq n)
+    rw [max_comm L M, h]
+    exact this
+  rw [Sequence.tendsTo_iff] at ha hb ⊢
+  intro ε hε
+  by_cases hLM : L = M
+  · subst hLM; simp only [max_self]
+    obtain ⟨N₁, hN₁⟩ := ha ε (by positivity)
+    obtain ⟨N₂, hN₂⟩ := hb ε (by positivity)
+    use max N₁ N₂; intro n hn; simp only [max_idx]
+    by_cases hab : a n ≥ b n
+    · simp [hab]; linarith [hN₁ n (by omega)]
+    · simp at hab; simp [hab.le]; linarith [hN₂ n (by omega)]
+  · have hLgt : L > M := by grind only
+    set δ := min ε ((L - M) / 2)
+    have hδ_pos : δ > 0 := by
+      have : L - M > 0 := by linarith
+      positivity
+    obtain ⟨N₁, hN₁⟩ := ha δ hδ_pos
+    obtain ⟨N₂, hN₂⟩ := hb δ hδ_pos
+    use max N₁ N₂; intro n hn
+    have ha' := hN₁ n (by omega)
+    have hb' := hN₂ n (by omega)
+    have hab : a n ≥ b n := by
+      have ha_lb : a n ≥ L - δ := by
+        rcases le_or_gt (a n) L with h | h
+        · calc a n = L - (L - a n) := by ring
+               _ ≥ L - |a n - L| := by linarith [le_abs_self (L - a n), abs_sub_comm L (a n)]
+               _ ≥ L - δ := by linarith
+        · linarith [abs_nonneg (a n - L)]
+      have hb_ub : b n ≤ M + δ := by
+        rcases le_or_gt M (b n) with h | h
+        · linarith [le_abs_self (b n - M)]
+        · linarith [abs_nonneg (b n - M)]
+      calc a n ≥ L - δ := ha_lb
+           _ ≥ (L + M) / 2 := by linarith [min_le_right ε ((L - M) / 2)]
+           _ ≥ M + δ := by linarith [min_le_right ε ((L - M) / 2)]
+           _ ≥ b n := hb_ub
+    simp only [max_idx]
+    calc
+      _ = |a n - L| := by simp [hab, h]
+      _ ≤ δ := ha'
+      _ ≤ ε := min_le_left _ _
 
 theorem Sequence.lim_max {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
     (max a b).Convergent ∧ lim (max a b) = max (lim a) (lim b) := by
-  sorry
+  have ha2 := ha
+  have hb2 := hb
+  rw [Sequence.convergent_def] at ha hb ⊢
+  choose L ha' using ha
+  choose M hb' using hb
+  have := Sequence.tendsTo_max ha' hb'
+  constructor
+  . use max L M
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    have ⟨_, hLM⟩ := lim_eq.mp this
+    rw [hL, hM, hLM]
 
 instance Sequence.inst_min : Min Sequence where
   min a b := {
@@ -1043,11 +1165,42 @@ theorem Sequence.min_coe (a b: ℕ → ℝ) : (a:Sequence) ⊓ (b:Sequence) = (f
 /-- Theorem 6.1.19(h) (limit laws) -/
 theorem Sequence.tendsTo_min {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :
     (min a b).TendsTo (min L M) := by
-  sorry
+  rw [show min a b = (-1:ℝ) •(max ((-1:ℝ) • a)) ((-1:ℝ) • b) by
+    ext n
+    . rfl
+    . simp
+      by_cases h: a n ≤ b n
+      . simp [h]
+      . simp at h; simp [h.le]
+  ]
+  apply Sequence.tendsTo_smul (-1:ℝ) at ha
+  apply Sequence.tendsTo_smul (-1:ℝ) at hb
+  have := Sequence.tendsTo_max ha hb
+  apply Sequence.tendsTo_smul (-1:ℝ) at this
+  suffices h: min L M = -1 * (max (-1 * L) (-1 * M)) by
+    rw [h]
+    exact this
+  simp only [neg_mul, one_mul]
+  -- should be a theorem in mathlib but I can't find it
+  by_cases hLM : L ≤ M
+  . simp [hLM]
+  . simp at hLM
+    simp [hLM.le]
 
 theorem Sequence.lim_min {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
     (min a b).Convergent ∧ lim (min a b) = min (lim a) (lim b) := by
-  sorry
+  have ha2 := ha
+  have hb2 := hb
+  rw [Sequence.convergent_def] at ha hb ⊢
+  choose L ha' using ha
+  choose M hb' using hb
+  have := Sequence.tendsTo_min ha' hb'
+  constructor
+  . use min L M
+  . have ⟨_, hL⟩ := lim_eq.mp ha'
+    have ⟨_, hM⟩ := lim_eq.mp hb'
+    have ⟨_, hLM⟩ := lim_eq.mp this
+    rw [hL, hM, hLM]
 
 /-- Exercise 6.1.1 -/
 theorem Sequence.mono_if {a: ℕ → ℝ} (ha: ∀ n, a (n+1) > a n) {n m:ℕ} (hnm: m > n) : a m > a n := by

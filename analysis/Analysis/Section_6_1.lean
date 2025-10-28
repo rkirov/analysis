@@ -1204,7 +1204,13 @@ theorem Sequence.lim_min {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
 
 /-- Exercise 6.1.1 -/
 theorem Sequence.mono_if {a: ℕ → ℝ} (ha: ∀ n, a (n+1) > a n) {n m:ℕ} (hnm: m > n) : a m > a n := by
-  sorry
+  induction m, hnm using Nat.le_induction with
+  | base =>
+    specialize ha n
+    exact ha
+  | succ m' ih hnm' =>
+    specialize ha m'
+    linarith
 
 /-- Exercise 6.1.3 -/
 theorem Sequence.tendsTo_of_from {a: Sequence} {c:ℝ} (m:ℤ) :

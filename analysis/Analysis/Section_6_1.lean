@@ -1215,7 +1215,30 @@ theorem Sequence.mono_if {a: ℕ → ℝ} (ha: ∀ n, a (n+1) > a n) {n m:ℕ} (
 /-- Exercise 6.1.3 -/
 theorem Sequence.tendsTo_of_from {a: Sequence} {c:ℝ} (m:ℤ) :
     a.TendsTo c ↔ (a.from m).TendsTo c := by
-  sorry
+  repeat rw [Sequence.tendsTo_iff]
+  constructor
+  . intro ha ε hε
+    specialize ha ε hε
+    obtain ⟨ N, hN ⟩ := ha
+    use max (max N m) a.m
+    intro n hn
+    specialize hN n (by omega)
+    simp
+    have : m ≤ n := by grind
+    have hnm : n ≥ a.m := by grind
+    simp [this, hnm]
+    exact hN
+  . intro ha ε hε
+    specialize ha ε hε
+    obtain ⟨ N, hN ⟩ := ha
+    use max (max N (a.m.toNat)) (m.toNat)
+    intro n hn
+    specialize hN n (by omega)
+    simp at hN
+    have : m ≤ n := by grind
+    have hnm : n ≥ a.m := by grind
+    simp [this, hnm] at hN
+    exact hN
 
 /-- Exercise 6.1.4 -/
 theorem Sequence.tendsTo_of_shift {a: Sequence} {c:ℝ} (k:ℕ) :

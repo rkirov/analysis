@@ -1396,16 +1396,19 @@ theorem Sequence.lim_div_fail :
         rw [← heq] at this
         exact this h
 
+end Chapter6
+
 -- additional definitions for exercise 6.1.10
-abbrev _root_.Real.SeqCloseSeq (ε: ℝ) (a b: Chapter5.Sequence) : Prop :=
+abbrev Real.SeqCloseSeq (ε: ℝ) (a b: Chapter5.Sequence) : Prop :=
   ∀ n, n ≥ a.n₀ → n ≥ b.n₀ → ε.Close (a n) (b n)
 
-abbrev _root_.Real.SeqEventuallyClose (ε: ℝ) (a b: Chapter5.Sequence): Prop :=
+abbrev Real.SeqEventuallyClose (ε: ℝ) (a b: Chapter5.Sequence): Prop :=
   ∃ N, ε.SeqCloseSeq (a.from N) (b.from N)
 
 abbrev Chapter5.Sequence.RatEquiv (a b: ℕ → ℚ) : Prop :=
   ∀ (ε:ℝ), ε > 0 → ε.SeqEventuallyClose  (a:Chapter5.Sequence) (b:Chapter5.Sequence)
 
+namespace Chapter6
 theorem Chapter5.Sequence.equiv_rat (a b: ℕ → ℚ) :
     Chapter5.Sequence.Equiv a b ↔ Chapter5.Sequence.RatEquiv a b := by
   constructor

@@ -1231,7 +1231,7 @@ theorem Sequence.tendsTo_of_from {a: Sequence} {c:ℝ} (m:ℤ) :
   . intro ha ε hε
     specialize ha ε hε
     obtain ⟨ N, hN ⟩ := ha
-    use max (max N (a.m.toNat)) (m.toNat)
+    use max (max N a.m) m
     intro n hn
     specialize hN n (by omega)
     simp at hN
@@ -1243,12 +1243,61 @@ theorem Sequence.tendsTo_of_from {a: Sequence} {c:ℝ} (m:ℤ) :
 /-- Exercise 6.1.4 -/
 theorem Sequence.tendsTo_of_shift {a: Sequence} {c:ℝ} (k:ℕ) :
     a.TendsTo c ↔ (Sequence.mk' a.m (fun n : {n // n ≥ a.m} ↦ a (n+k))).TendsTo c := by
-  sorry
+  constructor
+  . intro ha
+    rw [Sequence.tendsTo_iff] at ha ⊢
+    intro ε hε
+    specialize ha ε hε
+    obtain ⟨ N, hN ⟩ := ha
+    use max (N + k) a.m
+    intro n hn
+    specialize hN (n + k) (by omega)
+    have : a.m ≤ n := by exact le_of_max_le_right hn
+    simp [this]
+    exact hN
+  . intro ha
+    rw [Sequence.tendsTo_iff] at ha ⊢
+    intro ε hε
+    specialize ha ε hε
+    obtain ⟨ N, hN ⟩ := ha
+    use (max N a.m + k)
+    intro n hn
+    specialize hN (n - k) (by omega)
+    have : a.m ≤ n - k := by grind
+    simp [this] at hN
+    exact hN
 
 /-- Exercise 6.1.7 -/
 theorem Sequence.isBounded_of_rat (a: Chapter5.Sequence) :
     a.IsBounded ↔ (a:Sequence).IsBounded := by
-  sorry
+  rw [Chapter5.Sequence.isBounded_def]
+  rw [Sequence.isBounded_def]
+  constructor
+  . intro h
+    obtain ⟨ B, hBpos, hB ⟩ := h
+    use B
+    constructor
+    . exact_mod_cast hBpos
+    . rw [Sequence.boundedBy_def]
+      rw [Chapter5.Sequence.boundedBy_def] at hB
+      intro n
+      specialize hB n
+      simp only
+      exact_mod_cast hB
+  . intro h
+    obtain ⟨ B, hBpos, hB ⟩ := h
+    obtain ⟨ B', hB' ⟩ := exists_nat_gt B
+    use B'
+    constructor
+    . linarith
+    . rw [Chapter5.Sequence.boundedBy_def]
+      rw [Sequence.boundedBy_def] at hB
+      intro n
+      specialize hB n
+      simp only at hB
+      have : |(a n : ℝ)| < B' := by
+        linarith
+      exact_mod_cast this.le
 
 /-- Exercise 6.1.9 -/
 theorem Sequence.lim_div_fail :
@@ -1256,7 +1305,60 @@ theorem Sequence.lim_div_fail :
     ∧ b.Convergent
     ∧ lim b = 0
     ∧ ¬ ((a / b).Convergent ∧ lim (a / b) = lim a / lim b) := by
-  sorry
+  use fun (n:ℕ) ↦ (1:ℝ)
+  use fun (n:ℕ)  ↦ (1:ℝ) / (n + 1)
+  constructor
+  . use 1
+    rw [Sequence.tendsTo_iff]
+    intro ε hε
+    use 0
+    intro n hn
+    simp [hn]
+    exact hε.le
+  . constructor
+    . have := Sequence.lim_harmonic.1
+      simp only [one_div]
+      exact this
+    . constructor
+      . have := Sequence.lim_harmonic.2
+        simp only [one_div]
+        exact this
+      . push_neg
+        intro h
+        exfalso
+        have : ¬ (fun (n:ℕ) ↦ (n + 1 : ℝ) : Sequence).Convergent := by
+          rw [Sequence.convergent_def]
+          intro h'
+          obtain ⟨ L, hL ⟩ := h'
+          specialize hL 1 (by positivity)
+          obtain ⟨ N, hNm, hN ⟩ := hL
+          obtain ⟨L', hL'⟩ := exists_nat_gt L
+          rw [Real.closeSeq_def] at hN
+          simp [Real.dist_eq] at hN
+          let M := (max 0 (max N (L' + 1)))
+          have hM1 : N ≤ M := by grind
+          have hM2 : 0 ≤ M := by grind
+          have hM3 : L' + 1 ≤ M := by grind
+          specialize hN M hM2 hM1
+          simp [hM1, hM2] at hN
+          have : (M.toNat : ℝ) = (M : ℝ) := by
+            norm_cast
+            rw [Int.toNat_of_nonneg hM2]
+          rw [this] at hN
+          have hM1' : M + 1 - L' ≥ 2 := by linarith
+          have : M + 1 - L ≥ 2 := by
+            calc M + 1 - L ≥ M + 1 - (L':ℝ) := by linarith [hL']
+                 _ ≥ 2 := by exact_mod_cast hM1'
+          have : M + 1 - L > 0 := by positivity
+          rw [abs_of_pos this] at hN
+          linarith
+        have heq : ((fun (n:ℕ) ↦ (1:ℝ)):Sequence) / ((fun (n:ℕ) ↦ (1:ℝ) / (n + 1)):Sequence) = ((fun (n:ℕ) ↦ (n + 1:ℝ)):Sequence) := by
+          rw [div_coe]
+          congr
+          funext n
+          field_simp
+        rw [← heq] at this
+        exact this h
 
 theorem Chapter5.Sequence.IsCauchy_iff (a:Chapter5.Sequence) :
     a.IsCauchy ↔ ∀ ε > (0:ℝ), ∃ N ≥ a.n₀, ∀ n ≥ N, ∀ m ≥ N, |a n - a m| ≤ ε := by
@@ -1278,5 +1380,48 @@ namespace Chapter6
 /-- Exercise 6.1.10 -/
 theorem Chapter5.Sequence.equiv_rat (a b: ℕ → ℚ) :
   Chapter5.Sequence.Equiv a b ↔ Chapter5.Sequence.RatEquiv a b := by sorry
+-- additional definitions for exercise 6.1.10
+abbrev _root_.Real.SeqCloseSeq (ε: ℝ) (a b: Chapter5.Sequence) : Prop :=
+  ∀ n, n ≥ a.n₀ → n ≥ b.n₀ → ε.Close (a n) (b n)
+
+abbrev _root_.Real.SeqEventuallyClose (ε: ℝ) (a b: Chapter5.Sequence): Prop :=
+  ∃ N, ε.SeqCloseSeq (a.from N) (b.from N)
+
+abbrev Chapter5.Sequence.RatEquiv (a b: ℕ → ℚ) : Prop :=
+  ∀ (ε:ℝ), ε > 0 → ε.SeqEventuallyClose  (a:Chapter5.Sequence) (b:Chapter5.Sequence)
+
+theorem Chapter5.Sequence.equiv_rat (a b: ℕ → ℚ) :
+    Chapter5.Sequence.Equiv a b ↔ Chapter5.Sequence.RatEquiv a b := by
+  constructor
+  . intro h ε hε
+    simp [Real.SeqEventuallyClose]
+    rw [Chapter5.Sequence.equiv_def] at h
+    choose ε' hε' hlt using exists_pos_rat_lt hε
+    specialize h ε' hε'
+    obtain ⟨ N, hN ⟩ := h
+    use N
+    rw [Real.SeqCloseSeq]
+    rw [Chapter5.Rat.closeSeq_def] at hN
+    intro n hn₁ hn₂
+    specialize hN n hn₁ hn₂
+    rw [Real.close_def, Real.dist_eq]
+    rw [Rat.Close] at hN
+    suffices |(((a : Chapter5.Sequence).from N).seq n : ℝ) - (((b : Chapter5.Sequence).from N).seq n : ℝ)| ≤ ε' by
+      linarith
+    exact_mod_cast hN
+  . intro h ε hε
+    specialize h ε (by positivity)
+    rw [Real.SeqEventuallyClose] at h
+    obtain ⟨ N, hN ⟩ := h
+    rw [Rat.EventuallyClose]
+    use N
+    rw [Chapter5.Rat.closeSeq_def]
+    rw [Real.SeqCloseSeq] at hN
+    intro n hn₁ hn₂
+    specialize hN n hn₁ hn₂
+    rw [Real.close_def, Real.dist_eq] at hN
+    rw [Rat.Close]
+    push_cast at hN
+    exact_mod_cast hN
 
 end Chapter6

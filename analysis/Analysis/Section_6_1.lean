@@ -495,7 +495,7 @@ theorem Sequence.IsCauchy.convergent {a:Sequence} (h:a.Convergent) : a.IsCauchy 
     simp at hn hm
     simp [hn, hm] at h1 h2
     calc
-      _ = |a.seq n - L + (L - a.seq m)| := by ring
+      _ = |a.seq n - L + (L - a.seq m)| := by ring_nf
       _ ≤ |a.seq n - L| + |L - a.seq m| := by exact abs_add_le _ _
       _ = |a.seq n - L| + |a.seq m - L| := by simp; rw [abs_sub_comm]
       _ ≤ ε / 2 + ε / 2 := by linarith
@@ -543,21 +543,27 @@ example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).Convergent := by
   exact Sequence.IsCauchy.convergent this
 
 /-- Proposition 6.1.15 / Exercise 6.1.6 (Formal limits are genuine limits)-/
-theorem Sequence.lim_eq_LIM {a:ℕ → ℚ} (h: (a:Chapter5.Sequence).IsCauchy) :
+theorem Sequence.lim_eq_LIM {a:ℕ → ℚ} (ha: (a:Chapter5.Sequence).IsCauchy) :
     ((a:Chapter5.Sequence):Sequence).TendsTo (Chapter5.Real.equivR (Chapter5.LIM a)) := by
   rw [Sequence.tendsTo_iff]
   intro ε hε
-  rw [Chapter5.Sequence.IsCauchy.coe] at h
   obtain ⟨ε', hε', hε''⟩ := exists_pos_rat_lt hε
-  specialize h ε' hε'
-  obtain ⟨ M, hM ⟩ := h
-  use M
+  have ha' := ha
+  rw [Chapter5.Sequence.IsCauchy.coe] at ha'
+  specialize ha' ε' hε'
+  obtain ⟨ M, hM ⟩ := ha'
+  have hca := Chapter5.Sequence.IsCauchy_CauSeq a ha
+  rw [Chapter5.Real.equivR_LIM a ha]
+  have hlim := CauSeq.equiv_lim (⟨fun n ↦ ↑(a n), hca⟩ : CauSeq ℝ abs)
+  specialize hlim (ε' : ℝ) (by exact_mod_cast hε')
+  obtain ⟨N, hN⟩ := hlim
+  use max M N
   intro n hn
-  specialize hM n.toNat (by omega)
   have : 0 ≤ n := by omega
   lift n to ℕ using this
   simp
-  sorry
+  specialize hN n (by omega : n ≥ N)
+  exact hN.le.trans hε''.le
 
 /-- Definition 6.1.16 -/
 abbrev Sequence.BoundedBy (a:Sequence) (M:ℝ) : Prop :=

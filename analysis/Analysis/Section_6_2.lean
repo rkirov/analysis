@@ -242,7 +242,7 @@ theorem EReal.inf_of_infty_mem {E: Set EReal} : sInf E = sInf (E \ {⊤}) := by
   exact Eq.symm (sInf_diff_singleton_top E)
 
 /-- Example 6.2.7 -/
-abbrev Example_6_2_7 : Set EReal := { x | ∃ n:ℕ, x = -((n+1):Real)} ∪ {⊥}
+abbrev Example_6_2_7 : Set EReal := { x | ∃ n:ℕ, x = -((n+1):EReal)} ∪ {⊥}
 
 abbrev Example_6_2_7' : Set ℝ := { x | ∃ n:ℕ, x = -((n+1):ℝ)}
 
@@ -305,10 +305,12 @@ example : sSup Example_6_2_7 = -1 := by
 
 example : sInf Example_6_2_7 = ⊥ := by
   rw [EReal.inf_eq_neg_sup]
-  sorry
+  rw [show (⊥:EReal) = - ⊤ by rfl]
+  simp only [Set.involutiveNeg, Set.union_singleton, Set.neg_insert, neg_bot, sSup_insert, le_top,
+    sup_of_le_left, neg_top]
 
 /-- Example 6.2.8 -/
-abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):Real)}
+abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):EReal)}
 
 example : sInf Example_6_2_8 = (0.9:ℝ) := by sorry
 
@@ -325,7 +327,18 @@ example : sInf (∅ : Set EReal) = ⊤ := by
   rw [inf_eq_neg_sup]
   simp only [Set.neg_empty, sSup_empty, neg_bot]
 
-example (E: Set EReal) : sSup E < sInf E ↔ E = ∅ := by sorry
+example (E: Set EReal) : sSup E < sInf E ↔ E = ∅ := by
+  constructor
+  . intro h
+    by_contra hnon
+    obtain ⟨ x, hx ⟩ := Set.nonempty_iff_ne_empty.mpr hnon
+    have h1: x ≤ sSup E := by exact CompleteLattice.le_sSup E x hx
+    have h2: sInf E ≤ x := by exact CompleteSemilatticeInf.sInf_le E x hx
+    have : sInf E ≤ sSup E := by exact h2.trans h1
+    exact not_lt.mpr this h
+  . intro h
+    subst h
+    simp
 
 /-- Theorem 6.2.11 (a) / Exercise 6.2.2 -/
 theorem EReal.mem_le_sup (E: Set EReal) {x:EReal} (hx: x ∈ E) : x ≤ sSup E := by

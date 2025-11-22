@@ -246,9 +246,6 @@ abbrev Example_6_2_7 : Set EReal := { x | ∃ n:ℕ, x = -((n+1):EReal)} ∪ {�
 
 abbrev Example_6_2_7' : Set ℝ := { x | ∃ n:ℕ, x = -((n+1):ℝ)}
 
-theorem Example_6_2_7'_sup : sSup Example_6_2_7' = -1 := by
-  sorry
-
 theorem Example_6_2_7'_bounded : BddAbove Example_6_2_7' := by
   use 0
   intro x hx
@@ -259,6 +256,16 @@ theorem Example_6_2_7'_bounded : BddAbove Example_6_2_7' := by
 theorem Example_6_2_7'_nonempty : Example_6_2_7'.Nonempty := by
   use -1
   simp
+
+theorem Example_6_2_7'_sup : sSup Example_6_2_7' = -1 := by
+  apply le_antisymm
+  . apply csSup_le Example_6_2_7'_nonempty
+    intro x hx
+    obtain ⟨ n, rfl ⟩ := hx
+    linarith
+  . apply le_csSup Example_6_2_7'_bounded
+    use 0
+    simp
 
 theorem Example_6_2_7_eq : Example_6_2_7 \ {⊥} = (fun (x:Real) ↦ (x:EReal)) '' Example_6_2_7' := by
   ext x
@@ -312,16 +319,59 @@ example : sInf Example_6_2_7 = ⊥ := by
 /-- Example 6.2.8 -/
 abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):EReal)}
 
-example : sInf Example_6_2_8 = (0.9:ℝ) := by sorry
+example : sInf Example_6_2_8 = (0.9:ℝ) := by
+  sorry
 
-example : sSup Example_6_2_8 = 1 := by sorry
+example : sSup Example_6_2_8 = 1 := by
+  sorry
 
 /-- Example 6.2.9 -/
 abbrev Example_6_2_9 : Set EReal := { x | ∃ n:ℕ, x = n+1}
 
-example : sInf Example_6_2_9 = 1 := by sorry
+example : sInf Example_6_2_9 = 1 := by
+  apply le_antisymm
+  . apply csInf_le
+    . use 1
+      intro x hx
+      obtain ⟨n, rfl⟩ := hx
+      have : (0:ℝ) ≤ n := Nat.cast_nonneg n
+      norm_cast
+      linarith
+    use 0
+    norm_cast
+  . apply le_csInf
+    . use 1
+      use 0
+      norm_cast
+    intro x hx
+    obtain ⟨n, rfl⟩ := hx
+    have : (0:ℝ) ≤ n := Nat.cast_nonneg n
+    norm_cast
+    linarith
 
-example : sSup Example_6_2_9 = ⊤ := by sorry
+example : sSup Example_6_2_9 = ⊤ := by
+  rw [sSup_eq_top]
+  intro b hb
+  obtain ⟨ y, rfl ⟩ | rfl | rfl := EReal.def b
+  . simp at hb
+    obtain ⟨ n, hn ⟩ := hb
+    unfold Example_6_2_9
+    obtain ⟨ m, hm ⟩ := exists_nat_gt y
+    use m + 1
+    constructor
+    . use m
+    . norm_cast
+      suffices y < (m:ℝ) + 1 by
+        have hmnorm : ((m + 1:ℕ) : ℝ) = (m:ℝ) + 1 := by exact Nat.cast_add_one m
+        rwa [hmnorm]
+      linarith
+  . simp at hb
+  . unfold Example_6_2_9
+    use 1
+    constructor
+    . use 0
+      simp
+    . norm_cast
 
 example : sInf (∅ : Set EReal) = ⊤ := by
   rw [inf_eq_neg_sup]

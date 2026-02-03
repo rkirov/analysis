@@ -109,15 +109,13 @@ lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
     n.toNat ^ m.toNat = (n^m).toNat := by
   induction m with
   | zero =>
-    change n.toNat ^ 0 = n ^ 0
-    simp [pow_zero]
+    simp
   | succ m ih =>
     simp [pow_succ]
-    rw [← ih]
     rw [pow_add]
-    simp
-    congr
-    apply equivNat.left_inv
+    simp only [_root_.pow_one]
+    rw [ih]
+    rw [map_mul]
 
 /-- The Peano axioms for an abstract type `Nat` -/
 @[ext]

@@ -990,7 +990,7 @@ theorem Sequence.tendsTo_inv {a:Sequence} {L:ℝ} (ha: a.TendsTo L) (hnon: L ≠
     intro h
     simp [h] at hanon
   calc
-    _ = |(a n)⁻¹ - L⁻¹| := by rw [inv_idx]
+    _ = |(a n)⁻¹ - L⁻¹| := by rw [inv_eval]
     _ = |L - a n| / (|a n| * |L|) := by
       rw [← abs_mul, ← abs_div]
       congr
@@ -1104,7 +1104,7 @@ theorem Sequence.tendsTo_max {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.T
   · subst hLM; simp only [max_self]
     obtain ⟨N₁, hN₁⟩ := ha ε (by positivity)
     obtain ⟨N₂, hN₂⟩ := hb ε (by positivity)
-    use max N₁ N₂; intro n hn; simp only [max_idx]
+    use max N₁ N₂; intro n hn; simp only [max_eval]
     by_cases hab : a n ≥ b n
     · simp [hab]; linarith [hN₁ n (by omega)]
     · simp at hab; simp [hab.le]; linarith [hN₂ n (by omega)]
@@ -1133,7 +1133,7 @@ theorem Sequence.tendsTo_max {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.T
            _ ≥ (L + M) / 2 := by linarith [min_le_right ε ((L - M) / 2)]
            _ ≥ M + δ := by linarith [min_le_right ε ((L - M) / 2)]
            _ ≥ b n := hb_ub
-    simp only [max_idx]
+    simp only [max_eval]
     calc
       _ = |a n - L| := by simp [hab, h]
       _ ≤ δ := ha'
@@ -1384,19 +1384,6 @@ abbrev Chapter5.Sequence.RatEquiv (a b: ℕ → ℚ) : Prop :=
 
 namespace Chapter6
 /-- Exercise 6.1.10 -/
-theorem Chapter5.Sequence.equiv_rat (a b: ℕ → ℚ) :
-  Chapter5.Sequence.Equiv a b ↔ Chapter5.Sequence.RatEquiv a b := by sorry
--- additional definitions for exercise 6.1.10
-abbrev Real.SeqCloseSeq (ε: ℝ) (a b: Chapter5.Sequence) : Prop :=
-  ∀ n, n ≥ a.n₀ → n ≥ b.n₀ → ε.Close (a n) (b n)
-
-abbrev Real.SeqEventuallyClose (ε: ℝ) (a b: Chapter5.Sequence): Prop :=
-  ∃ N, ε.SeqCloseSeq (a.from N) (b.from N)
-
-abbrev Chapter5.Sequence.RatEquiv (a b: ℕ → ℚ) : Prop :=
-  ∀ (ε:ℝ), ε > 0 → ε.SeqEventuallyClose  (a:Chapter5.Sequence) (b:Chapter5.Sequence)
-
-namespace Chapter6
 theorem Chapter5.Sequence.equiv_rat (a b: ℕ → ℚ) :
     Chapter5.Sequence.Equiv a b ↔ Chapter5.Sequence.RatEquiv a b := by
   constructor

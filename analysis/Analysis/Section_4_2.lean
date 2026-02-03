@@ -575,7 +575,7 @@ example : (3/4) / (5/6) = 9 / 10 := by omega
 example : (3/4) / (5/6) = 18 / 20 := by omega
 
 /-- Definition of subtraction -/
-theorem Rat.sub_eq (a b:Rat) : a - b = a + (-b) := by rfl
+theorem Rat.sub_eq' (a b:Rat) : a - b = a + (-b) := by rfl
 
 def Rat.coe_int_hom : ℤ →+* Rat where
   toFun n := (n:Rat)

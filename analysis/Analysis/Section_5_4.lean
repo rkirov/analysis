@@ -582,7 +582,7 @@ theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z :
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
 theorem Real.mul_lt_mul_right {x y z:Real} (hxy: x < y) (hz: z.IsPos) : x * z < y * z := by
-  rw [antisymm, gt_iff] at hxy ⊢; convert pos_mul hxy hz using 1; ring
+  rw [antisymm] at hxy ⊢; convert pos_mul hxy hz using 1; ring
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
 theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by

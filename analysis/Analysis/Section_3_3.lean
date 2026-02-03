@@ -657,15 +657,6 @@ def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g 
     have neO : (0:Nat) ≠ 1 := by simp
     contradiction
 
-def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
-    (g ○ f).one_to_one), g.one_to_one) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
-def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hsurj :
-    (g ○ f).onto), f.onto) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
 
 
 /-- Exercise 3.3.6 -/

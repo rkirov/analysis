@@ -537,20 +537,20 @@ noncomputable def SetTheory.Set.card (X:Set) : ℕ := if h:X.finite then h.choos
 theorem SetTheory.Set.has_card_card {X:Set} (hX: X.finite) : X.has_card (SetTheory.Set.card X) := by
   simp [card, hX, hX.choose_spec]
 
-theorem SetTheory.Set.has_card_to_card (X:Set) (n: ℕ): X.has_card n → X.card = n := by
+theorem SetTheory.Set.has_card_to_card {X:Set} {n: ℕ}: X.has_card n → X.card = n := by
   intro h; have hf : X.finite := ⟨ n, h ⟩
   simp [card, hf, card_uniq hf.choose_spec h]
 
-theorem SetTheory.Set.card_to_has_card (X:Set) {n: ℕ} (hn: n ≠ 0): X.card = n → X.has_card n := by
+theorem SetTheory.Set.card_to_has_card {X:Set} {n: ℕ} (hn: n ≠ 0): X.card = n → X.has_card n := by
   rintro rfl; apply has_card_card
   contrapose! hn; simp [card, hn]
 
-theorem SetTheory.Set.card_to_has_card_fin (X:Set) {n: ℕ} (hfin: X.finite): X.card = n → X.has_card n := by
+theorem SetTheory.Set.card_to_has_card_fin {X:Set} {n: ℕ} (hfin: X.finite): X.card = n → X.has_card n := by
   rintro rfl
   exact has_card_card hfin
 
 theorem SetTheory.Set.Fin_card (n:ℕ) : (Fin n).card = n := by
-  exact has_card_to_card _ _ (card_fin_eq n)
+  exact has_card_to_card (card_fin_eq n)
 
 theorem SetTheory.Set.Fin_finite (n:ℕ) : (Fin n).finite := by
   exact ⟨n, card_fin_eq n⟩
@@ -564,7 +564,7 @@ theorem SetTheory.Set.EquivCard_to_has_card_eq {X Y:Set} {n: ℕ} (h: X ≈ Y): 
 theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.card := by
   by_cases hX: X.finite <;> by_cases hY: Y.finite <;> try rw [finite] at hX hY
   . choose nX hXn using hX; choose nY hYn using hY
-    simp [has_card_to_card _ _ hXn, has_card_to_card _ _ hYn, EquivCard_to_has_card_eq h] at *
+    simp [has_card_to_card hXn, has_card_to_card hYn, EquivCard_to_has_card_eq h] at *
     solve_by_elim [card_uniq]
   . choose nX hXn using hX; rw [EquivCard_to_has_card_eq h] at hXn; tauto
   . choose nY hYn using hY; rw [←EquivCard_to_has_card_eq h] at hYn; tauto
@@ -585,7 +585,7 @@ theorem SetTheory.Set.empty_iff_card_eq_zero {X:Set} : X = ∅ ↔ X.finite ∧ 
       rw [has_card_zero]
   . rintro ⟨hfin, hcard⟩
     rw [← has_card_zero]
-    exact card_to_has_card_fin X hfin hcard
+    exact card_to_has_card_fin hfin hcard
 
 lemma SetTheory.Set.empty_of_card_eq_zero {X:Set} (hX : X.finite) : X.card = 0 → X = ∅ := by
   intro h
@@ -617,7 +617,7 @@ theorem SetTheory.Set.card_zero {X:Set}: X = ∅ → X.card = 0 := by
 theorem SetTheory.Set.card_singleton (x:Object) : ({x}:Set).card = 1 := by
   rw [card]
   have hX := Example_3_6_7a x
-  exact has_card_to_card _ _ hX
+  exact has_card_to_card hX
 
 theorem SetTheory.Set.singleton_finite (x:Object) : ({x}:Set).finite := by
   use 1
@@ -786,8 +786,8 @@ theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
       . exact hn.1
       . apply hn.2.trans
         simp only [add_le_add_iff_right]
-        have h1 := has_card_to_card _ _ hX
-        have h2 := has_card_to_card _ _ hX'
+        have h1 := has_card_to_card hX
+        have h2 := has_card_to_card hX'
         rw [h1, h2]
         exact Nat.le_add_right _ _
     . have hneq : x ∉ (X' ∪ Y) := by aesop
@@ -834,8 +834,8 @@ theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
             simp only [add_le_add_iff_right]
             exact hn.2
           _ = X.card + Y.card := by
-            have h1 := has_card_to_card _ _ hX
-            have h2 := has_card_to_card _ _ hX'
+            have h1 := has_card_to_card hX
+            have h2 := has_card_to_card hX'
             rw [h1, h2]
             omega
           _ ≤ X.card + Y.card := by exact Nat.le_refl (X.card + Y.card)
@@ -933,8 +933,8 @@ theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite
           rw [card]
           simp only [h0, ↓reduceDIte]
         rw [this] at hn
-        have hXc := has_card_to_card _ _ hX'
-        have hYc := has_card_to_card _ _ hY
+        have hXc := has_card_to_card hX'
+        have hYc := has_card_to_card hY
         rw [hXc, hYc] at hn
         symm at hn
         rw [Nat.add_eq_zero] at hn
@@ -962,8 +962,8 @@ theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite
           simp only [Nat.add_right_cancel_iff]
           exact hn
         _ = X.card + Y.card := by
-          have h1 := has_card_to_card _ _ hX
-          have h2 := has_card_to_card _ _ hX'
+          have h1 := has_card_to_card hX
+          have h2 := has_card_to_card hX'
           rw [h1, h2]
           omega
 
@@ -1130,9 +1130,9 @@ theorem SetTheory.Set.card_subset {X Y:Set} (hX: X.finite) (hY: Y ⊆ X) :
     use g
   constructor
   . use m
-  . have card_eq' := has_card_to_card _ _ card_eq
+  . have card_eq' := has_card_to_card card_eq
     rw [card_eq']
-    have h1 := has_card_to_card _ _ hX'
+    have h1 := has_card_to_card hX'
     rw [h1]
     exact hm
 
@@ -1251,8 +1251,8 @@ theorem SetTheory.Set.card_image {X Y:Set} (hX: X.finite) (f: X → Y) :
   have hIm : (image f X).has_card m := by
     rw [has_card_iff]
     use g'
-  have h1 := has_card_to_card _ _ hX'
-  have h2 := has_card_to_card _ _ hIm
+  have h1 := has_card_to_card hX'
+  have h2 := has_card_to_card hIm
   constructor
   . exact Exists.intro m hIm
   . rw [h1, h2]
@@ -1308,8 +1308,8 @@ theorem SetTheory.Set.card_image_inj {X Y:Set} (hX: X.finite) {f: X → Y}
     rw [has_card_iff]
     use e'.symm
     exact e'.symm.bijective
-  have h1 := has_card_to_card _ _ hX'
-  have h2 := has_card_to_card _ _ this
+  have h1 := has_card_to_card hX'
+  have h2 := has_card_to_card this
   rw [h1, h2]
 
 
@@ -1434,9 +1434,9 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
   constructor
   . rw [finite]
     use n * m
-  . have h1 := has_card_to_card _ _ hX'
-    have h2 := has_card_to_card _ _ hY'
-    have h' := has_card_to_card _ _ hmn
+  . have h1 := has_card_to_card hX'
+    have h2 := has_card_to_card hY'
+    have h' := has_card_to_card hmn
     rw [h1, h2, h']
 
 
@@ -1482,6 +1482,18 @@ lemma div_lemma {a b c d n: ℕ} (hb: b < n) (hd: d < n)
     . rfl
   . subst n
     contradiction
+
+noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B → A) where
+  toFun := sorry
+  invFun := sorry
+  left_inv := sorry
+  right_inv := sorry
+
+lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ pow_fun_equiv x = pow_fun_equiv y := by
+  rw [←pow_fun_equiv.apply_eq_iff_eq]
+
+noncomputable abbrev SetTheory.Set.pow_fun_equiv' (A B : Set) : ↑(A ^ B) ≃ (B → A) :=
+  pow_fun_equiv (A:=A) (B:=B)
 
 open Classical in
 /-- Proposition 3.6.14 (f) / Exercise 3.6.4 -/
@@ -1756,9 +1768,9 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hX: X.finite) (hY: Y.finite) :
   constructor
   . rw [finite]
     use n ^ m
-  . have h1 := has_card_to_card _ _ hX'
-    have h2 := has_card_to_card _ _ hY'
-    have h' := has_card_to_card _ _ hnm
+  . have h1 := has_card_to_card hX'
+    have h2 := has_card_to_card hY'
+    have h' := has_card_to_card hnm
     rw [h1, h2, h']
 
 /-- Exercise 3.6.2 -/
@@ -2171,8 +2183,8 @@ theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.fini
     rw [finite] at hB
     obtain ⟨n, hA⟩ := hA
     obtain ⟨m, hB⟩ := hB
-    have hA' := has_card_to_card _ _ hA
-    have hB' := has_card_to_card _ _ hB
+    have hA' := has_card_to_card hA
+    have hB' := has_card_to_card hB
     simp [hA', hB'] at h
     rw [has_card_iff] at hA hB
     obtain ⟨fA, hfA⟩ := hA
@@ -2492,7 +2504,7 @@ theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective 
     have him_finite : S.finite := by
       rw [finite]
       use 2
-      exact card_to_has_card _ (by omega) hcard
+      exact card_to_has_card (by omega) hcard
     rw [card_image_inj him_finite hf']
     exact hcard
   . intro h
@@ -3149,7 +3161,7 @@ theorem SetTheory.Set.card_eq_nat_card {X:Set} : X.card = Nat.card X := by
       rw [← this]
       simp only [Fintype.card_fin]
     rw [this]
-    exact has_card_to_card _ _ hX'
+    exact has_card_to_card hX'
   . have : X.card = 0 := by dsimp [card]; simp [h]
     rw [finite] at h
     rw [this]

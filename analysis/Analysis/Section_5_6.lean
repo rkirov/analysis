@@ -919,7 +919,7 @@ theorem Real.ratPow_eq_pow {x:Real} (hx: x > 0) (n:ℤ) : x^(n:ℚ) = x^n := by
   rwa [root_one hx] at this
 
 /-- Lemma 5.6.9(a) / Exercise 5.6.2 -/
-theorem Real.ratPow_nonneg {x:Real} (hx: x > 0) (q:ℚ) : x^q > 0 := by
+theorem Real.ratPow_pos {x:Real} (hx: x > 0) (q:ℚ) : x^q > 0 := by
   obtain ⟨a, b, hb, rfl⟩ := Rat.eq_quot q
   rw [ratPow_def hx a hb]
   exact Real.zpow_pos a ((Real.root_pos hx.le hb).mpr hx)
@@ -990,7 +990,7 @@ theorem Real.ratPow_ratPow {x:Real} (hx: x > 0) (q r:ℚ) : (x^q)^r = x^(q*r) :=
 
 /-- Lemma 5.6.9(c) / Exercise 5.6.2 -/
 theorem Real.ratPow_neg {x:Real} (hx: x > 0) (q:ℚ) : x^(-q) = 1 / x^q := by
-  have : x^q > 0 := by exact Real.ratPow_nonneg hx q
+  have : x^q > 0 := by exact Real.ratPow_pos hx q
   field_simp [this]
   rw [<- ratPow_add hx]
   simp only [neg_add_cancel]
@@ -1156,7 +1156,7 @@ theorem Real.inv_ratPow {x: Real} (hx: x > 0) (q: ℚ) : 1 / x ^ q = (1 / x) ^ q
     rw [← ratPow_neg hx]
     rw [show -q = (-1) * q by ring]
     rw [← ratPow_ratPow hx]
-    rw [ratPow_inj (by exact ratPow_nonneg hx (-1)) (by positivity) hq]
+    rw [ratPow_inj (by exact ratPow_pos hx (-1)) (by positivity) hq]
     rw [ratPow_neg hx]
     rw [ratPow_one hx]
 

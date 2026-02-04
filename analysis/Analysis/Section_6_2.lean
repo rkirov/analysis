@@ -317,7 +317,7 @@ example : sInf Example_6_2_7 = ⊥ := by
     sup_of_le_left, neg_top]
 
 /-- Example 6.2.8 -/
-abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):EReal)}
+abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):Real)}
 
 example : sInf Example_6_2_8 = (0.9:ℝ) := by
   sorry

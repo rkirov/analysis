@@ -597,13 +597,13 @@ theorem Function.comp_injective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
   rw [comp_eval] at this
   simp_all only [ne_eq, not_false_eq_true, eval_of, not_true_eq_false, imp_false]
 
-theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
-  (hinj : (g ○ f).onto) : g.onto := by
-  rw [onto] at hinj
+theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hsurj :
+    (g ○ f).onto) : g.onto := by
+  rw [onto] at hsurj
   rw [onto]
   intro z
-  specialize hinj z
-  obtain ⟨ y, hy ⟩ := hinj
+  specialize hsurj z
+  obtain ⟨ y, hy ⟩ := hsurj
   rw [comp_eval] at hy
   use f y
 
@@ -630,7 +630,7 @@ def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g :
       exact neO h
 
 
-def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
+def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hsurj :
     (g ○ f).onto), f.onto) := by
   apply isFalse
   push_neg

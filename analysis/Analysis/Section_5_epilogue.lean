@@ -826,7 +826,7 @@ theorem Real.pow_of_equivR_inv {x:Real} {n:ℕ} (hx: x > 0) (hn: n ≠ 0): equiv
   symm
   rw [root_inv (by exact (pos_of_equivR x).mp hx) (by
     apply (pos_of_equivR _).mp
-    exact Real.ratPow_nonneg hx _
+    exact Real.ratPow_pos hx _
   ) hn]
   rw [← Real.pow_of_equivR]
   congr

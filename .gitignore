@@ -15,7 +15,6 @@ _site/
 # AI assistant files
 .claude/
 .cursor/
-Claude.md
 analysis/.repair
 **/.env
 **/.aider.conf.yml

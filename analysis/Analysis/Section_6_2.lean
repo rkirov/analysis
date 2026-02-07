@@ -320,10 +320,53 @@ example : sInf Example_6_2_7 = ⊥ := by
 abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):Real)}
 
 example : sInf Example_6_2_8 = (0.9:ℝ) := by
-  sorry
+  apply le_antisymm
+  · -- sInf ≤ 0.9: the element at n=0 is 0.9
+    exact sInf_le (show ((0.9:ℝ):EReal) ∈ Example_6_2_8 from ⟨0, by norm_num⟩)
+  · -- 0.9 ≤ sInf: 0.9 is a lower bound (minimum of the set)
+    apply le_sInf
+    intro x hx
+    obtain ⟨n, rfl⟩ := hx
+    -- 0.9 ≤ 1 - 10^(-n-1) because 10^(-n-1) ≤ 10^(-1) = 0.1
+    exact_mod_cast show (0.9:ℝ) ≤ 1 - (10:ℝ)^(-(n:ℤ)-1) by
+      have : (10:ℝ)^(-(n:ℤ)-1) ≤ (10:ℝ)^(-1:ℤ) := by
+        gcongr
+        · norm_num
+        · omega
+      norm_num at this
+      linarith
 
 example : sSup Example_6_2_8 = 1 := by
-  sorry
+  apply le_antisymm
+  · -- sSup ≤ 1: every element < 1 since 10^(-n-1) > 0
+    apply sSup_le
+    intro x hx
+    obtain ⟨n, rfl⟩ := hx
+    exact_mod_cast show 1 - (10:ℝ)^(-(n:ℤ)-1) ≤ (1:ℝ) by
+      linarith [zpow_pos (show (0:ℝ) < 10 by norm_num) (-(n:ℤ)-1)]
+  · -- 1 ≤ sSup: if sSup < 1, find an element above sSup
+    by_contra hlt; push_neg at hlt
+    -- sSup ≥ 0.9 (an element), so sSup is a finite real
+    have hge : ((0.9:ℝ):EReal) ≤ sSup Example_6_2_8 :=
+      le_sSup (show ((0.9:ℝ):EReal) ∈ Example_6_2_8 from ⟨0, by norm_num⟩)
+    obtain ⟨m, hm⟩ | htop | hbot := EReal.def (sSup Example_6_2_8)
+    · -- sSup = ↑m with m < 1
+      rw [← hm] at hlt hge
+      norm_cast at hlt hge
+      -- Find k with (10⁻¹)^k < 1 - m, then the k-th element exceeds m
+      obtain ⟨k, hk⟩ := exists_pow_lt_of_lt_one (show 0 < 1 - m by linarith) (show (10:ℝ)⁻¹ < 1 by norm_num)
+      have hconv : (10:ℝ)^(-(k:ℤ)-1) = (10⁻¹)^(k+1) := by
+        rw [show -(k:ℤ)-1 = -(↑(k+1) : ℤ) from by omega, zpow_neg, zpow_natCast, inv_pow]
+      have helem : (10:ℝ)^(-(k:ℤ)-1) < 1 - m := calc
+        (10:ℝ)^(-(k:ℤ)-1) = (10⁻¹)^(k+1) := hconv
+        _ ≤ (10⁻¹)^k := pow_le_pow_of_le_one (by positivity) (by norm_num) (by omega)
+        _ < 1 - m := hk
+      have hmem : (↑(1 - (10:ℝ)^(-(k:ℤ)-1)) : EReal) ∈ Example_6_2_8 := ⟨k, rfl⟩
+      have hle : (↑(1 - (10:ℝ)^(-(k:ℤ)-1)) : EReal) ≤ ↑m := by rw [hm]; exact le_sSup hmem
+      simp only [EReal.coe_le_coe_iff] at hle
+      linarith
+    · rw [htop] at hlt; simp at hlt
+    · rw [hbot] at hge; exact absurd hge (not_le_of_gt (bot_lt_coe _))
 
 /-- Example 6.2.9 -/
 abbrev Example_6_2_9 : Set EReal := { x | ∃ n:ℕ, x = n+1}
@@ -390,18 +433,76 @@ example (E: Set EReal) : sSup E < sInf E ↔ E = ∅ := by
     subst h
     simp
 
+-- Helper: when ⊤ ∉ E, the non-⊥ part of E is the image of a real-valued set
+private theorem EReal.diff_bot_eq_image (E: Set EReal) (htop: ⊤ ∉ E) :
+    E \ {⊥} = (fun y:ℝ => (y:EReal)) '' { y : ℝ | (y:EReal) ∈ E } := by
+  ext z
+  simp only [Set.mem_diff, Set.mem_singleton_iff, Set.mem_image, Set.mem_setOf_eq]
+  constructor
+  . intro ⟨hz, hbot⟩
+    obtain ⟨y, rfl⟩ | rfl | rfl := EReal.def z
+    . exact ⟨y, hz, rfl⟩
+    . exact absurd hz htop
+    . exact absurd rfl hbot
+  . rintro ⟨y, hy, rfl⟩
+    exact ⟨hy, real_neq_neg_infty y⟩
+
 /-- Theorem 6.2.11 (a) / Exercise 6.2.2 -/
 theorem EReal.mem_le_sup (E: Set EReal) {x:EReal} (hx: x ∈ E) : x ≤ sSup E := by
-  sorry
+  obtain ⟨ r, rfl ⟩ | rfl | rfl := EReal.def x
+  . -- x is a real number r
+    by_cases htop : ⊤ ∈ E
+    . rw [sup_of_infty_mem htop]; exact le_top
+    . rw [sup_of_neg_infty_mem, diff_bot_eq_image E htop]
+      set E' := { y : ℝ | (y:EReal) ∈ E }
+      have hr : r ∈ E' := hx
+      by_cases hbdd : BddAbove E'
+      . rw [sup_of_bounded_nonempty hbdd ⟨r, hr⟩]
+        exact_mod_cast le_csSup hbdd hr
+      . rw [sup_of_unbounded_nonempty hbdd ⟨r, hr⟩]
+        exact le_top
+  . -- x = ⊤
+    rw [sup_of_infty_mem hx]
+  . -- x = ⊥
+    exact bot_le
 
 /-- Theorem 6.2.11 (a) / Exercise 6.2.2 -/
-theorem EReal.mem_ge_inf (E: Set EReal) {x:EReal} (hx: x ∈ E) : sInf E ≤ x := by sorry
+theorem EReal.mem_ge_inf (E: Set EReal) {x:EReal} (hx: x ∈ E) : sInf E ≤ x := by
+  rw [inf_eq_neg_sup]
+  have h1 : -x ∈ -E := Set.neg_mem_neg.mpr hx
+  have h2 : -x ≤ sSup (-E) := mem_le_sup (-E) h1
+  exact le_of_le_of_eq (neg_of_lt h2) (neg_neg x)
 
 /-- Theorem 6.2.11 (b) / Exercise 6.2.2 -/
-theorem EReal.sup_le_upper (E: Set EReal) {M:EReal} (hM: M ∈ upperBounds E) : sSup E ≤ M := by sorry
+theorem EReal.sup_le_upper (E: Set EReal) {M:EReal} (hM: M ∈ upperBounds E) : sSup E ≤ M := by
+  obtain ⟨ m, rfl ⟩ | rfl | rfl := EReal.def M
+  . -- M = (m : ℝ), so ⊤ ∉ E
+    have htop : ⊤ ∉ E := fun h => absurd (hM h) (not_le.mpr (coe_lt_top m))
+    rw [sup_of_neg_infty_mem, diff_bot_eq_image E htop]
+    set E' := { y : ℝ | (y:EReal) ∈ E }
+    by_cases hne : E'.Nonempty
+    . have hbdd : BddAbove E' := ⟨m, fun y hy => by exact_mod_cast hM hy⟩
+      rw [sup_of_bounded_nonempty hbdd hne]
+      exact_mod_cast csSup_le hne (fun y hy => by exact_mod_cast hM hy)
+    . rw [Set.image_eq_empty.mpr (Set.not_nonempty_iff_eq_empty.mp hne), sup_of_empty]
+      exact bot_le
+  . -- M = ⊤
+    exact le_top
+  . -- M = ⊥, so E ⊆ {⊥}
+    rw [sup_of_neg_infty_mem]
+    have : E \ {⊥} = ∅ := by
+      ext x; simp only [Set.mem_diff, Set.mem_singleton_iff, Set.mem_empty_iff_false, iff_false]
+      intro ⟨hx, hbot⟩; exact hbot (le_bot_iff.mp (hM hx))
+    rw [this, sup_of_empty]
 
 /-- Theorem 6.2.11 (c) / Exercise 6.2.2 -/
-theorem EReal.inf_ge_upper (E: Set EReal) {M:EReal} (hM: M ∈ lowerBounds E) : sInf E ≥ M := by sorry
+theorem EReal.inf_ge_upper (E: Set EReal) {M:EReal} (hM: M ∈ lowerBounds E) : sInf E ≥ M := by
+  rw [inf_eq_neg_sup]
+  have hM' : -M ∈ upperBounds (-E) := by
+    intro y hy
+    have hy' : -y ∈ E := by rwa [← Set.neg_mem_neg, neg_neg]
+    exact le_of_eq_of_le (neg_neg y).symm (neg_of_lt (hM hy'))
+  exact le_of_eq_of_le (neg_neg M).symm (neg_of_lt (sup_le_upper (-E) hM'))
 
 #check isLUB_iff_sSup_eq
 #check isGLB_iff_sInf_eq

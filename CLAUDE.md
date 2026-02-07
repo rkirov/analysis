@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Lean 4 formalization of Terry Tao's "Analysis I" textbook, plus additional mathematical content (Measure Theory, physical units, Erdős problems). The formalization prioritizes faithful paraphrasing of the textbook over efficiency or idiomatic Lean usage.
+Lean 4 formalization of Terry Tao's "Analysis I" textbook, plus additional mathematical content (Measure Theory, physical units, Erdős problems). The formalization prioritizes faithful paraphrasing of the textbook over efficiency or idiomatic Lean usage.
 
-Formalization of Terence Tao's "Analysis I" in Lean 4. Chapters map to source files in `src/`. Incomplete proofs are marked with `sorry`.
+Theorems and their proofs from the text are already formalized. The `sorry`s mark exercises and examples that Tao leaves to the reader — these are what we work on filling in.
 
 ## Build Commands
 
@@ -51,8 +51,9 @@ When asked to fill in a `sorry`:
 
 1. Read the surrounding context: the theorem statement, any preceding lemmas, the imports, and the chapter's existing proof style.
 2. Attempt a proof. Prefer short tactic proofs when possible.
-3. If stuck after 2-3 attempts, say what's blocking you (missing lemma? type mismatch? unclear goal state?) so I can nudge the direction.
-4. Never silently replace a `sorry` with `native_decide` or `decide` on large instances just to close the goal. Ask first.
+3. **Write → build → verify**: Always build the relevant file (`lake build Analysis.Section_X_Y` from `analysis/`) to confirm the proof compiles before presenting it. Only show me compiling proofs.
+4. If stuck after 2-3 attempts, say what's blocking you (missing lemma? type mismatch? unclear goal state?) so I can nudge the direction. Don't hand over broken code.
+5. Never silently replace a `sorry` with `native_decide` or `decide` on large instances just to close the goal. Ask first.
 
 ## Proof Style
 
@@ -72,16 +73,22 @@ This project depends on Mathlib. You can use Mathlib lemmas freely, but:
 
 ## What I Want to Learn
 
-I'm using this project to deepen both my Lean skills and my math understanding. When you fill in a proof:
-- If the proof needs a math insight, stop and ask me. 
-- If the proof uses a technique or tactic I haven't used elsewhere in the file, briefly explain why it works.
+The primary goal is **learning Lean**, not just closing `sorry`s. I already know real analysis — the math itself isn't what I need help with.
+
+When you fill in a proof:
+- If the proof uses a Lean technique or tactic I haven't used elsewhere in the file, briefly explain why it works.
 - If there are multiple reasonable proof strategies, mention the alternatives even if you only implement one.
 - If you spot a way to simplify or generalize a preceding lemma, flag it.
-- The could be typos in the statements, stop and flag it to me, I can upstream fixes.
+- There could be typos in the statements — stop and flag it to me, I can upstream fixes.
+- Don't stop to explain standard math tricks (epsilon/2, triangle inequality, etc.) — but do stop for non-obvious insights.
+
+## Toolchain & Mathlib Maintenance
+
+Help with rebasing onto upstream Mathlib updates and managing the Lean toolchain version when needed.
 
 ## What NOT to Do
 
 - Don't refactor files or rename things unless I ask.
 - Don't modify theorem statements — only fill in proofs.
 - Don't add new imports without mentioning it.
-- Don't bulk-solve multiple `sorry`s at once — go one at a time so I can review each.
+- Don't bulk-solve many `sorry`s at once — pause frequently so I can review and learn. Small related batches are fine.

@@ -34,7 +34,19 @@ abbrev Sequence.LimitPoint (a:Sequence) (x:ℝ) : Prop :=
 theorem Sequence.limit_point_def (a:Sequence) (x:ℝ) :
   a.LimitPoint x ↔ ∀ ε > 0, ∀ N ≥ a.m, ∃ n ≥ N, |a n - x| ≤ ε := by
     unfold LimitPoint Real.ContinuallyAdherent Real.Adherent
-    sorry
+    constructor
+    · intro h ε hε N hN
+      obtain ⟨n, hn, hclose⟩ := h ε hε N hN
+      change n ≥ max a.m N at hn
+      have hn' : n ≥ N := by omega
+      refine ⟨n, hn', ?_⟩
+      change dist ((a.from N) n) x ≤ ε at hclose
+      rwa [Real.dist_eq, a.from_eval hn'] at hclose
+    · intro h ε hε N hN
+      obtain ⟨n, hn, hclose⟩ := h ε hε N hN
+      refine ⟨n, show n ≥ max a.m N by omega, ?_⟩
+      show dist ((a.from N) n) x ≤ ε
+      rw [Real.dist_eq, a.from_eval hn]; exact hclose
 
 noncomputable abbrev Example_6_4_3 : Sequence := (fun (n:ℕ) ↦ 1 - (10:ℝ)^(-(n:ℤ)-1))
 
@@ -70,7 +82,9 @@ example : ¬ Example_6_4_4.LimitPoint 0 := by sorry
 
 /-- Proposition 6.4.5 / Exercise 6.4.1 -/
 theorem Sequence.limit_point_of_limit {a:Sequence} {x:ℝ} (h: a.TendsTo x) : a.LimitPoint x := by
-  sorry
+  rw [limit_point_def]; intro ε hε N hN
+  rw [tendsTo_iff] at h; obtain ⟨N₀, hN₀⟩ := h ε hε
+  exact ⟨max N N₀, le_max_left _ _, hN₀ _ (le_max_right _ _)⟩
 
 /--
   A technical issue uncovered by the formalization: the upper and lower sequences of a real
@@ -151,7 +165,12 @@ theorem Sequence.gt_limsup_bounds {a:Sequence} {x:EReal} (h: x > a.limsup) :
 /-- Proposition 6.4.12(a) -/
 theorem Sequence.lt_liminf_bounds {a:Sequence} {y:EReal} (h: y < a.liminf) :
     ∃ N ≥ a.m, ∀ n ≥ N, a n > y := by
-  sorry
+  simp [liminf, lt_sSup_iff] at h
+  obtain ⟨_, ⟨ N, ⟨ hN, rfl ⟩ ⟩, ha ⟩ := h; use N
+  simp [hN, lowerseq] at ha ⊢; intro n _
+  have hn' : n ≥ (a.from N).m := by grind
+  convert lt_of_lt_of_le ha ((a.from N).ge_inf hn') using 1
+  grind
 
 /-- Proposition 6.4.12(b) -/
 theorem Sequence.lt_limsup_bounds {a:Sequence} {x:EReal} (h: x < a.limsup) {N:ℤ} (hN: N ≥ a.m) :
@@ -164,21 +183,76 @@ theorem Sequence.lt_limsup_bounds {a:Sequence} {x:EReal} (h: x < a.limsup) {N:�
 /-- Proposition 6.4.12(b) -/
 theorem Sequence.gt_liminf_bounds {a:Sequence} {x:EReal} (h: x > a.liminf) {N:ℤ} (hN: N ≥ a.m) :
     ∃ n ≥ N, a n < x := by
-  sorry
+  have hx : x > a.lowerseq N := by apply lt_of_le_of_lt (le_sSup _) h; simp; use N
+  choose n hn _ hxn using exists_between_gt_inf hx
+  grind
 
 /-- Proposition 6.4.12(c) / Exercise 6.4.3 -/
-theorem Sequence.inf_le_liminf (a:Sequence) : a.inf ≤ a.liminf := by sorry
+theorem Sequence.inf_le_liminf (a:Sequence) : a.inf ≤ a.liminf := by
+  calc a.inf ≤ a.lowerseq a.m := by
+        apply inf_ge_lower; intro n hn
+        have hn' : n ≥ a.m := by change n ≥ max a.m a.m at hn; omega
+        have := a.ge_inf hn'; rw [show (a.from a.m) n = a n from a.from_eval hn']; exact this
+    _ ≤ a.liminf := le_sSup ⟨a.m, le_refl _, rfl⟩
 
 /-- Proposition 6.4.12(c) / Exercise 6.4.3 -/
-theorem Sequence.liminf_le_limsup (a:Sequence) : a.liminf ≤ a.limsup := by sorry
+theorem Sequence.liminf_le_limsup (a:Sequence) : a.liminf ≤ a.limsup := by
+  apply sSup_le; intro x ⟨N, hN, hx⟩; subst hx
+  apply le_sInf; intro y ⟨M, hM, hy⟩; subst hy
+  -- Need: (a.from N).inf ≤ (a.from M).sup
+  -- The sequence a.from (max N M) is a "subsequence" of both
+  apply le_trans ((a.from N).ge_inf (show max N M ≥ (a.from N).m by change _ ≥ max a.m N; omega))
+  apply le_trans _ ((a.from M).le_sup (show max N M ≥ (a.from M).m by change _ ≥ max a.m M; omega))
+  rw [EReal.coe_le_coe_iff, a.from_eval (le_max_left _ _), a.from_eval (le_max_right _ _)]
 
 /-- Proposition 6.4.12(c) / Exercise 6.4.3 -/
-theorem Sequence.limsup_le_sup (a:Sequence) : a.limsup ≤ a.sup := by sorry
+theorem Sequence.limsup_le_sup (a:Sequence) : a.limsup ≤ a.sup := by
+  calc a.limsup ≤ a.upperseq a.m := sInf_le ⟨a.m, le_refl _, rfl⟩
+    _ ≤ a.sup := by
+        apply sup_le_upper; intro n hn
+        have hn' : n ≥ a.m := by change n ≥ max a.m a.m at hn; omega
+        have := a.le_sup hn'; rw [show (a.from a.m) n = a n from a.from_eval hn']; exact this
 
 /-- Proposition 6.4.12(d) / Exercise 6.4.3 -/
 theorem Sequence.limit_point_between_liminf_limsup {a:Sequence} {c:ℝ} (h: a.LimitPoint c) :
   a.liminf ≤ c ∧ c ≤ a.limsup := by
-  sorry
+  rw [limit_point_def] at h
+  have aux_ne_top : ∀ (b : Sequence), b.inf ≠ ⊤ :=
+    fun b => ne_of_lt (lt_of_le_of_lt (b.ge_inf (le_refl _)) (EReal.coe_lt_top _))
+  have aux_ne_bot : ∀ (b : Sequence), b.sup ≠ ⊥ :=
+    fun b => ne_of_gt (lt_of_lt_of_le (EReal.bot_lt_coe _) (b.le_sup (le_refl _)))
+  constructor
+  · -- a.liminf ≤ ↑c
+    apply sSup_le; rintro _ ⟨N, hN, rfl⟩
+    by_contra hlt; push_neg at hlt
+    -- hlt : ↑c < (a.from N).inf
+    have hne_bot : (a.from N).inf ≠ ⊥ := ne_of_gt (lt_trans (EReal.bot_lt_coe c) hlt)
+    have hne_top := aux_ne_top (a.from N)
+    have hr : (a.from N).inf = ↑(a.from N).inf.toReal := (EReal.coe_toReal hne_top hne_bot).symm
+    have hlt' : c < (a.from N).inf.toReal := by
+      rwa [← EReal.coe_lt_coe_iff, ← hr]
+    obtain ⟨n, hn, hclose⟩ := h (((a.from N).inf.toReal - c) / 2) (by linarith) N hN
+    have hge : a n ≥ (a.from N).inf.toReal := by
+      have h1 := (a.from N).ge_inf (show n ≥ (a.from N).m by change n ≥ max a.m N; omega)
+      rw [hr] at h1; rw [show (a.from N) n = a n from a.from_eval hn] at h1
+      exact EReal.coe_le_coe_iff.mp h1
+    linarith [(abs_le.mp hclose).2]
+  · -- ↑c ≤ a.limsup
+    apply le_sInf; rintro _ ⟨N, hN, rfl⟩
+    by_contra hlt; push_neg at hlt
+    -- hlt : (a.from N).sup < ↑c
+    have hne_top : (a.from N).sup ≠ ⊤ :=
+      ne_of_lt (lt_trans hlt (EReal.coe_lt_top _))
+    have hne_bot := aux_ne_bot (a.from N)
+    have hr : (a.from N).sup = ↑(a.from N).sup.toReal := (EReal.coe_toReal hne_top hne_bot).symm
+    have hlt' : (a.from N).sup.toReal < c := by
+      rwa [← EReal.coe_lt_coe_iff, ← hr]
+    obtain ⟨n, hn, hclose⟩ := h ((c - (a.from N).sup.toReal) / 2) (by linarith) N hN
+    have hle : a n ≤ (a.from N).sup.toReal := by
+      have h1 := (a.from N).le_sup (show n ≥ (a.from N).m by change n ≥ max a.m N; omega)
+      rw [hr] at h1; rw [show (a.from N) n = a n from a.from_eval hn] at h1
+      exact EReal.coe_le_coe_iff.mp h1
+    linarith [(abs_le.mp hclose).1]
 
 /-- Proposition 6.4.12(e) / Exercise 6.4.3 -/
 theorem Sequence.limit_point_of_limsup {a:Sequence} {L_plus:ℝ} (h: a.limsup = L_plus) :

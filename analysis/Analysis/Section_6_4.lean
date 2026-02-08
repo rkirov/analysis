@@ -39,14 +39,17 @@ theorem Sequence.limit_point_def (a:Sequence) (x:ℝ) :
       obtain ⟨n, hn, hclose⟩ := h ε hε N hN
       change n ≥ max a.m N at hn
       have hn' : n ≥ N := by omega
-      refine ⟨n, hn', ?_⟩
-      change dist ((a.from N) n) x ≤ ε at hclose
-      rwa [Real.dist_eq, a.from_eval hn'] at hclose
+      use n, hn'
+      rw [Real.close_def, Real.dist_eq] at hclose
+      rw [a.from_eval hn'] at hclose
+      exact hclose
     · intro h ε hε N hN
       obtain ⟨n, hn, hclose⟩ := h ε hε N hN
-      refine ⟨n, show n ≥ max a.m N by omega, ?_⟩
-      show dist ((a.from N) n) x ≤ ε
-      rw [Real.dist_eq, a.from_eval hn]; exact hclose
+      have hn' : n ≥ max a.m N := by omega
+      use n, hn'
+      rw [Real.close_def, Real.dist_eq]
+      rw [a.from_eval (by omega)]
+      exact hclose
 
 noncomputable abbrev Example_6_4_3 : Sequence := (fun (n:ℕ) ↦ 1 - (10:ℝ)^(-(n:ℤ)-1))
 

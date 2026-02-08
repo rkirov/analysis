@@ -318,21 +318,18 @@ theorem Sequence.convergent_of_monotone {a:Sequence} (hbound: a.BddAbove) (hmono
 /-- Proposition 6.3.8 / Exercise 6.3.3 -/
 theorem Sequence.lim_of_monotone {a:Sequence} (hbound: a.BddAbove) (hmono: a.IsMonotone) :
     lim a = a.sup := by
-  have hbdd : a.IsBounded := by
-    rw [a.bounded_iff]
-    exact ⟨hbound, ⟨a a.m, fun n hn => a.monotone_le hmono le_rfl hn⟩⟩
-  obtain ⟨S, hS⟩ := a.sup_of_bounded hbdd
-  have htends : a.TendsTo S := by
-    rw [tendsTo_iff]; intro ε hε
-    have hlt : (↑(S - ε) : EReal) < a.sup := by
-      rw [← hS]; exact EReal.coe_lt_coe_iff.mpr (by linarith)
-    obtain ⟨N, hN, haN, _⟩ := a.exists_between_lt_sup hlt
-    use N; intro n hn; rw [abs_le]
-    exact ⟨by linarith [EReal.coe_lt_coe_iff.mp (lt_of_lt_of_le haN
-        (EReal.coe_le_coe_iff.mpr (a.monotone_le hmono hN hn)))],
-      by have : (a n : EReal) ≤ a.sup := a.le_sup (by omega)
-         rw [← hS] at this; linarith [EReal.coe_le_coe_iff.mp this]⟩
-  rw [(lim_eq.mp htends).2, hS]
+  have hconv := a.convergent_of_monotone hbound hmono
+  obtain ⟨S, hS⟩ := a.sup_of_bounded (bounded_of_convergent hconv)
+  suffices h : a.TendsTo S by rw [(lim_eq.mp h).2, hS]
+  rw [tendsTo_iff]; intro ε hε
+  have hlt : (↑(S - ε) : EReal) < a.sup := by
+    rw [← hS]; exact EReal.coe_lt_coe_iff.mpr (by linarith)
+  obtain ⟨N, hN, haN, _⟩ := a.exists_between_lt_sup hlt
+  use N; intro n hn; rw [abs_le]
+  exact ⟨by linarith [EReal.coe_lt_coe_iff.mp (lt_of_lt_of_le haN
+      (EReal.coe_le_coe_iff.mpr (a.monotone_le hmono hN hn)))],
+    by have : (a n : EReal) ≤ a.sup := a.le_sup (by omega)
+       rw [← hS] at this; linarith [EReal.coe_le_coe_iff.mp this]⟩
 
 private theorem Sequence.antitone_le {a:Sequence} (hmono: a.IsAntitone)
     {N n : ℤ} (hN : N ≥ a.m) (hn : n ≥ N) : a n ≤ a N := by
@@ -370,22 +367,18 @@ theorem Sequence.convergent_of_antitone {a:Sequence} (hbound: a.BddBelow) (hmono
 
 theorem Sequence.lim_of_antitone {a:Sequence} (hbound: a.BddBelow) (hmono: a.IsAntitone) :
     lim a = a.inf := by
-  have hbdd : a.IsBounded := by
-    rw [a.bounded_iff]
-    exact ⟨⟨a a.m, fun n hn => a.antitone_le hmono le_rfl hn⟩, hbound⟩
-  obtain ⟨S, hS⟩ := a.inf_of_bounded hbdd
-  have htends : a.TendsTo S := by
-    rw [tendsTo_iff]; intro ε hε
-    have hgt : a.inf < (↑(S + ε) : EReal) := by
-      rw [← hS]; exact EReal.coe_lt_coe_iff.mpr (by linarith)
-    obtain ⟨N, hN, haN, _⟩ := a.exists_between_gt_inf hgt
-    use N; intro n hn
-    rw [abs_le]
-    exact ⟨by have : (a n : EReal) ≥ a.inf := a.ge_inf (by omega)
-              rw [← hS] at this; linarith [EReal.coe_le_coe_iff.mp this],
-      by linarith [EReal.coe_lt_coe_iff.mp (lt_of_le_of_lt
-        (EReal.coe_le_coe_iff.mpr (a.antitone_le hmono hN hn)) haN)]⟩
-  rw [(lim_eq.mp htends).2, hS]
+  have hconv := a.convergent_of_antitone hbound hmono
+  obtain ⟨S, hS⟩ := a.inf_of_bounded (bounded_of_convergent hconv)
+  suffices h : a.TendsTo S by rw [(lim_eq.mp h).2, hS]
+  rw [tendsTo_iff]; intro ε hε
+  have hgt : a.inf < (↑(S + ε) : EReal) := by
+    rw [← hS]; exact EReal.coe_lt_coe_iff.mpr (by linarith)
+  obtain ⟨N, hN, haN, _⟩ := a.exists_between_gt_inf hgt
+  use N; intro n hn; rw [abs_le]
+  exact ⟨by have : (a n : EReal) ≥ a.inf := a.ge_inf (by omega)
+            rw [← hS] at this; linarith [EReal.coe_le_coe_iff.mp this],
+    by linarith [EReal.coe_lt_coe_iff.mp (lt_of_le_of_lt
+      (EReal.coe_le_coe_iff.mpr (a.antitone_le hmono hN hn)) haN)]⟩
 
 theorem Sequence.convergent_iff_bounded_of_monotone {a:Sequence} (ha: a.IsMonotone) :
     a.Convergent ↔ a.IsBounded := by
@@ -443,16 +436,11 @@ example : (Example_6_3_9:Sequence).Convergent :=
 /-- Example 6.3.9 -/
 example : lim (Example_6_3_9:Sequence) ≤ 4 := by
   set a := (Example_6_3_9:Sequence)
-  have hconv : a.Convergent :=
-    Sequence.convergent_of_monotone ⟨4, example_6_3_9_bddAbove⟩ example_6_3_9_monotone
-  by_contra h
-  push_neg at h
-  have hL := a.lim_def hconv
-  rw [Sequence.tendsTo_iff] at hL
-  obtain ⟨N, hN⟩ := hL ((lim a - 4) / 2) (by linarith)
-  have hN' := hN (max N 0) (le_max_left _ _)
-  have hbound := example_6_3_9_bddAbove (max N 0) (le_max_right _ _)
-  linarith [(abs_le.mp hN').1]
+  have hlim := a.lim_of_monotone ⟨4, example_6_3_9_bddAbove⟩ example_6_3_9_monotone
+  have hsup : a.sup ≤ (4 : EReal) :=
+    a.sup_le_upper fun n hn => EReal.coe_le_coe_iff.mpr (example_6_3_9_bddAbove n hn)
+  rw [← hlim] at hsup
+  exact EReal.coe_le_coe_iff.mp hsup
 
 
 /-- Proposition 6.3.1-/
@@ -499,13 +487,10 @@ theorem lim_of_exp' {x:ℝ} (hbound: x > 1) : ¬((fun (n:ℕ) ↦ x^n):Sequence)
   · rw [Sequence.bounded_iff]
     push_neg
     intro ⟨M, hM⟩
-    exfalso
     obtain ⟨n, hn⟩ := pow_unbounded_of_one_lt M hbound
     have := hM ↑n (by positivity)
-    simp at this
-    linarith
-  · -- IsMonotone: x^(n+1) ≥ x^n since x ≥ 1
-    intro n hn
+    simp at this; linarith
+  · intro n hn
     simp [show (0:ℤ) ≤ n from by linarith, show (0:ℤ) ≤ n + 1 from by linarith]
     exact pow_le_pow_right₀ (le_of_lt hbound) (by omega)
 

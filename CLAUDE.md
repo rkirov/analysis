@@ -64,6 +64,7 @@ When asked to fill in a `sorry`:
 - Match the style of surrounding proofs in the same file.
 - Introduce helper lemmas, when the proof gets too long.
 - **Minimize comments.** Don't add comments that just restate what the Lean code below them does (e.g. `-- a n ≤ sup` before `have : (a n : EReal) ≤ a.sup`). Only comment when there's genuine insight: a non-obvious proof strategy, a subtle reason for a particular approach, or a reference to an external result. Let the Lean code speak for itself.
+- **Reuse earlier lemmas.** Before writing a proof from scratch, check if earlier results in the same file (or section) already establish what you need. Prefer composing existing lemmas over re-deriving their internals — e.g. use `convergent_of_monotone` + `bounded_of_convergent` rather than reconstructing the boundedness argument.
 
 ## Mathlib
 

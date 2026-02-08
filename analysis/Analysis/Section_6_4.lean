@@ -389,8 +389,21 @@ theorem Sequence.liminf_mono {a b:Sequence} (hm: a.m = b.m) (hab: ∀ n ≥ a.m,
 
 /-- Corollary 6.4.14 (Squeeze test) / Exercise 6.4.5 -/
 theorem Sequence.lim_of_between {a b c:Sequence} {L:ℝ} (hm: b.m = a.m ∧ c.m = a.m)
-  (hab: ∀ n ≥ a.m, a n ≤ b n ∧ b n ≤ c n) (ha: a.TendsTo L) (hb: c.TendsTo L) :
-    b.TendsTo L := by sorry
+  (habc: ∀ n ≥ a.m, a n ≤ b n ∧ b n ≤ c n) (ha: a.TendsTo L) (hb: c.TendsTo L) :
+    b.TendsTo L := by
+  have hm': b.m = c.m := by rw [hm.1, hm.2]
+  have ⟨hainf, hlsup⟩ := (tendsTo_iff_eq_limsup_liminf L).mp ha
+  have ⟨hbinf, hblsup⟩ := (tendsTo_iff_eq_limsup_liminf L).mp hb
+  have hab : ∀ n ≥ a.m, a n ≤ b n := by intro n hn; exact (habc n hn).1
+  have hbc : ∀ n ≥ b.m, b n ≤ c n := by intro n hn; exact (habc n (by omega)).2
+  have habsup: a.limsup ≤ b.limsup := a.limsup_mono hm.1.symm hab
+  have hbcsup: b.limsup ≤ c.limsup := b.limsup_mono hm' hbc
+  have hbcinf: b.liminf ≤ c.liminf := b.liminf_mono hm' hbc
+  have habinf: a.liminf ≤ b.liminf := a.liminf_mono hm.1.symm hab
+  rw [hainf, hlsup, hbinf, hblsup] at *
+  have hb : b.limsup = L := le_antisymm hbcsup habsup
+  have ha : b.liminf = L := le_antisymm hbcinf habinf
+  exact (tendsTo_iff_eq_limsup_liminf L).mpr ⟨ha, hb⟩
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ 2/(n+1:ℝ)):Sequence).TendsTo 0 := by

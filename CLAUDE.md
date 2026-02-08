@@ -63,6 +63,7 @@ When asked to fill in a `sorry`:
 - Keep automation pragmatic: `aesop`, `omega`, `positivity`, `field_simp` are all fine when they make the proof cleaner.
 - Match the style of surrounding proofs in the same file.
 - Introduce helper lemmas, when the proof gets too long.
+- **Minimize comments.** Don't add comments that just restate what the Lean code below them does (e.g. `-- a n ≤ sup` before `have : (a n : EReal) ≤ a.sup`). Only comment when there's genuine insight: a non-obvious proof strategy, a subtle reason for a particular approach, or a reference to an external result. Let the Lean code speak for itself.
 
 ## Mathlib
 

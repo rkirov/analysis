@@ -125,8 +125,11 @@ def Int.infinite_descent : Decidable (∃ a:ℕ → ℤ, ∀ n, a (n+1) < a n) :
 
 /-- Exercise 4.4.2 (b) -/
 def Rat.pos_infinite_descent : Decidable (∃ a:ℕ → {x: ℚ // 0 < x}, ∀ n, a (n+1) < a n) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  use fun n ↦ ⟨1 / (↑n + 1), by positivity⟩
+  intro n
+  simp only [Subtype.mk_lt_mk]
+  apply div_lt_div_of_pos_left one_pos (by positivity) (by push_cast; linarith)
 
 #check even_iff_exists_two_mul
 #check odd_iff_exists_bit1

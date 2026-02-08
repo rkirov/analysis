@@ -187,7 +187,7 @@ theorem Rat.coe_Nat_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := by
   repeat omega
 
 /-- natCast distributes over successor -/
-theorem Rat.natCast_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := by sorry
+theorem Rat.natCast_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := coe_Nat_succ n
 
 /-- intCast distributes over addition -/
 lemma Rat.intCast_add (a b:ℤ) : (a:Rat) + (b:Rat) = (a+b:ℤ) := by
@@ -462,7 +462,14 @@ instance Rat.instCommRing : CommRing Rat where
 instance Rat.instRatCast : RatCast Rat where
   ratCast q := q.num // q.den
 
-theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by sorry
+theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by
+  intro a b h
+  change a.num // ↑a.den = b.num // ↑b.den at h
+  have hda : (↑a.den : ℤ) ≠ 0 := by exact_mod_cast a.den_nz
+  have hdb : (↑b.den : ℤ) ≠ 0 := by exact_mod_cast b.den_nz
+  rw [eq _ _ hda hdb] at h
+  have := (_root_.Rat.divInt_eq_divInt hda hdb).mpr h
+  rwa [_root_.Rat.num_divInt_den, _root_.Rat.num_divInt_den] at this
 
 theorem Rat.coe_Rat_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a/b:ℚ) = a // b := by
   set q := (a/b:ℚ)
@@ -971,7 +978,16 @@ instance Rat.decidableRel : DecidableRel (· ≤ · : Rat → Rat → Prop) := b
                 . simp only [gt_iff_lt]
                   have : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
                   exact lt_of_le_of_ne hbd (id (Ne.symm this))
-                . simp [Rat.formalDiv_eq]; exact sorry
+                . repeat rw [formalDiv_eq]
+                  rw [sub_eq_quot (hb := hd) (hd := hb), coe_Int_eq, coe_Int_eq,
+                    div_eq, inv_eq, mul_eq]
+                  rw [eq]
+                  · ring
+                  · exact Int.mul_ne_zero hd hb
+                  · exact Int.mul_ne_zero (by omega) (by exact Int.mul_ne_zero hb hd)
+                  · omega
+                  · exact Int.mul_ne_zero hb hd
+                  repeat omega
           | isFalse h =>
             apply isFalse
             simp only [not_le] at h
@@ -983,7 +999,16 @@ instance Rat.decidableRel : DecidableRel (· ≤ · : Rat → Rat → Prop) := b
             . constructor
               . have : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
                 exact lt_of_le_of_ne hbd (id (Ne.symm this))
-              . simp [formalDiv_eq]; exact sorry
+              . repeat rw [formalDiv_eq]
+                rw [sub_eq_quot (hb := hb) (hd := hd), coe_Int_eq, coe_Int_eq,
+                  div_eq, inv_eq, mul_eq]
+                rw [eq]
+                · ring
+                · exact Int.mul_ne_zero (by omega) hd
+                · exact Int.mul_ne_zero (by omega) (by exact Int.mul_ne_zero hb hd)
+                · omega
+                · exact Int.mul_ne_zero hb hd
+                repeat omega
       | isFalse hbd =>
         cases (b * c).decLe (a * d) with
           | isTrue h =>

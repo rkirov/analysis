@@ -1484,10 +1484,15 @@ lemma div_lemma {a b c d n: ℕ} (hb: b < n) (hd: d < n)
     contradiction
 
 noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B → A) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun x := Classical.choose ((powerset_axiom x.1).mp x.2)
+  invFun f := fn_to_powerset f
+  left_inv x := by
+    apply Subtype.ext
+    exact Classical.choose_spec ((powerset_axiom x.1).mp x.2)
+  right_inv f := by
+    dsimp only
+    apply (coe_of_fun_inj _ _).mp
+    convert Classical.choose_spec ((powerset_axiom (fn_to_powerset f).1).mp (fn_to_powerset f).2)
 
 lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ pow_fun_equiv x = pow_fun_equiv y := by
   rw [←pow_fun_equiv.apply_eq_iff_eq]

@@ -1368,7 +1368,27 @@ theorem Sequence.lim_div_fail :
 
 theorem Chapter5.Sequence.IsCauchy_iff (a:Chapter5.Sequence) :
     a.IsCauchy ↔ ∀ ε > (0:ℝ), ∃ N ≥ a.n₀, ∀ n ≥ N, ∀ m ≥ N, |a n - a m| ≤ ε := by
-  sorry
+  constructor
+  · intro h ε hε
+    obtain ⟨ε', hε'_pos, hε'_lt⟩ := exists_rat_btwn hε
+    have hε'_pos' : (0 : ℚ) < ε' := by exact_mod_cast hε'_pos
+    obtain ⟨N, hN, hsteady⟩ := h ε' hε'_pos'
+    refine ⟨N, hN, fun n hn m hm => ?_⟩
+    have hfn := show (a.from N).n₀ = N by simp [hN]
+    have := hsteady n (by omega) m (by omega)
+    rw [Chapter5.Sequence.from_eval _ hn, Chapter5.Sequence.from_eval _ hm] at this
+    simp only [Rat.Close] at this
+    exact_mod_cast le_of_lt (lt_of_le_of_lt (by exact_mod_cast this) hε'_lt)
+  · intro h ε hε
+    have hε' : (0 : ℝ) < (ε : ℝ) := by exact_mod_cast hε
+    obtain ⟨N, hN, hbnd⟩ := h (ε : ℝ) hε'
+    refine ⟨N, hN, fun n hn m hm => ?_⟩
+    have hfn := show (a.from N).n₀ = N by simp [hN]
+    rw [Chapter5.Sequence.from_eval _ (by omega : n ≥ N),
+        Chapter5.Sequence.from_eval _ (by omega : m ≥ N)]
+    simp only [Rat.Close]
+    have := hbnd n (by omega : n ≥ N) m (by omega : m ≥ N)
+    exact_mod_cast this
 end Chapter6
 
 -- additional definitions for exercise 6.1.10

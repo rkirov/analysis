@@ -38,6 +38,7 @@ lake build Analysis.Section_6_1
 - **0-indexed sequences**: Unlike the textbook, sequences start from 0 to align with Mathlib
 - **Junk values for partial functions**: Division by zero returns 0, etc., avoiding dependent type complexity
 - **Gradual Mathlib transition**: Chapter 2 uses custom natural numbers; later chapters use Mathlib types
+- **No forward references**: When filling a sorry in Chapter N, only use definitions and lemmas from Chapters ≤ N (and Mathlib). Don't look ahead to later chapters.
 
 ## Dependencies
 
@@ -51,7 +52,7 @@ When asked to fill in a `sorry`:
 
 1. Read the surrounding context: the theorem statement, any preceding lemmas, the imports, and the chapter's existing proof style.
 2. Attempt a proof. Prefer short tactic proofs when possible.
-3. **Write → build → verify**: Always build the relevant file (`lake build Analysis.Section_X_Y` from `analysis/`) to confirm the proof compiles before presenting it. Only show me compiling proofs.
+3. **Write → check → verify**: Use the Lean LSP MCP tools (`lean_diagnostic_messages`, `lean_goal`, `lean_multi_attempt`) for iterative development — they're incremental and much faster than a full rebuild. Only fall back to `lake build` as a final confirmation or when the LSP times out on large files. Only show me compiling proofs.
 4. If stuck after 2-3 attempts, say what's blocking you (missing lemma? type mismatch? unclear goal state?) so I can nudge the direction. Don't hand over broken code.
 5. Never silently replace a `sorry` with `native_decide` or `decide` on large instances just to close the goal. Ask first.
 

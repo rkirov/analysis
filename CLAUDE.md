@@ -90,6 +90,15 @@ When you fill in a proof:
 
 Help with rebasing onto upstream Mathlib updates and managing the Lean toolchain version when needed.
 
+## Tactic Notes
+
+There is a tactic pitfall log at [`TACTICS.md`](TACTICS.md). Consult it before debugging a tactic failure — the issue may already be documented.
+
+When you encounter a new tactic pitfall (a tactic that silently fails, behaves unexpectedly, or requires a non-obvious workaround):
+1. Check if it's already in `TACTICS.md`.
+2. If not, add a concise entry: **tactic name**, **what goes wrong** (generic, not tied to a specific theorem), **fix/workaround**, and optionally a minimal example.
+3. Keep entries generic — describe the pattern (e.g. "`omega` can't see through `abbrev` fields"), not the instance (e.g. "`omega` can't see `Example_6_4_3.m = 0`").
+
 ## What NOT to Do
 
 - Don't refactor files or rename things unless I ask.

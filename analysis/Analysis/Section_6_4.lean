@@ -257,33 +257,132 @@ theorem Sequence.limit_point_between_liminf_limsup {a:Sequence} {c:ℝ} (h: a.Li
 /-- Proposition 6.4.12(e) / Exercise 6.4.3 -/
 theorem Sequence.limit_point_of_limsup {a:Sequence} {L_plus:ℝ} (h: a.limsup = L_plus) :
     a.LimitPoint L_plus := by
-  sorry
+  rw [limit_point_def]; intro ε hε N hN
+  -- Since L_plus + ε > limsup, eventually a n < L_plus + ε
+  have h_above : (↑(L_plus + ε) : EReal) > a.limsup := by
+    show a.limsup < ↑(L_plus + ε); rw [h, EReal.coe_lt_coe_iff]; linarith
+  -- Since L_plus - ε < limsup, for any N, ∃ n ≥ N with a n > L_plus - ε
+  have h_below : (↑(L_plus - ε) : EReal) < a.limsup := by
+    rw [h, EReal.coe_lt_coe_iff]; linarith
+  obtain ⟨N₁, _, hup⟩ := a.gt_limsup_bounds h_above
+  obtain ⟨n, hn, hlow⟩ := a.lt_limsup_bounds h_below (show max N N₁ ≥ a.m by omega)
+  refine ⟨n, by omega, ?_⟩
+  rw [abs_le]; constructor
+  · linarith [EReal.coe_lt_coe_iff.mp hlow]
+  · linarith [EReal.coe_lt_coe_iff.mp (hup n (by omega))]
 
 /-- Proposition 6.4.12(e) / Exercise 6.4.3 -/
 theorem Sequence.limit_point_of_liminf {a:Sequence} {L_minus:ℝ} (h: a.liminf = L_minus) :
     a.LimitPoint L_minus := by
-  sorry
+  rw [limit_point_def]; intro ε hε N hN
+  have h_below : (↑(L_minus - ε) : EReal) < a.liminf := by
+    rw [h, EReal.coe_lt_coe_iff]; linarith
+  have h_above : (↑(L_minus + ε) : EReal) > a.liminf := by
+    show a.liminf < ↑(L_minus + ε); rw [h, EReal.coe_lt_coe_iff]; linarith
+  obtain ⟨N₁, _, hlow⟩ := a.lt_liminf_bounds h_below
+  obtain ⟨n, hn, hup⟩ := a.gt_liminf_bounds h_above (show max N N₁ ≥ a.m by omega)
+  refine ⟨n, by omega, ?_⟩
+  rw [abs_le]; constructor
+  · linarith [EReal.coe_lt_coe_iff.mp (hlow n (by omega))]
+  · linarith [EReal.coe_lt_coe_iff.mp hup]
 
 /-- Proposition 6.4.12(f) / Exercise 6.4.3 -/
 theorem Sequence.tendsTo_iff_eq_limsup_liminf {a:Sequence} (c:ℝ) :
   a.TendsTo c ↔ a.liminf = c ∧ a.limsup = c := by
-  sorry
+  constructor
+  · -- Forward: TendsTo c → liminf = c ∧ limsup = c
+    intro hconv
+    have ⟨hli, hls⟩ := limit_point_between_liminf_limsup (limit_point_of_limit hconv)
+    rw [tendsTo_iff] at hconv
+    -- For any ε > 0, bound limsup and liminf
+    have bounds : ∀ ε > 0, a.limsup ≤ ↑(c + ε) ∧ ↑(c - ε) ≤ a.liminf := by
+      intro ε hε; obtain ⟨N₀, hN₀⟩ := hconv ε hε
+      constructor
+      · calc a.limsup ≤ a.upperseq (max N₀ a.m) := sInf_le ⟨max N₀ a.m, by omega, rfl⟩
+          _ ≤ ↑(c + ε) := by
+            apply sup_le_upper; intro n hn
+            change n ≥ max a.m (max N₀ a.m) at hn
+            rw [show (a.from (max N₀ a.m)) n = a n from a.from_eval (by omega)]
+            rw [EReal.coe_le_coe_iff]
+            linarith [(abs_le.mp (hN₀ n (by omega))).2]
+      · calc ↑(c - ε) ≤ a.lowerseq (max N₀ a.m) := by
+              apply inf_ge_lower; intro n hn
+              change n ≥ max a.m (max N₀ a.m) at hn
+              rw [show (a.from (max N₀ a.m)) n = a n from a.from_eval (by omega)]
+              rw [ge_iff_le, EReal.coe_le_coe_iff]
+              linarith [(abs_le.mp (hN₀ n (by omega))).1]
+          _ ≤ a.liminf := le_sSup ⟨max N₀ a.m, by omega, rfl⟩
+    -- limsup = ↑c: squeeze between ↑c ≤ limsup (from limit point) and limsup ≤ ↑c
+    have hlimsup_le : a.limsup ≤ ↑c := by
+      by_contra hgt; push_neg at hgt
+      have hne_top : a.limsup ≠ ⊤ := by
+        intro heq; have := (bounds 1 one_pos).1; rw [heq] at this
+        exact absurd this (not_le.mpr (EReal.coe_lt_top _))
+      have hne_bot : a.limsup ≠ ⊥ := ne_of_gt (lt_trans (EReal.bot_lt_coe c) hgt)
+      obtain ⟨L, hL⟩ : ∃ L : ℝ, a.limsup = ↑L := ⟨_, (EReal.coe_toReal hne_top hne_bot).symm⟩
+      have hgt' : c < L := by rwa [hL, EReal.coe_lt_coe_iff] at hgt
+      have := (bounds ((L - c) / 2) (by linarith)).1
+      rw [hL, EReal.coe_le_coe_iff] at this; linarith
+    have hliminf_ge : ↑c ≤ a.liminf := by
+      by_contra hlt; push_neg at hlt
+      have hne_bot : a.liminf ≠ ⊥ := by
+        intro heq; have := (bounds 1 one_pos).2; rw [heq] at this
+        exact absurd this (not_le.mpr (EReal.bot_lt_coe _))
+      have hne_top : a.liminf ≠ ⊤ := ne_of_lt (lt_trans hlt (EReal.coe_lt_top _))
+      obtain ⟨L, hL⟩ : ∃ L : ℝ, a.liminf = ↑L := ⟨_, (EReal.coe_toReal hne_top hne_bot).symm⟩
+      have hlt' : L < c := by rwa [hL, EReal.coe_lt_coe_iff] at hlt
+      have := (bounds ((c - L) / 2) (by linarith)).2
+      rw [hL, EReal.coe_le_coe_iff] at this; linarith
+    exact ⟨le_antisymm hli hliminf_ge, le_antisymm hlimsup_le hls⟩
+  · -- Backward: liminf = c ∧ limsup = c → TendsTo c
+    intro ⟨hmin, hmax⟩
+    rw [tendsTo_iff]; intro ε hε
+    have h1 : (↑(c + ε) : EReal) > a.limsup := by
+      show a.limsup < ↑(c + ε); rw [hmax, EReal.coe_lt_coe_iff]; linarith
+    have h2 : (↑(c - ε) : EReal) < a.liminf := by
+      rw [hmin, EReal.coe_lt_coe_iff]; linarith
+    obtain ⟨N₁, _, hup⟩ := a.gt_limsup_bounds h1
+    obtain ⟨N₂, _, hlow⟩ := a.lt_liminf_bounds h2
+    exact ⟨max N₁ N₂, fun n hn ↦ abs_le.mpr
+      ⟨by linarith [EReal.coe_lt_coe_iff.mp (hlow n (by omega))],
+       by linarith [EReal.coe_lt_coe_iff.mp (hup n (by omega))]⟩⟩
 
 /-- Lemma 6.4.13 (Comparison principle) / Exercise 6.4.4 -/
 theorem Sequence.sup_mono {a b:Sequence} (hm: a.m = b.m) (hab: ∀ n ≥ a.m, a n ≤ b n) :
-    a.sup ≤ b.sup := by sorry
+    a.sup ≤ b.sup := by
+  apply sup_le_upper; intro n hn
+  exact le_trans (by exact_mod_cast hab n hn) (b.le_sup (by omega))
 
 /-- Lemma 6.4.13 (Comparison principle) / Exercise 6.4.4 -/
 theorem Sequence.inf_mono {a b:Sequence} (hm: a.m = b.m) (hab: ∀ n ≥ a.m, a n ≤ b n) :
-    a.inf ≤ b.inf := by sorry
+    a.inf ≤ b.inf := by
+  apply inf_ge_lower; intro n hn
+  have hn' : n ≥ a.m := by omega
+  exact le_trans (a.ge_inf hn') (by exact_mod_cast hab n hn')
 
 /-- Lemma 6.4.13 (Comparison principle) / Exercise 6.4.4 -/
 theorem Sequence.limsup_mono {a b:Sequence} (hm: a.m = b.m) (hab: ∀ n ≥ a.m, a n ≤ b n) :
-    a.limsup ≤ b.limsup := by sorry
+    a.limsup ≤ b.limsup := by
+  apply le_sInf; rintro _ ⟨N, hN, rfl⟩
+  calc a.limsup ≤ a.upperseq N := sInf_le ⟨N, by omega, rfl⟩
+    _ ≤ b.upperseq N := by
+      apply sup_mono
+      · show (a.from N).m = (b.from N).m; change max a.m N = max b.m N; omega
+      · intro n hn; change n ≥ max a.m N at hn
+        rw [a.from_eval (by omega), b.from_eval (by omega)]
+        exact hab n (by omega)
 
 /-- Lemma 6.4.13 (Comparison principle) / Exercise 6.4.4 -/
 theorem Sequence.liminf_mono {a b:Sequence} (hm: a.m = b.m) (hab: ∀ n ≥ a.m, a n ≤ b n) :
-    a.liminf ≤ b.liminf := by sorry
+    a.liminf ≤ b.liminf := by
+  apply sSup_le; rintro _ ⟨N, hN, rfl⟩
+  calc a.lowerseq N ≤ b.lowerseq N := by
+        apply inf_mono
+        · show (a.from N).m = (b.from N).m; change max a.m N = max b.m N; omega
+        · intro n hn; change n ≥ max a.m N at hn
+          rw [a.from_eval (by omega), b.from_eval (by omega)]
+          exact hab n (by omega)
+    _ ≤ b.liminf := le_sSup ⟨N, by omega, rfl⟩
 
 /-- Corollary 6.4.14 (Squeeze test) / Exercise 6.4.5 -/
 theorem Sequence.lim_of_between {a b c:Sequence} {L:ℝ} (hm: b.m = a.m ∧ c.m = a.m)
@@ -315,7 +414,7 @@ abbrev Sequence.abs (a:Sequence) : Sequence where
 /-- Corollary 6.4.17 (Zero test for sequences) / Exercise 6.4.7 -/
 theorem Sequence.tendsTo_zero_iff (a:Sequence) :
   a.TendsTo (0:ℝ) ↔ a.abs.TendsTo (0:ℝ) := by
-  sorry
+  simp only [tendsTo_iff, sub_zero, abs_abs]
 
 /--
   This helper lemma, implicit in the textbook proofs of Theorem 6.4.18 and Theorem 6.6.8, is made

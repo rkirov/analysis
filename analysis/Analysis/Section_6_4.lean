@@ -53,35 +53,128 @@ theorem Sequence.limit_point_def (a:Sequence) (x:ℝ) :
 
 noncomputable abbrev Example_6_4_3 : Sequence := (fun (n:ℕ) ↦ 1 - (10:ℝ)^(-(n:ℤ)-1))
 
-/-- Example 6.4.3 -/
-example : (0.1:ℝ).Adherent Example_6_4_3 0.8 := by sorry
+private lemma ex643_eval {n : ℤ} (hn : n ≥ 0) :
+    (Example_6_4_3 : ℤ → ℝ) n = 1 - (10:ℝ) ^ (-n - 1) := by
+  show (if n ≥ 0 then _ else _) = _; simp [hn]
 
 /-- Example 6.4.3 -/
-example : ¬ (0.1:ℝ).ContinuallyAdherent Example_6_4_3 0.8 := by sorry
+example : (0.1:ℝ).Adherent Example_6_4_3 0.8 := by
+  refine ⟨0, le_refl _, ?_⟩
+  show dist (Example_6_4_3 (0:ℤ)) 0.8 ≤ 0.1
+  rw [Real.dist_eq, abs_of_nonneg (by norm_num)]
+  norm_num
 
 /-- Example 6.4.3 -/
-example : (0.1:ℝ).ContinuallyAdherent Example_6_4_3 1 := by sorry
+example : ¬ (0.1:ℝ).ContinuallyAdherent Example_6_4_3 0.8 := by
+  intro h
+  obtain ⟨n, hn, hclose⟩ := h 1 (show (1:ℤ) ≥ 0 by omega)
+  change n ≥ max 0 1 at hn
+  rw [Example_6_4_3.from_eval (show n ≥ 1 by omega), Real.close_def, Real.dist_eq] at hclose
+  rw [ex643_eval (by omega : n ≥ 0)] at hclose
+  have h02 : (10:ℝ) ^ (-n - 1) ≤ 1/100 := calc
+    (10:ℝ) ^ (-n - 1) ≤ (10:ℝ) ^ (-2 : ℤ) := zpow_le_zpow_right₀ (by norm_num) (by omega)
+    _ = 1/100 := by norm_num
+  linarith [(abs_le.mp hclose).2]
 
 /-- Example 6.4.3 -/
-example : Example_6_4_3.LimitPoint 1 := by sorry
+example : (0.1:ℝ).ContinuallyAdherent Example_6_4_3 1 := by
+  intro N hN; change N ≥ 0 at hN
+  refine ⟨N, show N ≥ (Example_6_4_3.from N).m by change N ≥ max 0 N; omega, ?_⟩
+  rw [Real.close_def, Real.dist_eq, Example_6_4_3.from_eval (show N ≥ N by omega)]
+  rw [ex643_eval (show N ≥ 0 by omega)]
+  rw [show (1:ℝ) - (10:ℝ) ^ (-N - 1) - 1 = -((10:ℝ) ^ (-N - 1)) by ring,
+      abs_neg, abs_of_pos (by positivity)]
+  calc (10:ℝ) ^ (-N - 1) ≤ (10:ℝ) ^ (-1 : ℤ) :=
+        zpow_le_zpow_right₀ (by norm_num) (by omega)
+    _ = 0.1 := by norm_num
+
+/-- Example 6.4.3 -/
+example : Example_6_4_3.LimitPoint 1 := by
+  rw [Sequence.limit_point_def]; intro ε hε N hN
+  obtain ⟨M, hM, hpow⟩ := pow_archimedian ε hε
+  refine ⟨max N M, by omega, ?_⟩
+  rw [ex643_eval (show max N M ≥ 0 by omega)]
+  rw [show (1:ℝ) - (10:ℝ) ^ (-(max N M : ℤ) - 1) - 1 = -((10:ℝ) ^ (-(max N M : ℤ) - 1)) by ring,
+      abs_neg, abs_of_pos (by positivity)]
+  calc (10:ℝ) ^ (-(max N M : ℤ) - 1)
+      ≤ (10:ℝ) ^ (-(M : ℤ) - 1) := zpow_le_zpow_right₀ (by norm_num) (by omega)
+    _ = ((10:ℝ) ^ ((M : ℤ) + 1))⁻¹ := by rw [show -(M : ℤ) - 1 = -((M : ℤ) + 1) by ring, zpow_neg]
+    _ ≤ ε := le_of_lt (by rw [inv_lt_comm₀ (by positivity) hε, ← one_div]; linarith)
 
 noncomputable abbrev Example_6_4_4 : Sequence :=
   (fun (n:ℕ) ↦ (-1:ℝ)^n * (1 + (10:ℝ)^(-(n:ℤ)-1)))
 
-/-- Example 6.4.4 -/
-example : (0.1:ℝ).Adherent Example_6_4_4 1 := by sorry
+private lemma ex644_eval {n : ℤ} (hn : n ≥ 0) :
+    (Example_6_4_4 : ℤ → ℝ) n = (-1:ℝ) ^ n.toNat * (1 + (10:ℝ) ^ (-n - 1)) := by
+  show (if n ≥ 0 then _ else _) = _; simp [hn]
+
+private lemma ex644_even (N : ℤ) (hN : N ≥ 0) :
+    (-1:ℝ) ^ (2 * N).toNat = 1 := by
+  rw [show (2 * N).toNat = 2 * N.toNat from by omega, pow_mul, neg_one_sq, one_pow]
+
+private lemma ex644_odd (N : ℤ) (hN : N ≥ 0) :
+    (-1:ℝ) ^ (2 * N + 1).toNat = -1 := by
+  rw [show (2 * N + 1).toNat = 2 * N.toNat + 1 from by omega,
+      pow_add, pow_mul, neg_one_sq, one_pow, one_mul, pow_one]
 
 /-- Example 6.4.4 -/
-example : (0.1:ℝ).ContinuallyAdherent Example_6_4_4 1 := by sorry
+example : (0.1:ℝ).Adherent Example_6_4_4 1 := by
+  refine ⟨0, le_refl _, ?_⟩
+  show dist (Example_6_4_4 (0:ℤ)) 1 ≤ 0.1
+  rw [Real.dist_eq, abs_of_nonneg (by norm_num)]
+  norm_num
 
 /-- Example 6.4.4 -/
-example : Example_6_4_4.LimitPoint 1 := by sorry
+example : (0.1:ℝ).ContinuallyAdherent Example_6_4_4 1 := by
+  intro N hN; change N ≥ 0 at hN
+  refine ⟨2 * N, show 2 * N ≥ (Example_6_4_4.from N).m by change 2 * N ≥ max 0 N; omega, ?_⟩
+  rw [Real.close_def, Real.dist_eq, Example_6_4_4.from_eval (show 2 * N ≥ N by omega)]
+  rw [ex644_eval (by omega : 2 * N ≥ 0), ex644_even N hN, one_mul]
+  rw [show (1:ℝ) + (10:ℝ) ^ (-(2 * N) - 1) - 1 = (10:ℝ) ^ (-(2 * N) - 1) by ring,
+      abs_of_pos (by positivity)]
+  calc (10:ℝ) ^ (-(2 * N) - 1) ≤ (10:ℝ) ^ (-1 : ℤ) :=
+        zpow_le_zpow_right₀ (by norm_num) (by omega)
+    _ = 0.1 := by norm_num
 
 /-- Example 6.4.4 -/
-example : Example_6_4_4.LimitPoint (-1) := by sorry
+example : Example_6_4_4.LimitPoint 1 := by
+  rw [Sequence.limit_point_def]; intro ε hε N hN
+  obtain ⟨M, hM, hpow⟩ := pow_archimedian ε hε
+  refine ⟨2 * max N M, by omega, ?_⟩
+  rw [ex644_eval (by omega : 2 * max N M ≥ 0),
+      ex644_even (max N M) (by omega), one_mul]
+  rw [show (1:ℝ) + (10:ℝ) ^ (-(2 * max N M) - 1) - 1 = (10:ℝ) ^ (-(2 * max N M) - 1) by ring,
+      abs_of_pos (by positivity)]
+  calc (10:ℝ) ^ (-(2 * max N M) - 1)
+      ≤ (10:ℝ) ^ (-(M : ℤ) - 1) := zpow_le_zpow_right₀ (by norm_num) (by omega)
+    _ = ((10:ℝ) ^ ((M : ℤ) + 1))⁻¹ := by rw [show -(M : ℤ) - 1 = -((M : ℤ) + 1) by ring, zpow_neg]
+    _ ≤ ε := le_of_lt (by rw [inv_lt_comm₀ (by positivity) hε, ← one_div]; linarith)
 
 /-- Example 6.4.4 -/
-example : ¬ Example_6_4_4.LimitPoint 0 := by sorry
+example : Example_6_4_4.LimitPoint (-1) := by
+  rw [Sequence.limit_point_def]; intro ε hε N hN
+  obtain ⟨M, hM, hpow⟩ := pow_archimedian ε hε
+  refine ⟨2 * max N M + 1, by omega, ?_⟩
+  rw [ex644_eval (by omega : 2 * max N M + 1 ≥ 0),
+      ex644_odd (max N M) (by omega)]
+  rw [show (-1:ℝ) * (1 + (10:ℝ) ^ (-(2 * max N M + 1) - 1)) - (-1) =
+      -((10:ℝ) ^ (-(2 * max N M + 1) - 1)) by ring, abs_neg, abs_of_pos (by positivity)]
+  calc (10:ℝ) ^ (-(2 * max N M + 1) - 1)
+      ≤ (10:ℝ) ^ (-(M : ℤ) - 1) := zpow_le_zpow_right₀ (by norm_num) (by omega)
+    _ = ((10:ℝ) ^ ((M : ℤ) + 1))⁻¹ := by rw [show -(M : ℤ) - 1 = -((M : ℤ) + 1) by ring, zpow_neg]
+    _ ≤ ε := le_of_lt (by rw [inv_lt_comm₀ (by positivity) hε, ← one_div]; linarith)
+
+/-- Example 6.4.4 -/
+example : ¬ Example_6_4_4.LimitPoint 0 := by
+  rw [Sequence.limit_point_def]; push_neg
+  refine ⟨1/2, by norm_num, 0, show (0:ℤ) ≥ 0 by omega, ?_⟩
+  intro n hn
+  rw [ex644_eval (by omega : n ≥ 0), sub_zero]
+  have : |(-1:ℝ) ^ n.toNat * (1 + (10:ℝ) ^ (-n - 1))| = 1 + (10:ℝ) ^ (-n - 1) := by
+    rw [_root_.abs_mul, abs_pow, _root_.abs_neg, _root_.abs_one, one_pow, one_mul,
+        abs_of_pos (by positivity)]
+  rw [this]
+  linarith [show (0:ℝ) < (10:ℝ) ^ (-n - 1) from by positivity]
 
 /-- Proposition 6.4.5 / Exercise 6.4.1 -/
 theorem Sequence.limit_point_of_limit {a:Sequence} {x:ℝ} (h: a.TendsTo x) : a.LimitPoint x := by

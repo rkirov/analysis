@@ -58,6 +58,7 @@ When asked to fill in a `sorry`:
 
 ## Proof Style
 
+- Prefer tactic mode over term mode.
 - Prefer `calc` blocks for equational reasoning and chains of inequalities.
 - Use structured proofs (`have`, `suffices`, `obtain`) over long tactic chains — readability matters.
 - Minimize use of `simp` as a finishing tactic. If `simp` works, check whether a more explicit closer (`ring`, `omega`, `linarith`, `exact`) would be clearer.

@@ -1196,15 +1196,134 @@ def Sequence.tendsTo_real_iff :
 /-- This definition is needed for Exercises 6.4.8 and 6.4.9. -/
 abbrev Sequence.ExtendedLimitPoint (a:Sequence) (x:EReal) : Prop := if x = ⊤ then ¬ a.BddAbove else if x = ⊥ then ¬ a.BddBelow else a.LimitPoint x.toReal
 
-/-- Exercise 6.4.8 -/
-theorem Sequence.extended_limit_point_of_limsup (a:Sequence) : a.ExtendedLimitPoint a.limsup := by sorry
+private lemma Sequence.not_bddAbove_from {a : Sequence} (h : ¬a.BddAbove)
+    {N : ℤ} (hN : N ≥ a.m) (M : ℝ) : ∃ n ≥ N, a n > M := by
+  by_contra h'; push_neg at h'
+  apply h
+  rcases eq_or_lt_of_le hN with rfl | hlt
+  · exact ⟨M, h'⟩
+  · have hne : (Finset.Ico a.m N).Nonempty :=
+      ⟨a.m, Finset.mem_Ico.mpr ⟨le_refl _, hlt⟩⟩
+    exact ⟨max M ((Finset.Ico a.m N).sup' hne a.seq), fun n hn => by
+      rcases le_or_gt N n with hn' | hn'
+      · exact le_trans (h' n hn') (le_max_left _ _)
+      · exact le_trans (Finset.le_sup' a.seq (Finset.mem_Ico.mpr ⟨hn, hn'⟩))
+                        (le_max_right _ _)⟩
+
+private lemma Sequence.not_bddBelow_from {a : Sequence} (h : ¬a.BddBelow)
+    {N : ℤ} (hN : N ≥ a.m) (M : ℝ) : ∃ n ≥ N, a n < M := by
+  by_contra h'; push_neg at h'
+  apply h
+  rcases eq_or_lt_of_le hN with rfl | hlt
+  · exact ⟨M, h'⟩
+  · have hne : (Finset.Ico a.m N).Nonempty :=
+      ⟨a.m, Finset.mem_Ico.mpr ⟨le_refl _, hlt⟩⟩
+    exact ⟨min M ((Finset.Ico a.m N).inf' hne a.seq), fun n hn => by
+      rcases le_or_gt N n with hn' | hn'
+      · exact le_trans (min_le_left _ _) (h' n hn')
+      · exact le_trans (min_le_right _ _)
+                        (Finset.inf'_le a.seq (Finset.mem_Ico.mpr ⟨hn, hn'⟩))⟩
 
 /-- Exercise 6.4.8 -/
-theorem Sequence.extended_limit_point_of_liminf (a:Sequence) : a.ExtendedLimitPoint a.liminf := by sorry
+theorem Sequence.extended_limit_point_of_limsup (a:Sequence) : a.ExtendedLimitPoint a.limsup := by
+  rcases EReal.def a.limsup with ⟨L, hL⟩ | htop | hbot
+  · -- limsup = ↑L
+    rw [← hL]; show a.LimitPoint L
+    exact limit_point_of_limsup hL.symm
+  · -- limsup = ⊤
+    rw [htop]; show ¬ a.BddAbove; intro ⟨M, hM⟩
+    have : a.limsup ≤ ↑M := calc
+      a.limsup ≤ a.upperseq a.m := sInf_le ⟨a.m, le_refl _, rfl⟩
+      _ ≤ ↑M := sup_le_upper fun n hn => by
+        have hn' : n ≥ a.m := by change n ≥ max a.m a.m at hn; omega
+        rw [show (a.from a.m) n = a n from a.from_eval hn']
+        exact_mod_cast hM n hn'
+    rw [htop] at this; exact absurd this (not_le.mpr (EReal.coe_lt_top _))
+  · -- limsup = ⊥
+    rw [hbot]; show ¬ a.BddBelow; intro ⟨M, hM⟩
+    have : (↑M : EReal) ≤ a.limsup := by
+      apply le_sInf; rintro _ ⟨N, hN, rfl⟩
+      calc (↑M : EReal) ≤ ↑(a (max a.m N)) := by exact_mod_cast hM _ (by omega)
+        _ ≤ (a.from N).sup := by
+          have := (a.from N).le_sup (show max a.m N ≥ (a.from N).m from le_refl _)
+          rwa [a.from_eval (le_max_right a.m N)] at this
+    rw [hbot] at this; exact absurd this (not_le.mpr (EReal.bot_lt_coe _))
 
-theorem Sequence.extended_limit_point_le_limsup {a:Sequence} {L:EReal} (h:a.ExtendedLimitPoint L): L ≤ a.limsup := by sorry
+/-- Exercise 6.4.8 -/
+theorem Sequence.extended_limit_point_of_liminf (a:Sequence) : a.ExtendedLimitPoint a.liminf := by
+  rcases EReal.def a.liminf with ⟨L, hL⟩ | htop | hbot
+  · -- liminf = ↑L
+    rw [← hL]; show a.LimitPoint L
+    exact limit_point_of_liminf hL.symm
+  · -- liminf = ⊤
+    rw [htop]; show ¬ a.BddAbove; intro ⟨M, hM⟩
+    have : a.liminf ≤ ↑M := sSup_le fun _ ⟨N, hN, hx⟩ => by
+      subst hx
+      calc (a.from N).inf ≤ ↑(a (max a.m N)) := by
+            have := (a.from N).ge_inf (show max a.m N ≥ (a.from N).m from le_refl _)
+            rwa [a.from_eval (le_max_right a.m N)] at this
+        _ ≤ ↑M := by exact_mod_cast hM _ (by omega)
+    rw [htop] at this; exact absurd this (not_le.mpr (EReal.coe_lt_top _))
+  · -- liminf = ⊥
+    rw [hbot]; show ¬ a.BddBelow; intro ⟨M, hM⟩
+    have : (↑M : EReal) ≤ a.liminf := calc
+      (↑M : EReal) ≤ a.lowerseq a.m := by
+        apply inf_ge_lower; intro n hn
+        have hn' : n ≥ a.m := by change n ≥ max a.m a.m at hn; omega
+        rw [show (a.from a.m) n = a n from a.from_eval hn']
+        exact_mod_cast hM n hn'
+      _ ≤ a.liminf := le_sSup ⟨a.m, le_refl _, rfl⟩
+    rw [hbot] at this; exact absurd this (not_le.mpr (EReal.bot_lt_coe _))
 
-theorem Sequence.extended_limit_point_ge_liminf {a:Sequence} {L:EReal} (h:a.ExtendedLimitPoint L): L ≥ a.liminf := by sorry
+theorem Sequence.extended_limit_point_le_limsup {a:Sequence} {L:EReal} (h:a.ExtendedLimitPoint L): L ≤ a.limsup := by
+  rcases EReal.def L with ⟨c, hc⟩ | htop | hbot
+  · -- L = ↑c
+    rw [← hc] at h ⊢
+    exact (limit_point_between_liminf_limsup h).2
+  · -- L = ⊤: ¬BddAbove → limsup = ⊤
+    rw [htop] at h ⊢; change ¬ a.BddAbove at h
+    apply le_sInf; rintro _ ⟨N, hN, rfl⟩
+    show ⊤ ≤ (a.from N).sup
+    suffices (a.from N).sup = ⊤ by rw [this]
+    rcases EReal.def (a.from N).sup with ⟨S, hS⟩ | hsup_top | hsup_bot
+    · exfalso
+      obtain ⟨n, hn, hgt⟩ := not_bddAbove_from h hN S
+      have : ↑(a n) ≤ (a.from N).sup := by
+        have := (a.from N).le_sup (show n ≥ (a.from N).m by change n ≥ max a.m N; omega)
+        rwa [a.from_eval hn] at this
+      rw [← hS, EReal.coe_le_coe_iff] at this; linarith
+    · exact hsup_top
+    · exfalso
+      have : ↑(a (max a.m N)) ≤ (a.from N).sup := by
+        have := (a.from N).le_sup (show max a.m N ≥ (a.from N).m from le_refl _)
+        rwa [a.from_eval (le_max_right a.m N)] at this
+      rw [hsup_bot] at this; exact absurd this (not_le.mpr (EReal.bot_lt_coe _))
+  · rw [hbot]; exact bot_le
+
+theorem Sequence.extended_limit_point_ge_liminf {a:Sequence} {L:EReal} (h:a.ExtendedLimitPoint L): L ≥ a.liminf := by
+  rcases EReal.def L with ⟨c, hc⟩ | htop | hbot
+  · -- L = ↑c
+    rw [← hc] at h ⊢
+    exact (limit_point_between_liminf_limsup h).1
+  · rw [htop]; exact le_top
+  · -- L = ⊥: ¬BddBelow → liminf = ⊥
+    rw [hbot] at h ⊢; change ¬ a.BddBelow at h; show a.liminf ≤ ⊥
+    apply sSup_le; rintro _ ⟨N, hN, rfl⟩
+    show (a.from N).inf ≤ ⊥
+    suffices (a.from N).inf = ⊥ by rw [this]
+    rcases EReal.def (a.from N).inf with ⟨S, hS⟩ | hinf_top | hinf_bot
+    · exfalso
+      obtain ⟨n, hn, hlt⟩ := not_bddBelow_from h hN S
+      have : (a.from N).inf ≤ ↑(a n) := by
+        have := (a.from N).ge_inf (show n ≥ (a.from N).m by change n ≥ max a.m N; omega)
+        rwa [a.from_eval hn] at this
+      rw [← hS, EReal.coe_le_coe_iff] at this; linarith
+    · exfalso
+      have : (a.from N).inf ≤ ↑(a (max a.m N)) := by
+        have := (a.from N).ge_inf (show max a.m N ≥ (a.from N).m from le_refl _)
+        rwa [a.from_eval (le_max_right a.m N)] at this
+      rw [hinf_top] at this; exact absurd this (not_le.mpr (EReal.coe_lt_top _))
+    · exact hinf_bot
 
 /-- Exercise 6.4.9 -/
 theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.ExtendedLimitPoint L ↔ L = ⊥ ∨ L = 0 ∨ L = ⊤ := by

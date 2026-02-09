@@ -968,19 +968,73 @@ theorem Sequence.lim_of_between {a b c:Sequence} {L:ℝ} (hm: b.m = a.m ∧ c.m 
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ 2/(n+1:ℝ)):Sequence).TendsTo 0 := by
-  sorry
+  have h := Sequence.tendsTo_smul 2 (Sequence.lim_eq.mpr Sequence.lim_harmonic)
+  simp at h
+  rw [Sequence.tendsTo_iff] at h ⊢
+  intro ε hε
+  obtain ⟨N, hN⟩ := h ε hε
+  use N; intro n hn
+  specialize hN n hn
+  simp at hN ⊢
+  rwa [div_eq_mul_inv]
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ -2/(n+1:ℝ)):Sequence).TendsTo 0 := by
-  sorry
+  have h := Sequence.tendsTo_smul (-2) (Sequence.lim_eq.mpr Sequence.lim_harmonic)
+  simp at h
+  rw [Sequence.tendsTo_iff] at h ⊢
+  intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
+  specialize hN n hn
+  simp at hN ⊢
+  rwa [neg_div, div_eq_mul_inv]
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ (-1)^n/(n+1:ℝ) + 1 / (n+1)^2):Sequence).TendsTo 0 := by
-  sorry
+  refine Sequence.lim_of_between (a := (fun (n:ℕ) ↦ -2/(n+1:ℝ)))
+    (c := (fun (n:ℕ) ↦ 2/(n+1:ℝ))) ⟨rfl, rfl⟩ ?_ ?_ ?_
+  · intro n hn; simp [hn]
+    set k := n.toNat
+    have hk : (0:ℝ) < (k:ℝ) + 1 := by positivity
+    have hinv_sq_le : (((k:ℝ) + 1) ^ 2)⁻¹ ≤ ((k:ℝ) + 1)⁻¹ := by
+      exact inv_anti₀ hk (by nlinarith)
+    rcases neg_one_pow_eq_or ℝ k with h | h <;> simp only [h] <;> constructor <;>
+      rw [div_eq_mul_inv, div_eq_mul_inv] <;> nlinarith [inv_nonneg.mpr hk.le, (by positivity : (0:ℝ) ≤ (((k:ℝ) + 1) ^ 2)⁻¹)]
+  · -- a = -2/(n+1) → 0
+    have h := Sequence.tendsTo_smul (-2) (Sequence.lim_eq.mpr Sequence.lim_harmonic)
+    simp at h
+    rw [Sequence.tendsTo_iff] at h ⊢
+    intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
+    specialize hN n hn; simp at hN ⊢; rwa [neg_div, div_eq_mul_inv]
+  · -- c = 2/(n+1) → 0
+    have h := Sequence.tendsTo_smul 2 (Sequence.lim_eq.mpr Sequence.lim_harmonic)
+    simp at h
+    rw [Sequence.tendsTo_iff] at h ⊢
+    intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
+    specialize hN n hn; simp at hN ⊢; rwa [div_eq_mul_inv]
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ (2:ℝ)^(-(n:ℤ))):Sequence).TendsTo 0 := by
-  sorry
+  refine Sequence.lim_of_between (a := (fun (_:ℕ) ↦ (0:ℝ)))
+    (c := (fun (n:ℕ) ↦ 2/(n+1:ℝ))) ⟨rfl, rfl⟩ ?_ ?_ ?_
+  · intro n hn; simp [hn]
+    set k := n.toNat
+    have hn' : n ≥ 0 := by simpa using hn
+    have hnk : n = (k:ℤ) := (Int.toNat_of_nonneg hn').symm
+    have hk : (0:ℝ) < (k:ℝ) + 1 := by positivity
+    rw [show (2:ℝ) ^ n = 2 ^ (k:ℤ) from by rw [hnk], zpow_natCast]
+    constructor
+    · positivity
+    · have hpow : (k:ℝ) + 1 ≤ 2 ^ k := by exact_mod_cast Nat.lt_two_pow_self
+      have h2k : (0:ℝ) < 2 ^ k := by positivity
+      calc (2 ^ k : ℝ)⁻¹ ≤ ((k:ℝ) + 1)⁻¹ := inv_anti₀ hk hpow
+        _ ≤ 2 * ((k:ℝ) + 1)⁻¹ := le_mul_of_one_le_left (inv_nonneg.mpr hk.le) one_le_two
+  · rw [Sequence.tendsTo_iff]; intro ε hε; use 0; intro n hn; simp [hn]
+    exact hε.le
+  · have h := Sequence.tendsTo_smul 2 (Sequence.lim_eq.mpr Sequence.lim_harmonic)
+    simp at h
+    rw [Sequence.tendsTo_iff] at h ⊢
+    intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
+    specialize hN n hn; simp at hN ⊢; rwa [div_eq_mul_inv]
 
 abbrev Sequence.abs (a:Sequence) : Sequence where
   m := a.m
@@ -1046,7 +1100,7 @@ theorem Sequence.Cauchy_iff_convergent (a:Sequence) :
     grind [EReal.coe_le_coe_iff]
   obtain hlow | hlow := le_iff_lt_or_eq.mp hlow
   . specialize hup ((L_plus - L_minus)/3) ?_ <;> linarith
-  grind
+  linarith
 
 /-- Exercise 6.4.6 -/
 theorem Sequence.sup_not_strict_mono : ∃ (a b:ℕ → ℝ), (∀ n, a n < b n) ∧ ¬ (a:Sequence).sup < (b:Sequence).sup := by

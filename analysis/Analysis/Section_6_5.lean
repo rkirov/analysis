@@ -117,63 +117,53 @@ theorem Sequence.lim_of_geometric'' {x:ℝ} (hx: x = -1 ∨ |x| > 1) :
 theorem Sequence.lim_of_roots {x:ℝ} (hx: x > 0) :
     ((fun (n:ℕ) ↦ x^(1/(n+1:ℝ))):Sequence).TendsTo 1 := by
   rw [tendsTo_iff]; intro ε hε
-  set C := max (x - 1) (x⁻¹ - 1)
-  have hC_nn : 0 ≤ C := by
-    rcases le_or_gt x 1 with h | h
-    · exact le_max_of_le_right (sub_nonneg.mpr ((one_le_inv₀ hx).mpr h))
-    · exact le_max_of_le_left (by linarith)
-  obtain ⟨N, hN⟩ := exists_nat_gt (C / ε)
-  use (N : ℤ); intro n hn
-  have hn0 : n ≥ 0 := by omega
-  simp only [hn0, ite_true]
-  have hn_pos : (0:ℝ) < ↑n.toNat + 1 := by positivity
-  have hexp_pos : (0:ℝ) < 1 / (↑n.toNat + 1) := by positivity
-  have hexp_le : 1 / (↑n.toNat + 1:ℝ) ≤ 1 := by
-    rw [div_le_one hn_pos]; linarith [n.toNat.cast_nonneg (α := ℝ)]
-  have hn_ge : (↑N:ℝ) + 1 ≤ ↑n.toNat + 1 := by
-    have : (N:ℤ) ≤ n := hn; exact_mod_cast show (N:ℤ) + 1 ≤ n.toNat + 1 from by omega
-  suffices h : |x ^ (1 / (↑n.toNat + 1:ℝ)) - 1| ≤ C / (↑n.toNat + 1) by
-    calc |x ^ (1 / (↑n.toNat + 1:ℝ)) - 1| ≤ C / (↑n.toNat + 1) := h
-      _ ≤ C / (↑N + 1) := div_le_div_of_nonneg_left (by linarith) (by positivity) hn_ge
-      _ ≤ ε := by
-          rw [div_le_iff₀ (by positivity : (↑N:ℝ) + 1 > 0)]
-          have := (div_lt_iff₀ hε).mp hN; nlinarith
+  -- Preliminary (from hint): for M > 0, M^(1/(n+1)) ≤ 1 + ε for large n.
+  -- Uses Lemma 6.5.2: (1+ε)^n is unbounded, so (1+ε)^K > M for some K,
+  -- then taking K-th roots gives M^(1/K) ≤ 1+ε.
+  have root_bound : ∀ M > 0, ∃ N : ℤ, ∀ n ≥ N, M ^ (1 / (↑n.toNat + 1:ℝ)) ≤ 1 + ε := by
+    intro M hM
+    rcases le_or_gt M 1 with hle | hgt
+    · exact ⟨0, fun n _ ↦ (Real.rpow_le_one hM.le hle (by positivity)).trans (by linarith)⟩
+    · obtain ⟨K, hK⟩ := pow_unbounded_of_one_lt M (show (1:ℝ) < 1 + ε by linarith)
+      have hK_pos : 0 < K := by
+        by_contra h; push_neg at h; interval_cases K; simp at hK; linarith
+      use (K - 1 : ℤ); intro n hn
+      have hn_ge : (K:ℝ) ≤ ↑n.toNat + 1 := by exact_mod_cast show (K:ℤ) ≤ n.toNat + 1 by omega
+      calc M ^ (1 / (↑n.toNat + 1:ℝ))
+          ≤ M ^ (1 / (K:ℝ)) :=
+            Real.rpow_le_rpow_of_exponent_le hgt.le
+              (div_le_div_of_nonneg_left zero_le_one (by positivity) hn_ge)
+        _ ≤ ((1 + ε) ^ K) ^ (1 / (K:ℝ)) :=
+            Real.rpow_le_rpow hM.le hK.le (by positivity)
+        _ = 1 + ε := by
+            rw [← Real.rpow_natCast (1 + ε) K, ← Real.rpow_mul (by linarith)]
+            simp [show (K:ℝ) ≠ 0 from Nat.cast_ne_zero.mpr (by omega)]
   rcases le_or_gt x 1 with hle | hgt
-  · -- 0 < x ≤ 1
-    have hxp_le : x ^ (1 / (↑n.toNat + 1:ℝ)) ≤ 1 :=
-      Real.rpow_le_one (le_of_lt hx) hle hexp_pos.le
-    have hxp_pos : 0 < x ^ (1 / (↑n.toNat + 1:ℝ)) := Real.rpow_pos_of_pos hx _
+  · -- 0 < x ≤ 1: apply root_bound to x⁻¹
+    obtain ⟨N, hN⟩ := root_bound x⁻¹ (inv_pos.mpr hx)
+    use max 0 N; intro n hn
+    have hn0 : n ≥ 0 := by omega
+    specialize hN n (by omega : n ≥ N)
+    simp only [hn0, ite_true]
+    have hxp_le := Real.rpow_le_one hx.le hle (show 0 ≤ 1 / (↑n.toNat + 1:ℝ) by positivity)
+    have hxp_pos := Real.rpow_pos_of_pos hx (1 / (↑n.toNat + 1:ℝ))
     rw [abs_of_nonpos (by linarith)]
-    have hinv_ge : 1 ≤ x⁻¹ := (one_le_inv₀ hx).mpr hle
-    have hb : (x ^ (1 / (↑n.toNat + 1:ℝ)))⁻¹ ≤ 1 + 1 / (↑n.toNat + 1) * (x⁻¹ - 1) := by
-      rw [← Real.inv_rpow (le_of_lt hx)]
-      convert rpow_one_add_le_one_add_mul_self
-        (show (-1:ℝ) ≤ x⁻¹ - 1 by linarith) hexp_pos.le hexp_le using 1
-      congr 1; linarith
-    set d := 1 / (↑n.toNat + 1) * (x⁻¹ - 1)
-    have hd_nn : 0 ≤ d := mul_nonneg (le_of_lt hexp_pos) (sub_nonneg.mpr hinv_ge)
-    have hd_pos : 0 < 1 + d := by linarith
-    have hxr_lb : (1 + d)⁻¹ ≤ x ^ (1 / (↑n.toNat + 1:ℝ)) :=
-      (inv_le_comm₀ hxp_pos hd_pos).mp hb
-    calc -(x ^ (1 / (↑n.toNat + 1:ℝ)) - 1) = 1 - x ^ (1 / (↑n.toNat + 1:ℝ)) := by ring
-      _ ≤ 1 - (1 + d)⁻¹ := by linarith
-      _ = d / (1 + d) := by field_simp
-      _ ≤ d := div_le_self hd_nn (by linarith)
-      _ = (x⁻¹ - 1) / (↑n.toNat + 1) := by ring
-      _ ≤ C / (↑n.toNat + 1) :=
-          div_le_div_of_nonneg_right (le_max_right _ _) (le_of_lt hn_pos)
-  · -- x > 1
-    have h_ge_one : 1 ≤ x ^ (1 / (↑n.toNat + 1:ℝ)) :=
-      Real.one_le_rpow (le_of_lt hgt) hexp_pos.le
-    have hb : x ^ (1 / (↑n.toNat + 1:ℝ)) ≤ 1 + 1 / (↑n.toNat + 1) * (x - 1) := by
-      convert rpow_one_add_le_one_add_mul_self
-        (show (-1:ℝ) ≤ x - 1 by linarith) hexp_pos.le hexp_le using 1
-      congr 1; linarith
+    rw [Real.inv_rpow hx.le] at hN
+    -- x^(1/(n+1)) ≥ (1+ε)⁻¹ ≥ 1 - ε
+    have h1 : (1 + ε)⁻¹ ≤ x ^ (1 / (↑n.toNat + 1:ℝ)) :=
+      (inv_le_comm₀ hxp_pos (by linarith)).mp hN
+    have h2 : 1 - ε ≤ (1 + ε)⁻¹ := by
+      rw [inv_eq_one_div, le_div_iff₀ (by linarith : (0:ℝ) < 1 + ε)]
+      nlinarith [sq_nonneg ε]
+    linarith
+  · -- x > 1: apply root_bound to x directly
+    obtain ⟨N, hN⟩ := root_bound x hx
+    use max 0 N; intro n hn
+    have hn0 : n ≥ 0 := by omega
+    simp only [hn0, ite_true]
+    have h_ge := Real.one_le_rpow hgt.le (show 0 ≤ 1 / (↑n.toNat + 1:ℝ) by positivity)
     rw [abs_of_nonneg (by linarith)]
-    calc x ^ (1 / (↑n.toNat + 1:ℝ)) - 1 ≤ 1 / (↑n.toNat + 1) * (x - 1) := by linarith
-      _ = (x - 1) / (↑n.toNat + 1) := by ring
-      _ ≤ C / (↑n.toNat + 1) :=
-          div_le_div_of_nonneg_right (le_max_left _ _) (le_of_lt hn_pos)
+    linarith [hN n (by omega : n ≥ N)]
 
 /-- Exercise 6.5.1 -/
 theorem Sequence.lim_of_rat_power_decay {q:ℚ} (hq: q > 0) :

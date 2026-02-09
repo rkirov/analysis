@@ -1002,27 +1002,19 @@ theorem Sequence.lim_of_between {a b c:Sequence} {L:ℝ} (hm: b.m = a.m ∧ c.m 
   have ha : b.liminf = L := le_antisymm hbcinf habinf
   exact (tendsTo_iff_eq_limsup_liminf L).mpr ⟨ha, hb⟩
 
-/-- Example 6.4.15 -/
-example : ((fun (n:ℕ) ↦ 2/(n+1:ℝ)):Sequence).TendsTo 0 := by
-  have h := Sequence.tendsTo_smul 2 (Sequence.lim_eq.mpr Sequence.lim_harmonic)
-  simp at h
-  rw [Sequence.tendsTo_iff] at h ⊢
-  intro ε hε
-  obtain ⟨N, hN⟩ := h ε hε
-  use N; intro n hn
-  specialize hN n hn
-  simp at hN ⊢
-  rwa [div_eq_mul_inv]
-
-/-- Example 6.4.15 -/
-example : ((fun (n:ℕ) ↦ -2/(n+1:ℝ)):Sequence).TendsTo 0 := by
-  have h := Sequence.tendsTo_smul (-2) (Sequence.lim_eq.mpr Sequence.lim_harmonic)
+private lemma tendsTo_const_div_succ (c : ℝ) :
+    ((fun (n:ℕ) ↦ c/(n+1:ℝ)):Sequence).TendsTo 0 := by
+  have h := Sequence.tendsTo_smul c (Sequence.lim_eq.mpr Sequence.lim_harmonic)
   simp at h
   rw [Sequence.tendsTo_iff] at h ⊢
   intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
-  specialize hN n hn
-  simp at hN ⊢
-  rwa [neg_div, div_eq_mul_inv]
+  specialize hN n hn; simp at hN ⊢; rwa [div_eq_mul_inv]
+
+/-- Example 6.4.15 -/
+example : ((fun (n:ℕ) ↦ 2/(n+1:ℝ)):Sequence).TendsTo 0 := tendsTo_const_div_succ 2
+
+/-- Example 6.4.15 -/
+example : ((fun (n:ℕ) ↦ -2/(n+1:ℝ)):Sequence).TendsTo 0 := tendsTo_const_div_succ (-2)
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ (-1)^n/(n+1:ℝ) + 1 / (n+1)^2):Sequence).TendsTo 0 := by
@@ -1035,18 +1027,8 @@ example : ((fun (n:ℕ) ↦ (-1)^n/(n+1:ℝ) + 1 / (n+1)^2):Sequence).TendsTo 0 
       exact inv_anti₀ hk (by nlinarith)
     rcases neg_one_pow_eq_or ℝ k with h | h <;> simp only [h] <;> constructor <;>
       rw [div_eq_mul_inv, div_eq_mul_inv] <;> nlinarith [inv_nonneg.mpr hk.le, (by positivity : (0:ℝ) ≤ (((k:ℝ) + 1) ^ 2)⁻¹)]
-  · -- a = -2/(n+1) → 0
-    have h := Sequence.tendsTo_smul (-2) (Sequence.lim_eq.mpr Sequence.lim_harmonic)
-    simp at h
-    rw [Sequence.tendsTo_iff] at h ⊢
-    intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
-    specialize hN n hn; simp at hN ⊢; rwa [neg_div, div_eq_mul_inv]
-  · -- c = 2/(n+1) → 0
-    have h := Sequence.tendsTo_smul 2 (Sequence.lim_eq.mpr Sequence.lim_harmonic)
-    simp at h
-    rw [Sequence.tendsTo_iff] at h ⊢
-    intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
-    specialize hN n hn; simp at hN ⊢; rwa [div_eq_mul_inv]
+  · exact tendsTo_const_div_succ (-2)
+  · exact tendsTo_const_div_succ 2
 
 /-- Example 6.4.15 -/
 example : ((fun (n:ℕ) ↦ (2:ℝ)^(-(n:ℤ))):Sequence).TendsTo 0 := by
@@ -1066,11 +1048,7 @@ example : ((fun (n:ℕ) ↦ (2:ℝ)^(-(n:ℤ))):Sequence).TendsTo 0 := by
         _ ≤ 2 * ((k:ℝ) + 1)⁻¹ := le_mul_of_one_le_left (inv_nonneg.mpr hk.le) one_le_two
   · rw [Sequence.tendsTo_iff]; intro ε hε; use 0; intro n hn; simp [hn]
     exact hε.le
-  · have h := Sequence.tendsTo_smul 2 (Sequence.lim_eq.mpr Sequence.lim_harmonic)
-    simp at h
-    rw [Sequence.tendsTo_iff] at h ⊢
-    intro ε hε; obtain ⟨N, hN⟩ := h ε hε; use N; intro n hn
-    specialize hN n hn; simp at hN ⊢; rwa [div_eq_mul_inv]
+  · exact tendsTo_const_div_succ 2
 
 abbrev Sequence.abs (a:Sequence) : Sequence where
   m := a.m
@@ -1354,15 +1332,9 @@ theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.Exte
       have hcpos : (0:ℝ) < |c| := abs_pos.mpr hc
       rw [limit_point_def] at h
       -- Choose ε = |c|/2 and N large enough that pos/neg terms are > 3|c|/2
-      set N₀ : ℕ := (⌈3 * |c|⌉.toNat + 1) with hN₀_def
+      set N₀ : ℕ := ⌈3 * |c|⌉₊ + 1
       have hN₀_bound : (N₀ : ℝ) > 3 * |c| / 2 := by
-        have h1 : (⌈3 * |c|⌉.toNat : ℤ) = ⌈3 * |c|⌉ :=
-          Int.toNat_of_nonneg (Int.ceil_nonneg (by linarith : (0:ℝ) ≤ 3 * |c|))
-        have h2 : 3 * |c| ≤ (⌈3 * |c|⌉.toNat : ℝ) := by
-          have := Int.le_ceil (3 * |c|)
-          have : (⌈3 * |c|⌉ : ℝ) ≤ ⌈3 * |c|⌉.toNat := by exact_mod_cast h1.symm.le
-          linarith
-        simp only [hN₀_def]; push_cast; linarith
+        have := Nat.le_ceil (3 * |c|); push_cast [N₀]; linarith
       obtain ⟨n, hn, hclose⟩ := h (|c|/2) (by linarith) (↑(3 * N₀)) (by omega)
       have hn0 : n ≥ 0 := by omega
       rw [heval n hn0] at hclose
@@ -1389,10 +1361,8 @@ theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.Exte
     · -- L = ⊥: show ¬ BddBelow
       show ¬ (f:Sequence).BddBelow
       intro ⟨M, hM⟩
-      set K : ℕ := (max 0 ⌈-M⌉).toNat
-      have hle : -M ≤ K := by
-        have : ⌈-M⌉ ≤ (K : ℤ) := by simp [K, Int.toNat_of_nonneg (le_max_left ..)]
-        exact le_trans (Int.le_ceil _) (by exact_mod_cast this)
+      set K : ℕ := ⌈-M⌉₊
+      have hle : -M ≤ K := Nat.le_ceil _
       have := hM (↑(3 * K + 2)) (by omega)
       rw [heval _ (by omega), show (↑(3 * K + 2) : ℤ).toNat = 3 * K + 2 from by omega,
         hf_neg] at this
@@ -1408,10 +1378,8 @@ theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.Exte
     · -- L = ⊤: show ¬ BddAbove
       show ¬ (f:Sequence).BddAbove
       intro ⟨M, hM⟩
-      set K : ℕ := (max 0 ⌈M⌉).toNat
-      have hle : M ≤ K := by
-        have : ⌈M⌉ ≤ (K : ℤ) := by simp [K, Int.toNat_of_nonneg (le_max_left ..)]
-        exact le_trans (Int.le_ceil _) (by exact_mod_cast this)
+      set K : ℕ := ⌈M⌉₊
+      have hle : M ≤ K := Nat.le_ceil _
       have := hM (↑(3 * K)) (by omega)
       rw [heval _ (by omega), show (↑(3 * K) : ℤ).toNat = 3 * K from by omega,
         hf_pos] at this

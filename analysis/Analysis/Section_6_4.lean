@@ -1140,7 +1140,34 @@ theorem Sequence.Cauchy_iff_convergent (a:Sequence) :
 
 /-- Exercise 6.4.6 -/
 theorem Sequence.sup_not_strict_mono : ∃ (a b:ℕ → ℝ), (∀ n, a n < b n) ∧ ¬ (a:Sequence).sup < (b:Sequence).sup := by
-  sorry
+  refine ⟨fun n ↦ 1 - 1/((n:ℝ)+1), fun _ ↦ 1, fun n ↦ by simp; positivity, ?_⟩
+  -- Show both sups equal 1
+  have hb : ((fun (_:ℕ) ↦ (1:ℝ)):Sequence).sup = 1 := by
+    apply le_antisymm
+    · apply sup_le_upper; intro n hn; simp [hn]
+    · exact le_sup (a := (fun (_:ℕ) ↦ (1:ℝ))) (show (0:ℤ) ≥ 0 from le_refl _)
+  have ha : ((fun (n:ℕ) ↦ 1 - 1/((n:ℝ)+1)):Sequence).sup = 1 := by
+    apply le_antisymm
+    · apply sup_le_upper; intro n hn; simp [hn]
+      exact_mod_cast show 1 - ((n.toNat:ℝ)+1)⁻¹ ≤ 1 by linarith [show (0:ℝ) < ((n.toNat:ℝ)+1)⁻¹ from by positivity]
+    · -- For any c < 1, find n with a n ≥ c
+      apply le_of_forall_lt_imp_le_of_dense
+      intro c hc
+      induction c with
+      | bot => exact bot_le
+      | top => exact absurd hc (not_lt.mpr le_top)
+      | coe c =>
+        have hc' : c < 1 := by exact_mod_cast hc
+        obtain ⟨N, hN⟩ := exists_nat_gt (1/(1 - c))
+        have hc1 : (0:ℝ) < 1 - c := by linarith
+        have hN' : (0:ℝ) < (N:ℝ) + 1 := by positivity
+        have key : c ≤ 1 - 1/((N:ℝ)+1) := by
+          have := (div_lt_iff₀ hc1).mp hN
+          suffices 1/((N:ℝ)+1) ≤ 1 - c by linarith
+          rw [div_le_iff₀ hN']; linarith
+        calc (c:EReal) ≤ ↑(1 - 1/((N:ℝ)+1)) := by exact_mod_cast key
+          _ ≤ _ := le_sup (a := (fun (n:ℕ) ↦ 1 - 1/((n:ℝ)+1))) (show (N:ℤ) ≥ 0 by omega)
+  rw [hb]; exact not_lt.mpr (ha ▸ le_refl _)
 
 /- Exercise 6.4.7 -/
 def Sequence.tendsTo_real_iff :

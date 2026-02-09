@@ -725,7 +725,7 @@ private lemma ex6410_lowerseq (N : ℤ) (hN : N ≥ 0) :
     linarith
 
 example (n:ℕ) : Example_6_4_10.lowerseq n = n+1 := by
-  rw [show (↑n + 1 : EReal) = ↑(↑n + 1 : ℝ) from by push_cast; ring]
+  rw [show (↑n + 1 : EReal) = ↑(↑n + 1 : ℝ) from by push_cast; ring_nf]
   exact ex6410_lowerseq ↑n (by omega)
 
 example : Example_6_4_10.liminf = ⊤ := by

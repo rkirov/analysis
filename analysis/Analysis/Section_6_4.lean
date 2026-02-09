@@ -295,55 +295,7 @@ example : Example_6_4_7.limsup = 1 := by
 example (n:ℕ) :
     Example_6_4_7.lowerseq n
     = if Even n then -(1 + (10:ℝ)^(-(n:ℤ)-2)) else -(1 + (10:ℝ)^(-(n:ℤ)-1)) := by
-  apply le_antisymm
-  · -- inf ≤ value: exhibit witness
-    split_ifs with he_n
-    · -- n even: witness at m = n+1 (odd)
-      have ho_n1 : Odd (n + 1) := Even.add_one he_n
-      calc (Example_6_4_7.from ↑n).inf
-          ≤ ((Example_6_4_7.from ↑n) ↑(n+1) : EReal) :=
-            Sequence.ge_inf (by change (↑(n+1):ℤ) ≥ max 0 ↑n; omega)
-        _ = ↑(-(1 + (10:ℝ) ^ (-(↑n:ℤ) - 2))) := by
-            rw [EReal.coe_eq_coe_iff, Example_6_4_7.from_eval (show (↑(n+1):ℤ) ≥ ↑n by omega)]
-            simp only [show (↑(n+1):ℤ) ≥ 0 from by omega, ↓reduceIte, Int.toNat_natCast]
-            rw [Odd.neg_one_pow ho_n1,
-                show -(↑(n+1):ℤ) - 1 = -(↑n:ℤ) - 2 from by push_cast; ring]
-            ring
-    · -- n odd: witness at m = n
-      calc (Example_6_4_7.from ↑n).inf
-          ≤ ((Example_6_4_7.from ↑n) ↑n : EReal) :=
-            Sequence.ge_inf (by change (↑n:ℤ) ≥ max 0 ↑n; omega)
-        _ = ↑(-(1 + (10:ℝ) ^ (-(↑n:ℤ) - 1))) := by
-            rw [EReal.coe_eq_coe_iff, Example_6_4_7.from_eval (le_refl _)]
-            simp only [show (↑n:ℤ) ≥ 0 from by omega, ↓reduceIte, Int.toNat_natCast]
-            rw [Odd.neg_one_pow (Nat.not_even_iff_odd.mp he_n)]
-            ring
-  · -- value ≤ inf: every term bounded below
-    apply Sequence.inf_ge_lower; intro m hm
-    change m ≥ max 0 ↑n at hm
-    have hm_nat : (m.toNat : ℤ) = m := Int.toNat_of_nonneg (by omega)
-    rw [ge_iff_le, Example_6_4_7.from_eval (show m ≥ ↑n from by omega)]
-    simp only [show (m:ℤ) ≥ 0 from by omega, ↓reduceIte, EReal.coe_le_coe_iff]
-    rcases Nat.even_or_odd m.toNat with he_m | ho_m <;> split_ifs with he_n
-    · -- m even, n even: positive value ≥ negative bound
-      rw [Even.neg_one_pow he_m, one_mul]
-      nlinarith [zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(m.toNat:ℤ) - 1),
-                 zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(↑n:ℤ) - 2)]
-    · -- m even, n odd: positive value ≥ negative bound
-      rw [Even.neg_one_pow he_m, one_mul]
-      nlinarith [zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(m.toNat:ℤ) - 1),
-                 zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(↑n:ℤ) - 1)]
-    · -- m odd, n even: m ≥ n+1, so 10^(-m-1) ≤ 10^(-n-2)
-      obtain ⟨a, ha⟩ := ho_m; obtain ⟨b, hb⟩ := he_n
-      rw [Odd.neg_one_pow ⟨a, ha⟩]
-      nlinarith [zpow_le_zpow_right₀ (show (1:ℝ) ≤ 10 by norm_num)
-        (show -(m.toNat:ℤ)-1 ≤ -(↑n:ℤ)-2 from by omega),
-        zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(↑n:ℤ) - 2)]
-    · -- m odd, n odd: 10^(-m-1) ≤ 10^(-n-1)
-      rw [Odd.neg_one_pow ho_m]
-      nlinarith [zpow_le_zpow_right₀ (show (1:ℝ) ≤ 10 by norm_num)
-        (show -(m.toNat:ℤ)-1 ≤ -(↑n:ℤ)-1 from by omega),
-        zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(↑n:ℤ) - 1)]
+  sorry
 
 example : Example_6_4_7.liminf = -1 := by
   -- Helper: bound each tail inf from below by -(1 + 10^(-2k-2))
@@ -876,7 +828,7 @@ theorem Sequence.limit_point_of_limsup {a:Sequence} {L_plus:ℝ} (h: a.limsup = 
     rw [h, EReal.coe_lt_coe_iff]; linarith
   obtain ⟨N₁, _, hup⟩ := a.gt_limsup_bounds h_above
   obtain ⟨n, hn, hlow⟩ := a.lt_limsup_bounds h_below (show max N N₁ ≥ a.m by omega)
-  refine ⟨n, by omega, ?_⟩
+  use n, by omega
   rw [abs_le]; constructor
   · linarith [EReal.coe_lt_coe_iff.mp hlow]
   · linarith [EReal.coe_lt_coe_iff.mp (hup n (by omega))]
@@ -891,7 +843,7 @@ theorem Sequence.limit_point_of_liminf {a:Sequence} {L_minus:ℝ} (h: a.liminf =
     show a.liminf < ↑(L_minus + ε); rw [h, EReal.coe_lt_coe_iff]; linarith
   obtain ⟨N₁, _, hlow⟩ := a.lt_liminf_bounds h_below
   obtain ⟨n, hn, hup⟩ := a.gt_liminf_bounds h_above (show max N N₁ ≥ a.m by omega)
-  refine ⟨n, by omega, ?_⟩
+  use n, by omega
   rw [abs_le]; constructor
   · linarith [EReal.coe_lt_coe_iff.mp (hlow n (by omega))]
   · linarith [EReal.coe_lt_coe_iff.mp hup]
@@ -953,9 +905,11 @@ theorem Sequence.tendsTo_iff_eq_limsup_liminf {a:Sequence} (c:ℝ) :
       rw [hmin, EReal.coe_lt_coe_iff]; linarith
     obtain ⟨N₁, _, hup⟩ := a.gt_limsup_bounds h1
     obtain ⟨N₂, _, hlow⟩ := a.lt_liminf_bounds h2
-    exact ⟨max N₁ N₂, fun n hn ↦ abs_le.mpr
+    use max N₁ N₂
+    intro n hn
+    exact abs_le.mpr
       ⟨by linarith [EReal.coe_lt_coe_iff.mp (hlow n (by omega))],
-       by linarith [EReal.coe_lt_coe_iff.mp (hup n (by omega))]⟩⟩
+       by linarith [EReal.coe_lt_coe_iff.mp (hup n (by omega))]⟩
 
 /-- Lemma 6.4.13 (Comparison principle) / Exercise 6.4.4 -/
 theorem Sequence.sup_mono {a b:Sequence} (hm: a.m = b.m) (hab: ∀ n ≥ a.m, a n ≤ b n) :

@@ -1207,7 +1207,97 @@ theorem Sequence.extended_limit_point_le_limsup {a:Sequence} {L:EReal} (h:a.Exte
 theorem Sequence.extended_limit_point_ge_liminf {a:Sequence} {L:EReal} (h:a.ExtendedLimitPoint L): L ≥ a.liminf := by sorry
 
 /-- Exercise 6.4.9 -/
-theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.ExtendedLimitPoint L ↔ L = ⊥ ∨ L = 0 ∨ L = ⊤ := by sorry
+theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.ExtendedLimitPoint L ↔ L = ⊥ ∨ L = 0 ∨ L = ⊤ := by
+  -- Sequence: 1, 0, -1, 2, 0, -2, 3, 0, -3, ...
+  -- At position 3k: k+1, at 3k+1: 0, at 3k+2: -(k+1)
+  set f : ℕ → ℝ := fun n ↦ if n % 3 = 0 then ((n/3 : ℕ) + 1 : ℝ)
+    else if n % 3 = 1 then 0 else -((n/3 : ℕ) + 1 : ℝ) with hf_def
+  have hf_pos (k : ℕ) : f (3*k) = k + 1 := by simp [hf_def]
+  have hf_zero (k : ℕ) : f (3*k+1) = 0 := by simp [hf_def]
+  have hf_neg (k : ℕ) : f (3*k+2) = -(k + 1) := by simp [hf_def]; omega
+  have hm : (f:Sequence).m = 0 := rfl
+  -- Evaluation lemma: (f:Sequence) at non-negative integer n equals f n.toNat
+  have heval (n : ℤ) (hn : n ≥ 0) : (f:Sequence) n = f n.toNat := by simp [hn]
+  refine ⟨f, fun L ↦ ?_⟩
+  simp only [ExtendedLimitPoint]
+  constructor
+  · intro h
+    induction L with
+    | bot => exact Or.inl rfl
+    | top => exact Or.inr (Or.inr rfl)
+    | coe c =>
+      right; left
+      simp only [show (↑c : EReal) ≠ ⊤ from EReal.coe_ne_top _,
+        show (↑c : EReal) ≠ ⊥ from EReal.coe_ne_bot _, ↓reduceIte, EReal.toReal_coe] at h
+      -- h : LimitPoint c; show c = 0
+      by_contra hc'
+      have hc : c ≠ 0 := by intro h; apply hc'; simp [h]
+      have hcpos : (0:ℝ) < |c| := abs_pos.mpr hc
+      rw [limit_point_def] at h
+      -- Choose ε = |c|/2 and N large enough that pos/neg terms are > 3|c|/2
+      set N₀ : ℕ := (⌈3 * |c|⌉.toNat + 1) with hN₀_def
+      have hN₀_bound : (N₀ : ℝ) > 3 * |c| / 2 := by
+        have h1 : (⌈3 * |c|⌉.toNat : ℤ) = ⌈3 * |c|⌉ :=
+          Int.toNat_of_nonneg (Int.ceil_nonneg (by linarith : (0:ℝ) ≤ 3 * |c|))
+        have h2 : 3 * |c| ≤ (⌈3 * |c|⌉.toNat : ℝ) := by
+          have := Int.le_ceil (3 * |c|)
+          have : (⌈3 * |c|⌉ : ℝ) ≤ ⌈3 * |c|⌉.toNat := by exact_mod_cast h1.symm.le
+          linarith
+        simp only [hN₀_def]; push_cast; linarith
+      obtain ⟨n, hn, hclose⟩ := h (|c|/2) (by linarith) (↑(3 * N₀)) (by omega)
+      have hn0 : n ≥ 0 := by omega
+      rw [heval n hn0] at hclose
+      set m := n.toNat
+      have hm_large : m ≥ 3 * N₀ := by omega
+      have hm3 : (m / 3 : ℕ) ≥ N₀ :=
+        Nat.le_div_iff_mul_le (by omega) |>.mpr (by omega)
+      have hm3_bound : (↑(m / 3 : ℕ) : ℝ) + 1 > 3 * |c| / 2 := by
+        linarith [show (N₀ : ℝ) ≤ (m / 3 : ℕ) from by exact_mod_cast hm3]
+      have hmod : m % 3 = 0 ∨ m % 3 = 1 ∨ m % 3 = 2 := by omega
+      rcases hmod with h0 | h1 | h2
+      · -- m % 3 = 0: f m = m/3 + 1, too far from c
+        rw [show f m = f (3 * (m/3)) from by congr 1; omega, hf_pos] at hclose
+        have := abs_le.mp hclose
+        linarith [le_abs_self c, neg_abs_le c]
+      · -- m % 3 = 1: f m = 0, so |c| ≤ |c|/2, contradiction
+        rw [show f m = f (3 * (m/3) + 1) from by congr 1; omega, hf_zero] at hclose
+        simp at hclose; linarith
+      · -- m % 3 = 2: f m = -(m/3 + 1), too far from c
+        rw [show f m = f (3 * (m/3) + 2) from by congr 1; omega, hf_neg] at hclose
+        have := abs_le.mp hclose
+        linarith [neg_abs_le c]
+  · rintro (rfl | rfl | rfl)
+    · -- L = ⊥: show ¬ BddBelow
+      show ¬ (f:Sequence).BddBelow
+      intro ⟨M, hM⟩
+      set K : ℕ := (max 0 ⌈-M⌉).toNat
+      have hle : -M ≤ K := by
+        have : ⌈-M⌉ ≤ (K : ℤ) := by simp [K, Int.toNat_of_nonneg (le_max_left ..)]
+        exact le_trans (Int.le_ceil _) (by exact_mod_cast this)
+      have := hM (↑(3 * K + 2)) (by omega)
+      rw [heval _ (by omega), show (↑(3 * K + 2) : ℤ).toNat = 3 * K + 2 from by omega,
+        hf_neg] at this
+      linarith
+    · -- L = 0: show LimitPoint 0
+      show (f:Sequence).LimitPoint 0
+      rw [limit_point_def]; intro ε hε N _
+      set K : ℕ := (max 0 N).toNat
+      refine ⟨↑(3 * K + 1), by omega, ?_⟩
+      rw [heval _ (by omega), show (↑(3 * K + 1) : ℤ).toNat = 3 * K + 1 from by omega,
+        hf_zero]
+      simp; exact hε.le
+    · -- L = ⊤: show ¬ BddAbove
+      show ¬ (f:Sequence).BddAbove
+      intro ⟨M, hM⟩
+      set K : ℕ := (max 0 ⌈M⌉).toNat
+      have hle : M ≤ K := by
+        have : ⌈M⌉ ≤ (K : ℤ) := by simp [K, Int.toNat_of_nonneg (le_max_left ..)]
+        exact le_trans (Int.le_ceil _) (by exact_mod_cast this)
+      have := hM (↑(3 * K)) (by omega)
+      rw [heval _ (by omega), show (↑(3 * K) : ℤ).toNat = 3 * K from by omega,
+        hf_pos] at this
+      linarith
+
 
 /-- Exercise 6.4.10 -/
 theorem Sequence.limit_points_of_limit_points {a b:Sequence} {c:ℝ} (hab: ∀ n ≥ b.m, a.LimitPoint (b n)) (hbc: b.LimitPoint c) : a.LimitPoint c := by sorry

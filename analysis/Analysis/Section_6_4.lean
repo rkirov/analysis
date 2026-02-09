@@ -295,7 +295,43 @@ example : Example_6_4_7.limsup = 1 := by
 example (n:ℕ) :
     Example_6_4_7.lowerseq n
     = if Even n then -(1 + (10:ℝ)^(-(n:ℤ)-2)) else -(1 + (10:ℝ)^(-(n:ℤ)-1)) := by
-  sorry
+  apply le_antisymm
+  · split_ifs with he_n
+    · calc (Example_6_4_7.from ↑n).inf
+          ≤ ((Example_6_4_7.from ↑n) ↑(n+1) : EReal) :=
+            Sequence.ge_inf (by change (↑(n+1):ℤ) ≥ max 0 ↑n; omega)
+        _ = ↑(-(1 + (10:ℝ)^(-(n:ℤ)-2))) := by
+            rw [EReal.coe_eq_coe_iff, Example_6_4_7.from_eval (show (↑(n+1):ℤ) ≥ ↑n by omega)]
+            simp only [show (↑(n+1):ℤ) ≥ 0 from by omega, ↓reduceIte, Int.toNat_natCast]
+            rw [he_n.add_one.neg_one_pow,
+                show -(↑(n+1):ℤ) - 1 = -(↑n:ℤ) - 2 from by push_cast; ring]
+            ring
+    · calc (Example_6_4_7.from ↑n).inf
+          ≤ ((Example_6_4_7.from ↑n) ↑n : EReal) :=
+            Sequence.ge_inf (by change (↑n:ℤ) ≥ max 0 ↑n; omega)
+        _ = ↑(-(1 + (10:ℝ)^(-(n:ℤ)-1))) := by
+            rw [EReal.coe_eq_coe_iff, Example_6_4_7.from_eval (le_refl _)]
+            simp only [show (↑n:ℤ) ≥ 0 from by omega, ↓reduceIte, Int.toNat_natCast]
+            rw [(Nat.not_even_iff_odd.mp he_n).neg_one_pow]; ring
+  · apply Sequence.inf_ge_lower; intro m hm
+    change m ≥ max 0 ↑n at hm
+    have hm_nat : (m.toNat : ℤ) = m := Int.toNat_of_nonneg (by omega)
+    rw [ge_iff_le, Example_6_4_7.from_eval (show m ≥ ↑n from by omega)]
+    simp only [show (m:ℤ) ≥ 0 from by omega, ↓reduceIte, EReal.coe_le_coe_iff]
+    rcases Nat.even_or_odd m.toNat with he_m | ho_m <;> split_ifs with he_n
+    · rw [he_m.neg_one_pow, one_mul]
+      nlinarith [zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(m.toNat:ℤ) - 1),
+                 zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(↑n:ℤ) - 2)]
+    · rw [he_m.neg_one_pow, one_mul]
+      nlinarith [zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(m.toNat:ℤ) - 1),
+                 zpow_nonneg (show (0:ℝ) ≤ 10 by norm_num) (-(↑n:ℤ) - 1)]
+    · rw [ho_m.neg_one_pow]
+      obtain ⟨a, ha⟩ := ho_m; obtain ⟨b, hb⟩ := he_n
+      nlinarith [zpow_le_zpow_right₀ (show (1:ℝ) ≤ 10 by norm_num)
+        (show -(m.toNat:ℤ)-1 ≤ -(↑n:ℤ)-2 from by omega)]
+    · rw [ho_m.neg_one_pow]
+      nlinarith [zpow_le_zpow_right₀ (show (1:ℝ) ≤ 10 by norm_num)
+        (show -(m.toNat:ℤ)-1 ≤ -(↑n:ℤ)-1 from by omega)]
 
 example : Example_6_4_7.liminf = -1 := by
   -- Helper: bound each tail inf from below by -(1 + 10^(-2k-2))

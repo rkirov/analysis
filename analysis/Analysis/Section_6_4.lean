@@ -1298,9 +1298,21 @@ theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.Exte
         hf_pos] at this
       linarith
 
-
 /-- Exercise 6.4.10 -/
-theorem Sequence.limit_points_of_limit_points {a b:Sequence} {c:ℝ} (hab: ∀ n ≥ b.m, a.LimitPoint (b n)) (hbc: b.LimitPoint c) : a.LimitPoint c := by sorry
-
+theorem Sequence.limit_points_of_limit_points {a b:Sequence} {c:ℝ} (hab: ∀ n ≥ b.m, a.LimitPoint (b n)) (hbc: b.LimitPoint c) : a.LimitPoint c := by
+  rw [limit_point_def]
+  intro ε hε N hN
+  -- Get n with |b n - c| ≤ ε/2 (only need n ≥ b.m for hab)
+  rw [limit_point_def] at hbc
+  obtain ⟨n, hn, hclose_bc⟩ := hbc (ε / 2) (by linarith) b.m (le_refl _)
+  -- Get m ≥ N with |a m - b n| ≤ ε/2
+  have hab_n := hab n hn
+  rw [limit_point_def] at hab_n
+  obtain ⟨m, hm, hclose_ab⟩ := hab_n (ε / 2) (by linarith) N hN
+  exact ⟨m, hm, calc
+    |a.seq m - c| = |(a.seq m - b.seq n) + (b.seq n - c)| := by ring_nf
+    _ ≤ |a.seq m - b.seq n| + |b.seq n - c| := abs_add _ _
+    _ ≤ ε / 2 + ε / 2 := add_le_add hclose_ab hclose_bc
+    _ = ε := by ring⟩
 
 end Chapter6

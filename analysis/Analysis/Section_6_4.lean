@@ -1146,7 +1146,25 @@ theorem Sequence.sup_not_strict_mono : ∃ (a b:ℕ → ℝ), (∀ n, a n < b n)
 def Sequence.tendsTo_real_iff :
   Decidable (∀ (a:Sequence) (x:ℝ), a.TendsTo x ↔ a.abs.TendsTo x) := by
   -- The first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  intro h
+  set a : Sequence := ((fun n ↦ (-1:ℝ)^n : ℕ → ℝ) : Sequence)
+  have habs : a.abs.TendsTo 1 := by
+    rw [Sequence.tendsTo_iff]; intro ε hε; use 0; intro n hn
+    show |(|a.seq n|) - 1| ≤ ε
+    have : a.seq n = (-1:ℝ)^n.toNat := by
+      show (if n ≥ 0 then (-1:ℝ)^n.toNat else 0) = _; rw [if_pos hn]
+    rw [this, abs_pow, abs_neg, abs_one, one_pow]; simp; linarith
+  have hnotconv : ¬ a.TendsTo 1 := by
+    rw [Sequence.tendsTo_iff]; push_neg
+    refine ⟨1, one_pos, fun N => ⟨2 * max 0 N + 1, by omega, ?_⟩⟩
+    have hn_pos : 2 * max 0 N + 1 ≥ 0 := by omega
+    have : a.seq (2 * max 0 N + 1) = -1 := by
+      show (if 2 * max 0 N + 1 ≥ 0 then (-1:ℝ)^(2 * max 0 N + 1).toNat else 0) = -1
+      rw [if_pos hn_pos]
+      exact Odd.neg_one_pow ⟨(max 0 N).toNat, by omega⟩
+    rw [this]; norm_num
+  exact hnotconv ((h a 1).mpr habs)
 
 /-- This definition is needed for Exercises 6.4.8 and 6.4.9. -/
 abbrev Sequence.ExtendedLimitPoint (a:Sequence) (x:EReal) : Prop := if x = ⊤ then ¬ a.BddAbove else if x = ⊥ then ¬ a.BddBelow else a.LimitPoint x.toReal

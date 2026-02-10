@@ -44,14 +44,16 @@ example {f: ℕ → ℕ} (hf: StrictMono f) : Function.Injective f := by
 example :
     Sequence.subseq (fun n ↦ if Even n then 1 + (10:ℝ)^(-(n/2:ℤ)-1) else (10:ℝ)^(-(n/2:ℤ)-1))
     (fun n ↦ 1 + (10:ℝ)^(-(n:ℤ)-1)) := by
-  refine ⟨fun n ↦ 2 * n, fun m n hmn ↦ by dsimp; omega, fun n ↦ ?_⟩
+  use fun n ↦ 2 * n, fun m n hmn ↦ by dsimp; omega
+  intro n
   simp only [show Even (2 * n) from ⟨n, by ring⟩, ↓reduceIte]
   congr 2; push_cast; omega
 
 example :
     Sequence.subseq (fun n ↦ if Even n then 1 + (10:ℝ)^(-(n/2:ℤ)-1) else (10:ℝ)^(-(n/2:ℤ)-1))
     (fun n ↦ (10:ℝ)^(-(n:ℤ)-1)) := by
-  refine ⟨fun n ↦ 2 * n + 1, fun m n hmn ↦ by dsimp; omega, fun n ↦ ?_⟩
+  use fun n ↦ 2 * n + 1, fun m n hmn ↦ by dsimp; omega
+  intro n
   simp only [Nat.not_even_two_mul_add_one, ↓reduceIte]
   congr 2; push_cast; omega
 
@@ -118,7 +120,7 @@ theorem Sequence.limit_point_iff_subseq (a:ℕ → ℝ) (L:ℝ) :
     have key : ∀ (k : ℕ), ∃ n : ℕ, n > k ∧ |a n - L| ≤ 1 / ((k:ℝ) + 1) := by
       intro k
       obtain ⟨n, hn, hclose⟩ := h (1 / ((k:ℝ) + 1)) (by positivity) (↑k + 1) (by dsimp; omega)
-      refine ⟨n.toNat, by omega, ?_⟩
+      use n.toNat, by omega
       simp only [show (0:ℤ) ≤ n from by omega, ↓reduceIte] at hclose
       exact hclose
     let f : ℕ → ℕ := fun i ↦ Nat.rec
@@ -141,7 +143,7 @@ theorem Sequence.limit_point_iff_subseq (a:ℕ → ℝ) (L:ℝ) :
           exact inv_anti₀ (by positivity) (by
             have := hf_ge k; exact_mod_cast (show k + 2 ≤ f k + 1 by omega)))
     use fun n ↦ a (f n)
-    refine ⟨⟨f, hf_mono, fun _ ↦ rfl⟩, ?_⟩
+    use ⟨f, hf_mono, fun _ ↦ rfl⟩
     rw [tendsTo_iff]; intro ε hε
     obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
     have hN_pos : (0:ℝ) < ↑N := lt_trans (div_pos one_pos hε) hN
@@ -175,7 +177,7 @@ theorem Sequence.limit_point_iff_subseq (a:ℕ → ℝ) (L:ℝ) :
       calc N ≤ M := by omega
         _ = ↑M.toNat := by omega
         _ ≤ ↑(f M.toNat) := by exact_mod_cast hf_ge M.toNat
-    refine ⟨↑(f M.toNat), hfM_ge, ?_⟩
+    use ↑(f M.toNat), hfM_ge
     have hclose := hN' M (le_max_left _ _)
     simp only [hM0, ↓reduceIte, hab] at hclose
     simp only [show (0:ℤ) ≤ ↑(f M.toNat) from by omega, ↓reduceIte]
@@ -231,7 +233,7 @@ theorem Sequence.subseq_of_unbounded {a:ℕ → ℝ} (ha: ¬ (a:Sequence).IsBoun
     | succ j => exact (hf_step j).2
   have hf_mono : StrictMono f := strictMono_nat_of_lt_succ (fun i ↦ (hf_step i).1)
   use fun i ↦ a (f i)
-  refine ⟨⟨f, hf_mono, fun _ ↦ rfl⟩, ?_⟩
+  use ⟨f, hf_mono, fun _ ↦ rfl⟩
   rw [inv_coe, tendsTo_iff]; intro ε hε
   obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
   use max 1 (N : ℤ); intro n hn

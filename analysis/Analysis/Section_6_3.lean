@@ -198,7 +198,8 @@ theorem Sequence.bounded_iff (a:Sequence) : a.IsBounded ↔ a.BddAbove ∧ a.Bdd
            ⟨-M, fun n _ => neg_le_of_abs_le (hM n)⟩⟩
   · -- BddAbove ∧ BddBelow → IsBounded
     intro ⟨⟨U, hU⟩, ⟨L, hL⟩⟩
-    refine ⟨max (|U|) (|L|), le_max_of_le_left (abs_nonneg U), fun n => ?_⟩
+    use max (|U|) (|L|), le_max_of_le_left (abs_nonneg U)
+    intro n
     by_cases hn : n ≥ a.m
     · rw [abs_le]
       exact ⟨le_trans (neg_le_neg (le_max_right _ _)) (le_trans (neg_abs_le L) (hL n hn)),
@@ -471,7 +472,8 @@ theorem lim_of_exp {x:ℝ} (hpos: 0 < x) (hbound: x < 1) :
     rw [Sequence.tendsTo_iff]
     intro ε hε
     obtain ⟨N, hN⟩ := (Sequence.tendsTo_iff a L).mp (a.lim_def hconv) ε hε
-    refine ⟨max N 0, fun n hn => ?_⟩
+    use max N 0
+    intro n hn
     have hn0 : (0:ℤ) ≤ n := le_trans (le_max_right N 0) hn
     specialize hN (n + 1) (by linarith [show N ≤ n from le_trans (le_max_left N 0) hn])
     suffices heq : ((fun n:ℕ ↦ x^(n+1)):Sequence).seq n = a.seq (n + 1) by rw [heq]; exact hN

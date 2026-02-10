@@ -59,7 +59,7 @@ private lemma ex643_eval {n : ℤ} (hn : n ≥ 0) :
 
 /-- Example 6.4.3 -/
 example : (0.1:ℝ).Adherent Example_6_4_3 0.8 := by
-  refine ⟨0, le_refl _, ?_⟩
+  use 0, le_refl _
   show dist (Example_6_4_3 (0:ℤ)) 0.8 ≤ 0.1
   rw [Real.dist_eq, abs_of_nonneg (by norm_num)]
   norm_num
@@ -79,7 +79,7 @@ example : ¬ (0.1:ℝ).ContinuallyAdherent Example_6_4_3 0.8 := by
 /-- Example 6.4.3 -/
 example : (0.1:ℝ).ContinuallyAdherent Example_6_4_3 1 := by
   intro N hN; change N ≥ 0 at hN
-  refine ⟨N, show N ≥ (Example_6_4_3.from N).m by change N ≥ max 0 N; omega, ?_⟩
+  use N, (show N ≥ (Example_6_4_3.from N).m by change N ≥ max 0 N; omega)
   rw [Real.close_def, Real.dist_eq, Example_6_4_3.from_eval (show N ≥ N by omega)]
   rw [ex643_eval (show N ≥ 0 by omega)]
   rw [show (1:ℝ) - (10:ℝ) ^ (-N - 1) - 1 = -((10:ℝ) ^ (-N - 1)) by ring,
@@ -92,7 +92,7 @@ example : (0.1:ℝ).ContinuallyAdherent Example_6_4_3 1 := by
 example : Example_6_4_3.LimitPoint 1 := by
   rw [Sequence.limit_point_def]; intro ε hε N hN
   obtain ⟨M, hM, hpow⟩ := pow_archimedian ε hε
-  refine ⟨max N M, by omega, ?_⟩
+  use max N M, by omega
   rw [ex643_eval (show max N M ≥ 0 by omega)]
   rw [show (1:ℝ) - (10:ℝ) ^ (-(max N M : ℤ) - 1) - 1 = -((10:ℝ) ^ (-(max N M : ℤ) - 1)) by ring,
       abs_neg, abs_of_pos (by positivity)]
@@ -118,7 +118,7 @@ private lemma ex644_odd (N : ℤ) (hN : N ≥ 0) :
 
 /-- Example 6.4.4 -/
 example : (0.1:ℝ).Adherent Example_6_4_4 1 := by
-  refine ⟨0, le_refl _, ?_⟩
+  use 0, le_refl _
   show dist (Example_6_4_4 (0:ℤ)) 1 ≤ 0.1
   rw [Real.dist_eq, abs_of_nonneg (by norm_num)]
   norm_num
@@ -126,7 +126,7 @@ example : (0.1:ℝ).Adherent Example_6_4_4 1 := by
 /-- Example 6.4.4 -/
 example : (0.1:ℝ).ContinuallyAdherent Example_6_4_4 1 := by
   intro N hN; change N ≥ 0 at hN
-  refine ⟨2 * N, show 2 * N ≥ (Example_6_4_4.from N).m by change 2 * N ≥ max 0 N; omega, ?_⟩
+  use 2 * N, (show 2 * N ≥ (Example_6_4_4.from N).m by change 2 * N ≥ max 0 N; omega)
   rw [Real.close_def, Real.dist_eq, Example_6_4_4.from_eval (show 2 * N ≥ N by omega)]
   rw [ex644_eval (by omega : 2 * N ≥ 0), ex644_even N hN, one_mul]
   rw [show (1:ℝ) + (10:ℝ) ^ (-(2 * N) - 1) - 1 = (10:ℝ) ^ (-(2 * N) - 1) by ring,
@@ -139,7 +139,7 @@ example : (0.1:ℝ).ContinuallyAdherent Example_6_4_4 1 := by
 example : Example_6_4_4.LimitPoint 1 := by
   rw [Sequence.limit_point_def]; intro ε hε N hN
   obtain ⟨M, hM, hpow⟩ := pow_archimedian ε hε
-  refine ⟨2 * max N M, by omega, ?_⟩
+  use 2 * max N M, by omega
   rw [ex644_eval (by omega : 2 * max N M ≥ 0),
       ex644_even (max N M) (by omega), one_mul]
   rw [show (1:ℝ) + (10:ℝ) ^ (-(2 * max N M) - 1) - 1 = (10:ℝ) ^ (-(2 * max N M) - 1) by ring,
@@ -153,7 +153,7 @@ example : Example_6_4_4.LimitPoint 1 := by
 example : Example_6_4_4.LimitPoint (-1) := by
   rw [Sequence.limit_point_def]; intro ε hε N hN
   obtain ⟨M, hM, hpow⟩ := pow_archimedian ε hε
-  refine ⟨2 * max N M + 1, by omega, ?_⟩
+  use 2 * max N M + 1, by omega
   rw [ex644_eval (by omega : 2 * max N M + 1 ≥ 0),
       ex644_odd (max N M) (by omega)]
   rw [show (-1:ℝ) * (1 + (10:ℝ) ^ (-(2 * max N M + 1) - 1)) - (-1) =
@@ -166,7 +166,7 @@ example : Example_6_4_4.LimitPoint (-1) := by
 /-- Example 6.4.4 -/
 example : ¬ Example_6_4_4.LimitPoint 0 := by
   rw [Sequence.limit_point_def]; push_neg
-  refine ⟨1/2, by norm_num, 0, show (0:ℤ) ≥ 0 by omega, ?_⟩
+  use 1/2, by norm_num, 0, (show (0:ℤ) ≥ 0 by omega)
   intro n hn
   rw [ex644_eval (by omega : n ≥ 0), sub_zero]
   have : |(-1:ℝ) ^ n.toNat * (1 + (10:ℝ) ^ (-n - 1))| = 1 + (10:ℝ) ^ (-n - 1) := by
@@ -735,7 +735,7 @@ example : Example_6_4_10.liminf = ⊤ := by
   | bot =>
     apply lt_of_lt_of_le (EReal.bot_lt_coe ((0:ℝ) + 1))
     apply le_sSup
-    refine ⟨0, le_refl _, ?_⟩
+    use 0, le_refl _
     have := (ex6410_lowerseq 0 (le_refl _)).symm
     norm_cast at this ⊢
   | top => exact absurd hc (lt_irrefl _)
@@ -1118,7 +1118,7 @@ theorem Sequence.Cauchy_iff_convergent (a:Sequence) :
 
 /-- Exercise 6.4.6 -/
 theorem Sequence.sup_not_strict_mono : ∃ (a b:ℕ → ℝ), (∀ n, a n < b n) ∧ ¬ (a:Sequence).sup < (b:Sequence).sup := by
-  refine ⟨fun n ↦ 1 - 1/((n:ℝ)+1), fun _ ↦ 1, fun n ↦ by simp; positivity, ?_⟩
+  use fun n ↦ 1 - 1/((n:ℝ)+1), fun _ ↦ 1, fun n ↦ by simp; positivity
   -- Show both sups equal 1
   have hb : ((fun (_:ℕ) ↦ (1:ℝ)):Sequence).sup = 1 := by
     apply le_antisymm
@@ -1315,7 +1315,8 @@ theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.Exte
   have hm : (f:Sequence).m = 0 := rfl
   -- Evaluation lemma: (f:Sequence) at non-negative integer n equals f n.toNat
   have heval (n : ℤ) (hn : n ≥ 0) : (f:Sequence) n = f n.toNat := by simp [hn]
-  refine ⟨f, fun L ↦ ?_⟩
+  use f
+  intro L
   simp only [ExtendedLimitPoint]
   constructor
   · intro h
@@ -1371,7 +1372,7 @@ theorem Sequence.exists_three_limit_points : ∃ a:Sequence, ∀ L:EReal, a.Exte
       show (f:Sequence).LimitPoint 0
       rw [limit_point_def]; intro ε hε N _
       set K : ℕ := (max 0 N).toNat
-      refine ⟨↑(3 * K + 1), by omega, ?_⟩
+      use ↑(3 * K + 1), by omega
       rw [heval _ (by omega), show (↑(3 * K + 1) : ℤ).toNat = 3 * K + 1 from by omega,
         hf_zero]
       simp; exact hε.le

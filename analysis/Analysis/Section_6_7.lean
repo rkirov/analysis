@@ -33,7 +33,55 @@ lemma ratPow_continuous {x α:ℝ} (hx: x > 0) {q: ℕ → ℚ}
   -- This proof is rearranged slightly from the original text.
   choose M hM hbound using bounded_of_convergent ⟨ α, hq ⟩
   obtain h | rfl | h := lt_trichotomy x 1
-  . sorry
+  . have h' : x ≤ 1 := le_of_lt h
+    rw [←Cauchy_iff_convergent]
+    intro ε hε
+    choose K hK hclose using lim_of_roots hx (ε*x^M) (by positivity)
+    choose N hN hq using IsCauchy.convergent ⟨ α, hq ⟩ (1/(K+1:ℝ)) (by positivity)
+    simp [CloseSeq, dist_eq] at hclose hK hN
+    lift N to ℕ using hN
+    lift K to ℕ using hK
+    specialize hclose K (by simp) (by simp); simp at hclose
+    use N, by simp
+    intro n hn m hm; simp at hn hm
+    specialize hq n (by simp [hn]) m (by simp [hm])
+    simp [Close, hn, hm, dist_eq] at hq ⊢
+    have : 0 ≤ (N:ℤ) := by simp
+    lift n to ℕ using by linarith
+    lift m to ℕ using by linarith
+    simp at hn hm hq ⊢
+    obtain hqq | hqq := le_or_gt (q m) (q n)
+    . replace : x^(q n:ℝ) ≤ x^(q m:ℝ) := by
+        exact rpow_le_rpow_of_exponent_ge hx h' (by exact_mod_cast hqq)
+      rw [abs_of_nonpos (by linarith)]
+      have hqub := (abs_le.mp hq).2
+      have hclose' : 1 - x ^ ((K:ℝ) + 1)⁻¹ ≤ ε * x ^ M := by linarith [(abs_le.mp hclose).1]
+      calc
+        _ = x^(q m:ℝ) * (1 - x^(q n - q m:ℝ)) := by ring_nf; rw [←rpow_add (by linarith)]; ring_nf
+        _ ≤ x^(-M) * (1 - x^((K:ℝ) + 1)⁻¹) := by
+          apply mul_le_mul
+          · exact rpow_le_rpow_of_exponent_ge hx h' (by specialize hbound m; simp_all [abs_le']; linarith)
+          · linarith [rpow_le_rpow_of_exponent_ge hx h' (by exact hqub)]
+          · linarith [rpow_le_one hx.le h' (show (0:ℝ) ≤ (q n - q m:ℝ) from by exact_mod_cast sub_nonneg.mpr hqq)]
+          · positivity
+        _ ≤ x^(-M) * (ε * x^M) := by gcongr
+        _ = ε := by rw [mul_comm, mul_assoc, ←rpow_add]; simp; linarith
+    . replace : x^(q m:ℝ) ≤ x^(q n:ℝ) := by
+        exact rpow_le_rpow_of_exponent_ge hx h' (by exact_mod_cast hqq.le)
+      rw [abs_of_nonneg (by linarith)]
+      have hqub : ↑(q m) - ↑(q n) ≤ ((K:ℝ) + 1)⁻¹ := by
+        have := (abs_le.mp hq).1; linarith
+      have hclose' : 1 - x ^ ((K:ℝ) + 1)⁻¹ ≤ ε * x ^ M := by linarith [(abs_le.mp hclose).1]
+      calc
+        _ = x^(q n:ℝ) * (1 - x^(q m - q n:ℝ)) := by ring_nf; rw [←rpow_add]; ring_nf; positivity
+        _ ≤ x^(-M) * (1 - x^((K:ℝ) + 1)⁻¹) := by
+          apply mul_le_mul
+          · exact rpow_le_rpow_of_exponent_ge hx h' (by specialize hbound n; simp_all [abs_le']; linarith)
+          · linarith [rpow_le_rpow_of_exponent_ge hx h' (by exact hqub)]
+          · linarith [rpow_le_one hx.le h' (show (0:ℝ) ≤ (q m - q n:ℝ) from by exact_mod_cast sub_nonneg.mpr hqq.le)]
+          · positivity
+        _ ≤ x^(-M) * (ε * x^M) := by gcongr
+        _ = ε := by rw [mul_comm, mul_assoc, ←rpow_add]; simp; positivity
   . simp; exact ⟨ 1, lim_of_const 1 ⟩
   have h': 1 ≤ x := by linarith
   rw [←Cauchy_iff_convergent]
@@ -111,7 +159,13 @@ lemma ratPow_lim_uniq {x α:ℝ} (hx: x > 0) {q q': ℕ → ℚ}
   specialize hr n (by simp [hn])
   simp [Close, hn, abs_le'] at hr
   obtain h | rfl | h := lt_trichotomy x 1
-  . sorry
+  . have h' : x ≤ 1 := le_of_lt h
+    have h5 : x^(K + 1:ℝ)⁻¹ ≤ x ^ (r n.toNat:ℝ) := by
+      exact rpow_le_rpow_of_exponent_ge hx h' (by simp_all [r])
+    have h6 : x ^ (r n.toNat:ℝ) ≤ (x^(K + 1:ℝ)⁻¹)⁻¹ := by
+      rw [←rpow_neg (by linarith)]
+      exact rpow_le_rpow_of_exponent_ge hx h' (by simp [r]; linarith)
+    split_ands <;> linarith
   . simp; linarith
   have h5 : x ^ (r n.toNat:ℝ) ≤ x^(K + 1:ℝ)⁻¹ := by gcongr; linarith; simp_all [r]
   have h6 : (x^(K + 1:ℝ)⁻¹)⁻¹ ≤ x ^ (r n.toNat:ℝ) := by

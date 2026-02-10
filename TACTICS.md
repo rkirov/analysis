@@ -14,6 +14,10 @@
 
 **Handles decimal literals.** `linarith` CAN evaluate `0.1`, `0.8` etc. (OfScientific) — no need to convert to fractions. But the atom-substitution issue above still applies.
 
+**Treats `1/a` and `a⁻¹` as different atoms.** Despite `ring_nf` preprocessing, `linarith` may not normalize `1/(↑K+1)` and `(↑K+1)⁻¹` to the same form. This means `x^(1/(K+1))` and `x^((K+1)⁻¹)` inside rpow are also different atoms.
+- Fix: extract facts as `have` with matching notation before feeding to `linarith`. Or use `simp only [one_div]` to normalize.
+- Also beware cast grouping: `(K+1:ℝ)⁻¹` elaborates as `↑(K+1)⁻¹` (ℕ add, then cast, then inv), but hypotheses from `simp` typically have `(↑K + 1)⁻¹` (cast, then add, then inv). Use `((K:ℝ)+1)⁻¹` to get the latter form.
+
 ## `rw`
 
 **Matches syntactically, not up to definitional equality.** `rw [lemma]` won't fire if the goal has a coercion-wrapped form and the lemma's LHS doesn't.

@@ -46,14 +46,14 @@ example :
     (fun n ↦ 1 + (10:ℝ)^(-(n:ℤ)-1)) := by
   refine ⟨fun n ↦ 2 * n, fun m n hmn ↦ by dsimp; omega, fun n ↦ ?_⟩
   simp only [show Even (2 * n) from ⟨n, by ring⟩, ↓reduceIte]
-  congr 1; push_cast; omega
+  congr 2; push_cast; omega
 
 example :
     Sequence.subseq (fun n ↦ if Even n then 1 + (10:ℝ)^(-(n/2:ℤ)-1) else (10:ℝ)^(-(n/2:ℤ)-1))
     (fun n ↦ (10:ℝ)^(-(n:ℤ)-1)) := by
   refine ⟨fun n ↦ 2 * n + 1, fun m n hmn ↦ by dsimp; omega, fun n ↦ ?_⟩
-  simp only [show ¬ Even (2 * n + 1) from Nat.Odd.not_even ⟨n, rfl⟩, ↓reduceIte]
-  congr 1; push_cast; omega
+  simp only [Nat.not_even_two_mul_add_one, ↓reduceIte]
+  congr 2; push_cast; omega
 
 /-- Lemma 6.6.4 / Exercise 6.6.1 -/
 theorem Sequence.subseq_self (a:ℕ → ℝ) : Sequence.subseq a a := by
@@ -68,7 +68,7 @@ lemma compStrictMono {f g : ℕ → ℕ} (hf: StrictMono f) (hg: StrictMono g) :
   intro m n hmn
   have h1 := @hf m n
   have h2 := @hg (f m) (f n)
-  apply h2
+  exact h2 (h1 hmn)
 
 /-- Lemma 6.6.4 / Exercise 6.6.1 -/
 theorem Sequence.subseq_trans {a b c:ℕ → ℝ} (hab: Sequence.subseq a b) (hbc: Sequence.subseq b c) :
@@ -139,18 +139,61 @@ theorem Sequence.convergent_of_subseq_of_bounded {a:ℕ→ ℝ} (ha: (a:Sequence
 
 def Sequence.exist_subseq_of_subseq :
   Decidable (∃ a b : ℕ → ℝ, a ≠ b ∧ Sequence.subseq a b ∧ Sequence.subseq b a) := by
-    -- The first line of this construction should be `apply isTrue` or `apply isFalse`.
     apply isTrue
-    -- use the sequences 0,1,0,1,... and 1,0,1,0,... as a counterexample
-    sorry
+    refine ⟨fun n ↦ if Even n then 0 else 1, fun n ↦ if Even n then 1 else 0, ?_, ?_, ?_⟩
+    · intro h; have := congr_fun h 0; simp at this
+    · exact ⟨fun n ↦ n + 1, fun _ _ h ↦ by dsimp; omega,
+        fun n ↦ by simp only [Nat.even_add_one]; split_ifs with h <;> simp⟩
+    · exact ⟨fun n ↦ n + 1, fun _ _ h ↦ by dsimp; omega,
+        fun n ↦ by simp only [Nat.even_add_one]; split_ifs with h <;> simp⟩
 
+open Classical in
 /--
   Exercise 6.6.3.  You may find the API around Mathlib's `Nat.find` to be useful
   (and `open Classical` to avoid any decidability issues)
 -/
 theorem Sequence.subseq_of_unbounded {a:ℕ → ℝ} (ha: ¬ (a:Sequence).IsBounded) :
     ∃ b:ℕ → ℝ, Sequence.subseq a b ∧ (b:Sequence)⁻¹.TendsTo 0 := by
-  -- for each i, define N i, to be the least natural number such that |a (N i)| > i, and N i > N (i - 1) and define b i := a (N i)
-  sorry
+  have key : ∀ (M k : ℕ), ∃ n, n > k ∧ |a n| > (M : ℝ) := by
+    intro M k
+    by_contra h; push_neg at h
+    apply ha
+    obtain ⟨M', hM', hM'_bound⟩ := IsBounded.finite (fun i : Fin (k + 1) ↦ a i)
+    exact ⟨max M M', le_max_of_le_right hM', fun n ↦ by
+      by_cases hn : n ≥ 0
+      · simp only [hn, ↓reduceIte]
+        by_cases hk : n.toNat ≤ k
+        · exact (hM'_bound ⟨n.toNat, by omega⟩).trans (le_max_right _ _)
+        · exact (h n.toNat (by omega)).trans (le_max_left _ _)
+      · simp only [show ¬ n ≥ 0 from hn, ↓reduceIte, abs_zero]; positivity⟩
+  let f : ℕ → ℕ := fun i ↦ Nat.rec
+    (key 0 0).choose
+    (fun j fj ↦ (key (j + 1) fj).choose) i
+  have hf_step : ∀ i, f (i + 1) > f i ∧ |a (f (i + 1))| > ((i + 1 : ℕ) : ℝ) :=
+    fun i ↦ (key (i + 1) (f i)).choose_spec
+  have hf_bound : ∀ i, |a (f i)| > (i : ℝ) := by
+    intro i; cases i with
+    | zero => exact (key 0 0).choose_spec.2
+    | succ j => exact (hf_step j).2
+  have hf_mono : StrictMono f := strictMono_nat_of_lt_succ (fun i ↦ (hf_step i).1)
+  use fun i ↦ a (f i)
+  refine ⟨⟨f, hf_mono, fun _ ↦ rfl⟩, ?_⟩
+  rw [inv_coe, tendsTo_iff]; intro ε hε
+  obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
+  use max 1 (N : ℤ); intro n hn
+  have hn0 : n ≥ 0 := by omega
+  have hn1 : 1 ≤ n.toNat := by omega
+  have hnN : N ≤ n.toNat := by omega
+  simp only [hn0, ↓reduceIte, sub_zero]
+  have hab := hf_bound n.toNat
+  have hn_pos : (0:ℝ) < n.toNat := by exact_mod_cast (show (0:ℕ) < n.toNat from by linarith)
+  rw [abs_inv]
+  have hN_pos : (0:ℝ) < N := lt_trans (div_pos one_pos hε) hN
+  calc |a (f n.toNat)|⁻¹
+      ≤ (↑n.toNat)⁻¹ := inv_anti₀ hn_pos (le_of_lt hab)
+    _ ≤ (↑N)⁻¹ := inv_anti₀ hN_pos (by exact_mod_cast hnN)
+    _ ≤ ε := by
+        rw [inv_le_comm₀ hN_pos hε]
+        exact le_of_lt (by rwa [one_div] at hN)
 
 end Chapter6

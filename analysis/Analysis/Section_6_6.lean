@@ -113,19 +113,73 @@ theorem Sequence.convergent_iff_subseq (a:ℕ → ℝ) (L:ℝ) :
 theorem Sequence.limit_point_iff_subseq (a:ℕ → ℝ) (L:ℝ) :
     (a:Sequence).LimitPoint L ↔ ∃ b:ℕ → ℝ, Sequence.subseq a b ∧ (b:Sequence).TendsTo L := by
   constructor
-  . intro h
+  · intro h
     rw [limit_point_def] at h
-    -- specialize h at 1/n to get a sequence of points close to L, then use that as b
-    sorry
-  . intro h
+    have key : ∀ (k : ℕ), ∃ n : ℕ, n > k ∧ |a n - L| ≤ 1 / ((k:ℝ) + 1) := by
+      intro k
+      obtain ⟨n, hn, hclose⟩ := h (1 / ((k:ℝ) + 1)) (by positivity) (↑k + 1) (by dsimp; omega)
+      refine ⟨n.toNat, by omega, ?_⟩
+      simp only [show (0:ℤ) ≤ n from by omega, ↓reduceIte] at hclose
+      exact hclose
+    let f : ℕ → ℕ := fun i ↦ Nat.rec
+      (key 0).choose
+      (fun j fj ↦ (key fj).choose) i
+    have hf_step (i : ℕ) := (key (f i)).choose_spec
+    have hf_mono : StrictMono f := strictMono_nat_of_lt_succ fun i ↦ (hf_step i).1
+    have hf_ge : ∀ n : ℕ, n + 1 ≤ f n := by
+      intro n; induction n with
+      | zero => exact (key 0).choose_spec.1
+      | succ k ih => exact Nat.succ_le_of_lt (lt_of_le_of_lt ih (hf_step k).1)
+    have hf_eq : ∀ i, f (i + 1) = (key (f i)).choose := by intro _; rfl
+    have hf_bound : ∀ n : ℕ, |a (f n) - L| ≤ 1 / ((n:ℝ) + 1) := by
+      intro n; cases n with
+      | zero => show |a ((key 0).choose) - L| ≤ _; exact (key 0).choose_spec.2
+      | succ k =>
+        rw [hf_eq]
+        exact (hf_step k).2.trans (by
+          rw [one_div, one_div]
+          exact inv_anti₀ (by positivity) (by
+            have := hf_ge k; exact_mod_cast (show k + 2 ≤ f k + 1 by omega)))
+    use fun n ↦ a (f n)
+    refine ⟨⟨f, hf_mono, fun _ ↦ rfl⟩, ?_⟩
+    rw [tendsTo_iff]; intro ε hε
+    obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
+    have hN_pos : (0:ℝ) < ↑N := lt_trans (div_pos one_pos hε) hN
+    use max 0 (↑N); intro n hn
+    have hn0 : (0:ℤ) ≤ n := by omega
+    have hnN : N ≤ n.toNat := by omega
+    simp only [hn0, ↓reduceIte]
+    calc |a (f n.toNat) - L|
+        ≤ 1 / ((n.toNat:ℝ) + 1) := hf_bound n.toNat
+      _ = ((n.toNat:ℝ) + 1)⁻¹ := by rw [one_div]
+      _ ≤ (↑N)⁻¹ := inv_anti₀ hN_pos (by
+          calc (↑N:ℝ) ≤ ↑n.toNat := by exact_mod_cast hnN
+            _ ≤ ↑n.toNat + 1 := le_add_of_nonneg_right (by norm_num))
+      _ ≤ ε := by
+          rw [inv_le_comm₀ hN_pos hε]
+          exact le_of_lt (by rwa [one_div] at hN)
+  · intro h
     rw [limit_point_def]
-    obtain ⟨ b, hb, ht ⟩ := h
+    obtain ⟨b, hb, ht⟩ := h
+    obtain ⟨f, hf_mono, hab⟩ := hb
+    have hf_ge : ∀ n : ℕ, n ≤ f n := by
+      intro n; induction n with
+      | zero => omega
+      | succ k ih => exact Nat.succ_le_of_lt (lt_of_le_of_lt ih (hf_mono k.lt_succ_self))
     rw [tendsTo_iff] at ht
     intro ε hε N hN
-    specialize ht ε hε
-    obtain ⟨ N', hN' ⟩ := ht
-    -- use N' to get a point b N' close to L, then use the subsequence property to get a point a (f N') close to L
-    sorry
+    obtain ⟨N', hN'⟩ := ht ε hε
+    set M := max N' (max 0 N)
+    have hM0 : (0:ℤ) ≤ M := by omega
+    have hfM_ge : (↑(f M.toNat) : ℤ) ≥ N := by
+      calc N ≤ M := by omega
+        _ = ↑M.toNat := by omega
+        _ ≤ ↑(f M.toNat) := by exact_mod_cast hf_ge M.toNat
+    refine ⟨↑(f M.toNat), hfM_ge, ?_⟩
+    have hclose := hN' M (le_max_left _ _)
+    simp only [hM0, ↓reduceIte, hab] at hclose
+    simp only [show (0:ℤ) ≤ ↑(f M.toNat) from by omega, ↓reduceIte]
+    simpa using hclose
 
 /-- Theorem 6.6.8 (Bolzano-Weierstrass theorem) -/
 theorem Sequence.convergent_of_subseq_of_bounded {a:ℕ→ ℝ} (ha: (a:Sequence).IsBounded) :

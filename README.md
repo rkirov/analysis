@@ -10,7 +10,7 @@ Completed
 - Chapter 3 - all
 - Chapter 4 - all
 - Chapter 5 - all
-- Chapter 6 - part of 1
+- Chapter 6 - all
 
 # Lean formalization of _Analysis I_
 

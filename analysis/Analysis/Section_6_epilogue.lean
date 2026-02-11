@@ -70,7 +70,7 @@ theorem Chapter6.Sequence.lim_eq_CauSeq_lim (a:ℕ → ℝ) (ha: (a:Sequence).Is
 /-- Identification with `limUnder` -/
 theorem Chapter6.Sequence.lim_eq_limUnder (a:ℕ → ℝ) (ha: (a:Sequence).Convergent) :
     Chapter6.lim (a:Sequence) = limUnder Filter.atTop a := by
-    sorry
+    exact ((tendsto_iff_Tendsto a _).mp (lim_def ha)).limUnder_eq.symm
 
 /-- Identification with `Bornology.IsBounded` -/
 theorem Chapter6.Sequence.isBounded_iff_isBounded_range (a:ℕ → ℝ):
@@ -93,16 +93,50 @@ theorem Chapter6.Sequence.isBounded_iff_isBounded_range (a:ℕ → ℝ):
   positivity
 
 theorem Chapter6.Sequence.sup_eq_sSup (a:ℕ → ℝ):
-    (a:Sequence).sup = sSup (Set.range (fun n ↦ (a n:EReal))) := by sorry
+    (a:Sequence).sup = sSup (Set.range (fun n ↦ (a n:EReal))) := by
+  simp only [Sequence.sup]
+  congr 1
+  ext x
+  simp only [Set.mem_setOf_eq, Set.mem_range]
+  constructor
+  · rintro ⟨n, hn, rfl⟩
+    exact ⟨n.toNat, by simp [show n ≥ 0 from hn]⟩
+  · rintro ⟨n, rfl⟩
+    exact ⟨n, Int.natCast_nonneg n, by simp⟩
 
 theorem Chapter6.Sequence.inf_eq_sInf (a:ℕ → ℝ):
-    (a:Sequence).inf = sInf (Set.range (fun n ↦ (a n:EReal))) := by sorry
+    (a:Sequence).inf = sInf (Set.range (fun n ↦ (a n:EReal))) := by
+  simp only [Sequence.inf]
+  congr 1
+  ext x
+  simp only [Set.mem_setOf_eq, Set.mem_range]
+  constructor
+  · rintro ⟨n, hn, rfl⟩
+    exact ⟨n.toNat, by simp [show n ≥ 0 from hn]⟩
+  · rintro ⟨n, rfl⟩
+    exact ⟨n, Int.natCast_nonneg n, by simp⟩
 
 theorem Chapter6.Sequence.bddAbove_iff (a:ℕ → ℝ):
-    (a:Sequence).BddAbove ↔ _root_.BddAbove (Set.range a) := by sorry
+    (a:Sequence).BddAbove ↔ _root_.BddAbove (Set.range a) := by
+  simp only [Sequence.BddAbove, Sequence.BddAboveBy, _root_.BddAbove, upperBounds, Set.mem_range]
+  constructor
+  · rintro ⟨M, hM⟩
+    use M; rintro x ⟨n, rfl⟩
+    simpa using hM n (Int.natCast_nonneg n)
+  · rintro ⟨M, hM⟩
+    use M; intro n hn
+    simpa [hn] using hM (Set.mem_range_self n.toNat)
 
 theorem Chapter6.Sequence.bddBelow_iff (a:ℕ → ℝ):
-    (a:Sequence).BddBelow ↔ _root_.BddBelow (Set.range a) := by sorry
+    (a:Sequence).BddBelow ↔ _root_.BddBelow (Set.range a) := by
+  simp only [Sequence.BddBelow, Sequence.BddBelowBy, _root_.BddBelow, lowerBounds, Set.mem_range]
+  constructor
+  · rintro ⟨M, hM⟩
+    use M; rintro x ⟨n, rfl⟩
+    simpa using hM n (Int.natCast_nonneg n)
+  · rintro ⟨M, hM⟩
+    use M; intro n hn
+    simpa [hn] using hM (Set.mem_range_self n.toNat)
 
 theorem Chapter6.Sequence.Monotone_iff (a:ℕ → ℝ): (a:Sequence).IsMonotone ↔ Monotone a := by sorry
 

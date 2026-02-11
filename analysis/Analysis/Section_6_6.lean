@@ -221,7 +221,7 @@ theorem Sequence.subseq_of_unbounded {a:ℕ → ℝ} (ha: ¬ (a:Sequence).IsBoun
         by_cases hk : n.toNat ≤ k
         · exact (hM'_bound ⟨n.toNat, by omega⟩).trans (le_max_right _ _)
         · exact (h n.toNat (by omega)).trans (le_max_left _ _)
-      · simp only [show ¬ n ≥ 0 from hn, ↓reduceIte, abs_zero]; positivity⟩
+      · simp only [hn, ↓reduceIte, abs_zero]; positivity⟩
   let f : ℕ → ℕ := fun i ↦ Nat.rec
     (key 0 0).choose
     (fun j fj ↦ (key (j + 1) fj).choose) i

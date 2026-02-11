@@ -322,7 +322,7 @@ abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)
 example : sInf Example_6_2_8 = (0.9:ℝ) := by
   apply le_antisymm
   · -- sInf ≤ 0.9: the element at n=0 is 0.9
-    exact sInf_le (show ((0.9:ℝ):EReal) ∈ Example_6_2_8 from ⟨0, by norm_num⟩)
+    exact sInf_le (⟨0, by norm_num⟩)
   · -- 0.9 ≤ sInf: 0.9 is a lower bound (minimum of the set)
     apply le_sInf
     intro x hx
@@ -348,7 +348,7 @@ example : sSup Example_6_2_8 = 1 := by
     by_contra hlt; push_neg at hlt
     -- sSup ≥ 0.9 (an element), so sSup is a finite real
     have hge : ((0.9:ℝ):EReal) ≤ sSup Example_6_2_8 :=
-      le_sSup (show ((0.9:ℝ):EReal) ∈ Example_6_2_8 from ⟨0, by norm_num⟩)
+      le_sSup (⟨0, by norm_num⟩)
     obtain ⟨m, hm⟩ | htop | hbot := EReal.def (sSup Example_6_2_8)
     · -- sSup = ↑m with m < 1
       rw [← hm] at hlt hge

@@ -100,7 +100,7 @@ theorem Chapter6.Sequence.sup_eq_sSup (a:ℕ → ℝ):
   simp only [Set.mem_setOf_eq, Set.mem_range]
   constructor
   · rintro ⟨n, hn, rfl⟩
-    exact ⟨n.toNat, by simp [show n ≥ 0 from hn]⟩
+    exact ⟨n.toNat, by simp [hn]⟩
   · rintro ⟨n, rfl⟩
     exact ⟨n, Int.natCast_nonneg n, by simp⟩
 
@@ -112,7 +112,7 @@ theorem Chapter6.Sequence.inf_eq_sInf (a:ℕ → ℝ):
   simp only [Set.mem_setOf_eq, Set.mem_range]
   constructor
   · rintro ⟨n, hn, rfl⟩
-    exact ⟨n.toNat, by simp [show n ≥ 0 from hn]⟩
+    exact ⟨n.toNat, by simp [hn]⟩
   · rintro ⟨n, rfl⟩
     exact ⟨n, Int.natCast_nonneg n, by simp⟩
 

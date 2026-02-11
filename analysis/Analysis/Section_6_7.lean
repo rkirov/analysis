@@ -211,7 +211,7 @@ theorem Real.ratPow_nonneg {x:ℝ} (hx: x > 0) (q:ℝ) : rpow x q ≥ 0 := by
   rw [Sequence.tendsTo_iff] at htends
   obtain ⟨N, hN⟩ := htends _ (neg_pos.mpr hlt)
   have hN' := hN (max N 0) (le_max_left _ _)
-  simp only [show (0:ℤ) ≤ max N 0 from le_max_right _ _, ↓reduceIte] at hN'
+  simp only [le_max_right _ _, ↓reduceIte] at hN'
   linarith [(abs_le.mp hN').2, show x ^ (q' (max N 0).toNat : ℝ) > 0 from by positivity]
 
 

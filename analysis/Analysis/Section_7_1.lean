@@ -61,13 +61,15 @@ example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m-1), a i = 0 := sum_of_empt
 example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m m, a i = a m := by simp [Icc_self]
 
 example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m+1), a i = a m + a (m+1) := by
-  rw [show m + 1 = (m - 1 + 1) + 1 from by ring,
-      sum_of_nonempty (by omega), show m - 1 + 1 = m from by ring, Icc_self]; simp
+  have : Icc m (m+1) = {m, m + 1} := by
+    ext x; simp [mem_Icc]; omega
+  simp [this]
 
 example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m+2), a i = a m + a (m+1) + a (m+2) := by
-  rw [show m + 2 = (m + 1) + 1 from by ring, sum_of_nonempty (by omega),
-      show m + 1 = (m - 1 + 1) + 1 from by ring, sum_of_nonempty (by omega),
-      show m - 1 + 1 = m from by ring, Icc_self]; simp
+  have : Icc m (m+2) = {m, m + 1, m + 2} := by
+    ext x; simp [mem_Icc]; omega
+  simp [this]
+  ring
 
 /-- Remark 7.1.3 -/
 example (a: ℤ → ℝ) (m n:ℤ) : ∑ i ∈ Icc m n, a i = ∑ j ∈ Icc m n, a j := rfl

@@ -656,6 +656,31 @@ theorem finite_product_of_le {m n:ℤ} {a b: ℤ → ℝ}
 #check Nat.factorial_zero
 #check Nat.factorial_succ
 
+/-- Binomial theorem with `Nat.choose` over `range`, proved by induction (Pascal's rule). -/
+private theorem binomial_choose (x y : ℝ) (n : ℕ) :
+    (x + y) ^ n = ∑ m ∈ range (n + 1), x ^ m * y ^ (n - m) * ↑(n.choose m) := by
+  let t : ℕ → ℕ → ℝ := fun n m ↦ x ^ m * y ^ (n - m) * ↑(n.choose m)
+  change (x + y) ^ n = ∑ m ∈ range (n + 1), t n m
+  have h_first : ∀ k, t k 0 = y ^ k := fun k => by simp [t]
+  have h_last : ∀ k, t k (k + 1) = 0 := fun k => by simp [t, Nat.choose_succ_self]
+  have h_middle : ∀ (k i : ℕ), i ∈ range (k + 1) →
+      t (k + 1) (i + 1) = x * t k i + y * t k (i + 1) := by
+    intro k i hi
+    have hle : i ≤ k := Nat.lt_succ_iff.mp (mem_range.mp hi)
+    simp only [t, Nat.choose_succ_succ, Nat.cast_add, mul_add]
+    congr 1
+    · rw [pow_succ x, Nat.succ_sub_succ]; ring
+    · by_cases heq : i = k
+      · simp [heq, Nat.choose_succ_self]
+      · rw [Nat.succ_sub (Nat.lt_of_le_of_ne hle heq), pow_succ y]; ring
+  induction n with
+  | zero => simp [t]
+  | succ n ih =>
+    rw [sum_range_succ', h_first, sum_congr rfl (h_middle n), sum_add_distrib, add_assoc,
+      pow_succ' (x + y), ih, add_mul, mul_sum, mul_sum]
+    congr 1
+    rw [sum_range_succ', sum_range_succ, h_first, h_last, mul_zero, add_zero, pow_succ' y]
+
 /--
   Exercise 7.1.4. Note: there may be some technicalities passing back and forth between natural
   numbers and integers. Look into the tactics `zify`, `norm_cast`, and `omega`
@@ -664,7 +689,23 @@ theorem binomial_theorem (x y:ℝ) (n:ℕ) :
     (x + y)^n
     = ∑ j ∈ Icc (0:ℤ) n,
     n.factorial / (j.toNat.factorial * (n-j).toNat.factorial) * x^j * y^(n - j) := by
-  sorry
+  rw [binomial_choose]
+  have hIcc : Icc (0:ℤ) ↑n = (range (n+1)).map Nat.castEmbedding := by
+    ext x; simp [mem_Icc, mem_range, Nat.castEmbedding]; constructor
+    · intro ⟨h1, h2⟩; exact ⟨x.toNat, by omega, by omega⟩
+    · rintro ⟨m, hm, rfl⟩; omega
+  rw [hIcc, sum_map]
+  apply sum_congr rfl
+  intro m hm
+  simp [mem_range] at hm
+  have hm' : m ≤ n := by omega
+  rw [Nat.choose_eq_factorial_div_factorial hm']
+  simp only [Nat.castEmbedding_apply, Int.toNat_natCast]
+  rw [show (↑n - (↑m : ℤ)).toNat = n - m from by omega]
+  rw [Nat.cast_div (Nat.factorial_mul_factorial_dvd_factorial hm') (by positivity)]
+  rw [show (↑n : ℤ) - (↑m : ℤ) = ↑(n - m) from by omega]
+  simp [zpow_natCast]
+  ring
 
 /-- Exercise 7.1.5 -/
 theorem lim_of_finite_series {X:Type*} [Fintype X] (a: X → ℕ → ℝ) (L : X → ℝ)

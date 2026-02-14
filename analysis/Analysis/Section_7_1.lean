@@ -82,7 +82,7 @@ theorem concat_finite_series {m n p:ℤ} (hmn: m ≤ n+1) (hpn : n ≤ p) (a: �
   | zero =>
     simp only [Nat.cast_zero, add_zero]
     have := sum_of_empty (n := n) (m := n + 1) (by omega) a
-    linarith
+    rw [this, add_zero]
   | succ d ih =>
     rw [show n + ↑(d + 1) = (n + ↑d) + 1 from by push_cast; ring,
         sum_of_nonempty (by omega) a, sum_of_nonempty (by omega) a,

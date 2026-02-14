@@ -76,27 +76,51 @@ example (a: ℤ → ℝ) (m n:ℤ) : ∑ i ∈ Icc m n, a i = ∑ j ∈ Icc m n,
 
 /-- Lemma 7.1.4(a) / Exercise 7.1.1 -/
 theorem concat_finite_series {m n p:ℤ} (hmn: m ≤ n+1) (hpn : n ≤ p) (a: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc (n+1) p, a i = ∑ i ∈ Icc m p, a i := by sorry
+  ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc (n+1) p, a i = ∑ i ∈ Icc m p, a i := by
+  obtain ⟨d, rfl⟩ : ∃ d : ℕ, p = n + ↑d := ⟨(p - n).toNat, by omega⟩
+  induction d with
+  | zero =>
+    simp only [Nat.cast_zero, add_zero]
+    have := sum_of_empty (n := n) (m := n + 1) (by omega) a
+    linarith
+  | succ d ih =>
+    rw [show n + ↑(d + 1) = (n + ↑d) + 1 from by push_cast; ring,
+        sum_of_nonempty (by omega) a, sum_of_nonempty (by omega) a,
+        ← add_assoc, ih (by omega)]
 
 /-- Lemma 7.1.4(b) / Exercise 7.1.1 -/
 theorem shift_finite_series {m n k:ℤ} (a: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, a i = ∑ i ∈ Icc (m+k) (n+k), a (i-k) := by sorry
+  ∑ i ∈ Icc m n, a i = ∑ i ∈ Icc (m+k) (n+k), a (i-k) := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero =>
+      simp only [Nat.cast_zero, add_zero, Icc_self]; simp
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          sum_of_nonempty (by omega) a,
+          show (m + ↑d) + 1 + k = (m + ↑d + k) + 1 from by ring,
+          sum_of_nonempty (by omega) (fun i ↦ a (i - k)), ih (by omega)]
+      congr 1; show a (m + ↑d + 1) = a (m + ↑d + k + 1 - k); congr 1; ring
+  · push_neg at hmn
+    rw [sum_of_empty (by omega), sum_of_empty (by omega)]
 
 /-- Lemma 7.1.4(c) / Exercise 7.1.1 -/
 theorem finite_series_add {m n:ℤ} (a b: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, (a i + b i) = ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc m n, b i := by sorry
+  ∑ i ∈ Icc m n, (a i + b i) = ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc m n, b i := sum_add_distrib
 
 /-- Lemma 7.1.4(d) / Exercise 7.1.1 -/
 theorem finite_series_const_mul {m n:ℤ}  (a: ℤ → ℝ) (c:ℝ) :
-  ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := by sorry
+  ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := (mul_sum _ _ _).symm
 
 /-- Lemma 7.1.4(e) / Exercise 7.1.1 -/
 theorem abs_finite_series_le {m n:ℤ}   (a: ℤ → ℝ) (c:ℝ) :
-  |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := by sorry
+  |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := abs_sum_le_sum_abs _ _
 
 /-- Lemma 7.1.4(f) / Exercise 7.1.1 -/
 theorem finite_series_of_le {m n:ℤ}  {a b: ℤ → ℝ} (h: ∀ i, m ≤ i → i ≤ n → a i ≤ b i) :
-  ∑ i ∈ Icc m n, a i ≤ ∑ i ∈ Icc m n, b i := by sorry
+  ∑ i ∈ Icc m n, a i ≤ ∑ i ∈ Icc m n, b i :=
+  sum_le_sum (fun i hi ↦ by simp [mem_Icc] at hi; exact h i hi.1 hi.2)
 
 #check sum_congr
 

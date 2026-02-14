@@ -670,8 +670,47 @@ theorem binomial_theorem (x y:ℝ) (n:ℕ) :
 theorem lim_of_finite_series {X:Type*} [Fintype X] (a: X → ℕ → ℝ) (L : X → ℝ)
   (h: ∀ x, Filter.atTop.Tendsto (a x) (nhds (L x))) :
     Filter.atTop.Tendsto (fun n ↦ ∑ x, a x n) (nhds (∑ x, L x)) := by
-  sorry
+  suffices hs : ∀ S : Finset X,
+      Filter.atTop.Tendsto (fun n ↦ ∑ x ∈ S, a x n) (nhds (∑ x ∈ S, L x)) from hs univ
+  intro S
+  induction S using Finset.induction_on with
+  | empty =>
+    simp only [finite_series_of_empty]
+    exact tendsto_const_nhds
+  | @insert x₀ S hx₀ ih =>
+    have hdisj : Disjoint ({x₀} : Finset X) S := disjoint_singleton_left.mpr hx₀
+    simp_rw [insert_eq, finite_series_of_disjoint_union hdisj, finite_series_of_singleton]
+    exact (h x₀).add ih
 
+/-- Exercise 7.1.6 -/
+theorem sum_union_disjoint {X S : Type*} [Fintype X] [Fintype S]
+    (E : X → Finset S)
+    (disj : ∀ i j : X, i ≠ j → Disjoint (E i) (E j))
+    (cover : ∀ s : S, ∃ i, s ∈ E i)
+    (f : S → ℝ) :
+    ∑ s, f s = ∑ i, ∑ s ∈ E i, f s := by
+  have huniv : (univ : Finset S) = (univ : Finset X).biUnion E := by
+    ext s; simp [mem_biUnion]; exact cover s
+  conv_lhs => rw [show ∑ s, f s = ∑ s ∈ (univ : Finset S), f s from rfl, huniv]
+  suffices h : ∀ T : Finset X, ∑ s ∈ T.biUnion E, f s = ∑ i ∈ T, ∑ s ∈ E i, f s from
+    h Finset.univ
+  intro T
+  induction T using Finset.induction_on with
+  | empty => simp
+  | @insert x₀ T hx₀ ih =>
+    rw [biUnion_insert, finite_series_of_disjoint_union ?_, sum_insert hx₀, ih]
+    exact (disjoint_biUnion_right ..).mpr fun j hj => disj x₀ j (fun h => hx₀ (h ▸ hj))
 
+/-- Exercise 7.1.7. Uses `Fin m` (so `aᵢ < m`) instead of the book's `aᵢ ≤ m`;
+  the bound is baked into the type, and `<` replaces `≤` to match the 0-indexed shift. -/
+theorem sum_finite_col_row_counts {n m : ℕ} (a : Fin n → Fin m) :
+    ∑ i, (a i : ℕ) = ∑ j : Fin m, {i : Fin n | j < a i}.toFinset.card := by
+  simp_rw [Set.toFinset_setOf]
+  have h : ∀ i, (a i : ℕ) = (filter (· < a i) univ).card := by
+    intro i
+    rw [show filter (· < a i) univ = Iio (a i) from by ext; simp [mem_filter, mem_Iio]]
+    exact (Fin.card_Iio _).symm
+  simp_rw [h, card_eq_sum_ones, sum_filter]
+  exact sum_comm
 
 end Finset

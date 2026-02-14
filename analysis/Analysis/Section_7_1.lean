@@ -473,7 +473,7 @@ theorem finite_series_of_finite_series {XX YY:Type*} (X: Finset XX) (Y: Finset Y
     ∑ x ∈ X, ∑ y ∈ Y, f (x, y) = ∑ z ∈ X.product Y, f z := by
   generalize h: X.card = n
   revert X; induction' n with n hn
-  . sorry
+  . intro X hX; simp [Finset.card_eq_zero.mp hX]
   intro X hX
   have hnon : X.Nonempty := by grind [card_ne_zero]
   choose x₀ hx₀ using hnon.exists_mem
@@ -501,8 +501,8 @@ theorem finite_series_of_finite_series {XX YY:Type*} (X: Finset XX) (Y: Finset Y
       simp at hz ⊢; grind
     _ = _ := by
       symm; convert finite_series_of_disjoint_union _ _
-      . sorry
-      sorry
+      . rw [hunion]; ext ⟨a, b⟩; simp [Finset.mem_product, Finset.mem_union]; tauto
+      exact disjoint_product.mpr (.inl hdisj)
 
 /-- Corollary 7.1.14 (Fubini's theorem for finite series)-/
 theorem finite_series_refl {XX YY:Type*} (X: Finset XX) (Y: Finset YY) (f: XX × YY → ℝ) :

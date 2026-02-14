@@ -528,6 +528,131 @@ theorem finite_series_comm {XX YY:Type*} (X: Finset XX) (Y: Finset YY) (f: XX ×
 -- Exercise 7.1.3 : develop as many analogues as you can of the above theory for finite products
 -- instead of finite sums.
 
+/-- Definition 7.1.1 (product analogue) / Exercise 7.1.3 -/
+theorem prod_of_empty {n m:ℤ} (h: n < m) (a: ℤ → ℝ) : ∏ i ∈ Icc m n, a i = 1 := by
+  rw [prod_eq_one]; intro _; rw [mem_Icc]; grind
+
+/-- Definition 7.1.1 (product analogue) / Exercise 7.1.3 -/
+theorem prod_of_nonempty {n m:ℤ} (h: n ≥ m-1) (a: ℤ → ℝ) :
+    ∏ i ∈ Icc m (n+1), a i = (∏ i ∈ Icc m n, a i) * a (n+1) := by
+  rw [mul_comm _ (a (n+1))]
+  convert prod_insert _
+  · ext; simp; omega
+  · infer_instance
+  simp
+
+/-- Lemma 7.1.4(a) (product analogue) / Exercise 7.1.3 -/
+theorem concat_finite_product {m n p:ℤ} (hmn: m ≤ n+1) (hpn : n ≤ p) (a: ℤ → ℝ) :
+  (∏ i ∈ Icc m n, a i) * (∏ i ∈ Icc (n+1) p, a i) = ∏ i ∈ Icc m p, a i := by
+  obtain ⟨d, rfl⟩ : ∃ d : ℕ, p = n + ↑d := ⟨(p - n).toNat, by omega⟩
+  induction d with
+  | zero =>
+    simp only [Nat.cast_zero, add_zero]
+    rw [prod_of_empty (n := n) (m := n + 1) (by omega) a, mul_one]
+  | succ d ih =>
+    rw [show n + ↑(d + 1) = (n + ↑d) + 1 from by push_cast; ring,
+        prod_of_nonempty (by omega) a, prod_of_nonempty (by omega) a,
+        ← mul_assoc, ih (by omega)]
+
+/-- Lemma 7.1.4(b) (product analogue) / Exercise 7.1.3 -/
+theorem shift_finite_product {m n k:ℤ} (a: ℤ → ℝ) :
+  ∏ i ∈ Icc m n, a i = ∏ i ∈ Icc (m+k) (n+k), a (i-k) := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero =>
+      simp only [Nat.cast_zero, add_zero, Icc_self]; simp
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          prod_of_nonempty (by omega) a,
+          show (m + ↑d) + 1 + k = (m + ↑d + k) + 1 from by ring,
+          prod_of_nonempty (by omega) (fun i ↦ a (i - k)), ih (by omega)]
+      congr 1; show a (m + ↑d + 1) = a (m + ↑d + k + 1 - k); congr 1; ring
+  · push_neg at hmn
+    rw [prod_of_empty (by omega), prod_of_empty (by omega)]
+
+/-- Lemma 7.1.4(c) (product analogue) / Exercise 7.1.3 -/
+theorem finite_product_mul {m n:ℤ} (a b: ℤ → ℝ) :
+  ∏ i ∈ Icc m n, (a i * b i) = (∏ i ∈ Icc m n, a i) * (∏ i ∈ Icc m n, b i) := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          prod_of_nonempty (by omega), prod_of_nonempty (by omega),
+          prod_of_nonempty (by omega), ih (by omega)]
+      ring
+  · push_neg at hmn
+    simp [prod_of_empty (by omega)]
+
+/-- Lemma 7.1.4(d) (product analogue) / Exercise 7.1.3 -/
+theorem finite_product_pow {m n:ℤ} (a: ℤ → ℝ) (c:ℕ) :
+  ∏ i ∈ Icc m n, (a i) ^ c = (∏ i ∈ Icc m n, a i) ^ c := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          prod_of_nonempty (by omega), prod_of_nonempty (by omega), ih (by omega),
+          mul_pow]
+  · push_neg at hmn
+    simp [prod_of_empty (by omega)]
+
+/-- Lemma 7.1.4(e) (product analogue) / Exercise 7.1.3 -/
+theorem abs_finite_product {m n:ℤ} (a: ℤ → ℝ) :
+  |∏ i ∈ Icc m n, a i| = ∏ i ∈ Icc m n, |a i| := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          prod_of_nonempty (by omega), prod_of_nonempty (by omega),
+          abs_mul, ih (by omega)]
+  · push_neg at hmn
+    simp [prod_of_empty (by omega)]
+
+theorem finite_product_nonneg {m n:ℤ} {a: ℤ → ℝ} (h: ∀ i, m ≤ i → i ≤ n → 0 ≤ a i) :
+    0 ≤ ∏ i ∈ Icc m n, a i := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]; exact h m (by omega) (by omega)
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          prod_of_nonempty (by omega)]
+      exact mul_nonneg
+        (ih (fun i hi1 hi2 ↦ h i hi1 (by push_cast at hi2 ⊢; omega)) (by omega))
+        (h _ (by omega) (by push_cast; omega))
+  · push_neg at hmn
+    rw [prod_of_empty (by omega)]; norm_num
+
+/-- Lemma 7.1.4(f) (product analogue) / Exercise 7.1.3 -/
+theorem finite_product_of_le {m n:ℤ} {a b: ℤ → ℝ}
+    (ha: ∀ i, m ≤ i → i ≤ n → 0 ≤ a i) (h: ∀ i, m ≤ i → i ≤ n → a i ≤ b i) :
+    ∏ i ∈ Icc m n, a i ≤ ∏ i ∈ Icc m n, b i := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero =>
+      simp only [Nat.cast_zero, add_zero, Icc_self]; simp
+      exact h m (by omega) (by omega)
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          prod_of_nonempty (by omega) a, prod_of_nonempty (by omega) b]
+      exact mul_le_mul
+        (ih (fun i hi1 hi2 ↦ ha i hi1 (by push_cast at hi2 ⊢; omega))
+            (fun i hi1 hi2 ↦ h i hi1 (by push_cast at hi2 ⊢; omega)) (by omega))
+        (h _ (by omega) (by push_cast; omega))
+        (ha _ (by omega) (by push_cast; omega))
+        (finite_product_nonneg fun i hi1 hi2 ↦
+          le_trans (ha i hi1 (by push_cast at hi2 ⊢; omega))
+                   (h i hi1 (by push_cast at hi2 ⊢; omega)))
+  · push_neg at hmn
+    rw [prod_of_empty (by omega), prod_of_empty (by omega)]
+
 #check Nat.factorial_zero
 #check Nat.factorial_succ
 

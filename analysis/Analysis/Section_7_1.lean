@@ -295,7 +295,25 @@ theorem finite_series_of_fintype {X':Type*} (f: X' → ℝ) (X: Finset X') :
 /-- Proposition 7.1.11(c) / Exercise 7.1.2 -/
 theorem map_finite_series {X Y:Type*} [Fintype X] [Fintype Y] (f: X → ℝ) {g:Y → X}
   (hg: Function.Bijective g) :
-    ∑ x, f x = ∑ y, f (g y) := by sorry
+    ∑ x, f x = ∑ y, f (g y) := by
+  set n := Fintype.card Y
+  have hn : (Finset.univ : Finset Y).card = n := Finset.card_univ
+  have hm : (Finset.univ : Finset X).card = n := by
+    rw [Finset.card_univ]; exact (Fintype.card_of_bijective hg).symm
+  obtain ⟨bY, hbY⟩ := exist_bijection Finset.univ hn
+  let bX : Icc (1:ℤ) ↑n → (Finset.univ : Finset X) :=
+    fun p => ⟨g (bY p).val, Finset.mem_univ _⟩
+  have hbX : Function.Bijective bX := by
+    constructor
+    · intro a b h
+      simp only [bX, Subtype.mk.injEq] at h
+      exact hbY.injective (Subtype.ext (hg.injective h))
+    · intro ⟨x, _⟩
+      obtain ⟨y, rfl⟩ := hg.surjective x
+      obtain ⟨p, hp⟩ := hbY.surjective ⟨y, Finset.mem_univ _⟩
+      exact ⟨p, Subtype.ext (by simp [bX]; exact congrArg g (congrArg Subtype.val hp))⟩
+  rw [finite_series_eq Finset.univ f bX hbX,
+      finite_series_eq Finset.univ (fun y => f (g y)) bY hbY]
 
 -- Proposition 7.1.11(d) is `rfl` in our formalism and is therefore omitted.
 

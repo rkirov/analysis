@@ -107,20 +107,64 @@ theorem shift_finite_series {m n k:ℤ} (a: ℤ → ℝ) :
 
 /-- Lemma 7.1.4(c) / Exercise 7.1.1 -/
 theorem finite_series_add {m n:ℤ} (a b: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, (a i + b i) = ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc m n, b i := sum_add_distrib
+  ∑ i ∈ Icc m n, (a i + b i) = ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc m n, b i := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          sum_of_nonempty (by omega), sum_of_nonempty (by omega),
+          sum_of_nonempty (by omega), ih (by omega)]
+      ring
+  · push_neg at hmn
+    simp [sum_of_empty (by omega)]
 
 /-- Lemma 7.1.4(d) / Exercise 7.1.1 -/
 theorem finite_series_const_mul {m n:ℤ}  (a: ℤ → ℝ) (c:ℝ) :
-  ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := (mul_sum _ _ _).symm
+  ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          sum_of_nonempty (by omega), sum_of_nonempty (by omega), ih (by omega)]
+      ring
+  · push_neg at hmn
+    simp [sum_of_empty (by omega)]
 
 /-- Lemma 7.1.4(e) / Exercise 7.1.1 -/
 theorem abs_finite_series_le {m n:ℤ}   (a: ℤ → ℝ) (c:ℝ) :
-  |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := abs_sum_le_sum_abs _ _
+  |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero => simp [Icc_self]
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          sum_of_nonempty (by omega), sum_of_nonempty (by omega)]
+      exact le_trans (abs_add _ _) (add_le_add_right (ih (by omega)) _)
+  · push_neg at hmn
+    simp [sum_of_empty (by omega)]
 
 /-- Lemma 7.1.4(f) / Exercise 7.1.1 -/
 theorem finite_series_of_le {m n:ℤ}  {a b: ℤ → ℝ} (h: ∀ i, m ≤ i → i ≤ n → a i ≤ b i) :
-  ∑ i ∈ Icc m n, a i ≤ ∑ i ∈ Icc m n, b i :=
-  sum_le_sum (fun i hi ↦ by simp [mem_Icc] at hi; exact h i hi.1 hi.2)
+  ∑ i ∈ Icc m n, a i ≤ ∑ i ∈ Icc m n, b i := by
+  by_cases hmn : m ≤ n
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
+    induction d with
+    | zero =>
+      simp only [Nat.cast_zero, add_zero, Icc_self]; simp
+      exact h m (by omega) (by omega)
+    | succ d ih =>
+      rw [show m + ↑(d + 1) = (m + ↑d) + 1 from by push_cast; ring,
+          sum_of_nonempty (by omega) a, sum_of_nonempty (by omega) b]
+      apply add_le_add
+      · exact ih (fun i hi1 hi2 ↦ h i hi1 (by push_cast at hi2 ⊢; omega)) (by omega)
+      · exact h _ (by omega) (by push_cast; omega)
+  · push_neg at hmn
+    rw [sum_of_empty (by omega), sum_of_empty (by omega)]
 
 #check sum_congr
 

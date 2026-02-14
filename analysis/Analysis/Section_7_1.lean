@@ -121,7 +121,7 @@ theorem finite_series_add {m n:ℤ} (a b: ℤ → ℝ) :
     simp [sum_of_empty (by omega)]
 
 /-- Lemma 7.1.4(d) / Exercise 7.1.1 -/
-theorem finite_series_const_mul {m n:ℤ}  (a: ℤ → ℝ) (c:ℝ) :
+theorem finite_series_const_mul {m n:ℤ} (a: ℤ → ℝ) (c:ℝ) :
   ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := by
   by_cases hmn : m ≤ n
   · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
@@ -135,7 +135,7 @@ theorem finite_series_const_mul {m n:ℤ}  (a: ℤ → ℝ) (c:ℝ) :
     simp [sum_of_empty (by omega)]
 
 /-- Lemma 7.1.4(e) / Exercise 7.1.1 -/
-theorem abs_finite_series_le {m n:ℤ}   (a: ℤ → ℝ) (c:ℝ) :
+theorem abs_finite_series_le {m n:ℤ} (a: ℤ → ℝ) :
   |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := by
   by_cases hmn : m ≤ n
   · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = m + ↑d := ⟨(n - m).toNat, by omega⟩
@@ -465,7 +465,7 @@ theorem abs_finite_series_le' {X':Type*} (f: X' → ℝ) (X: Finset X') :
   have : ∀ i, φ (fun x => |f x|) i = |φ f i| := by
     intro i; simp only [φ]; split <;> simp
   simp_rw [this]
-  exact abs_finite_series_le (φ f) 0
+  exact abs_finite_series_le (φ f)
 
 /-- Lemma 7.1.13 --/
 theorem finite_series_of_finite_series {XX YY:Type*} (X: Finset XX) (Y: Finset YY)

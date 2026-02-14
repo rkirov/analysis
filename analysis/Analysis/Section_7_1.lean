@@ -168,6 +168,7 @@ theorem finite_series_of_le {m n:ℤ}  {a b: ℤ → ℝ} (h: ∀ i, m ≤ i →
 
 #check sum_congr
 
+set_option maxHeartbeats 800000 in
 /--
   Proposition 7.1.8.
 -/
@@ -231,8 +232,38 @@ theorem finite_series_of_rearrange {n:ℕ} {X':Type*} (X: Finset X') (hcard: X.c
   set htil : Icc (1:ℤ) n → X.erase x :=
     fun i ↦ ⟨ (h' i).val, by simp [mem_erase, Subtype.val_inj, h'_ne_x] ⟩
   set ftil : X.erase x → ℝ := fun y ↦ f y.val
-  have why : Function.Bijective gtil := by sorry
-  have why2 : Function.Bijective htil := by sorry
+  have hπ_val {i:ℤ} (hi1 : 1 ≤ i) (hi2 : i ≤ ↑n + 1) : (π i).val = i := by
+    simp [π, mem_Icc, hi1, hi2]
+  -- Reduce bijectivity to injectivity via cardinality
+  have hcard : Nat.card ↑(Icc (1:ℤ) ↑n) = Nat.card ↑(X.erase x.val) := by
+    rw [Nat.card_eq_finsetCard, Nat.card_eq_finsetCard, card_erase_of_mem x.2, hX]; simp
+  -- Injectivity helper: π is injective on Icc 1 n
+  have hπ_inj {a b : ℤ} (ha : a ∈ Icc (1:ℤ) n) (hb : b ∈ Icc (1:ℤ) n)
+      (h_eq : π a = π b) : a = b := by
+    simp [mem_Icc] at ha hb
+    have := congrArg Subtype.val h_eq
+    rwa [hπ_val ha.1 (by linarith), hπ_val hb.1 (by linarith)] at this
+  have why : Function.Bijective gtil := by
+    rw [Nat.bijective_iff_injective_and_card]; exact ⟨fun a b heq ↦ by
+      have := hg.injective (Subtype.val_injective (Subtype.mk.inj heq))
+      exact Subtype.ext (hπ_inj a.2 b.2 this), hcard⟩
+  have why2 : Function.Bijective htil := by
+    rw [Nat.bijective_iff_injective_and_card]; refine ⟨fun a b heq ↦ ?_, hcard⟩
+    have hval : h' a.val = h' b.val := Subtype.val_injective (Subtype.mk.inj heq)
+    obtain ⟨ha1, ha2⟩ := mem_Icc.mp a.2; obtain ⟨hb1, hb2⟩ := mem_Icc.mp b.2
+    by_cases ha_lt : (a:ℤ) < j <;> by_cases hb_lt : (b:ℤ) < j
+    · simp only [h', ha_lt, hb_lt, ite_true] at hval
+      exact Subtype.ext (hπ_inj a.2 b.2 (hh.injective hval))
+    · simp only [h', ha_lt, hb_lt, ite_true, ite_false] at hval
+      have := congrArg Subtype.val (hh.injective hval)
+      rw [hπ_val (by omega) (by omega), hπ_val (by omega) (by omega)] at this; omega
+    · simp only [h', ha_lt, hb_lt, ite_false, ite_true] at hval
+      have := congrArg Subtype.val (hh.injective hval)
+      rw [hπ_val (by omega) (by omega), hπ_val (by omega) (by omega)] at this; omega
+    · simp only [h', ha_lt, hb_lt, ite_false] at hval
+      have := congrArg Subtype.val (hh.injective hval)
+      rw [hπ_val (by omega) (by omega), hπ_val (by omega) (by omega)] at this
+      exact Subtype.ext (by omega)
   calc
     _ = ∑ i ∈ Icc (1:ℤ) n, if hi: i ∈ Icc (1:ℤ) n then ftil (gtil ⟨ i, hi ⟩ ) else 0 := by
       apply sum_congr rfl; grind

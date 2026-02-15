@@ -73,9 +73,10 @@ When asked to fill in a `sorry`:
 ## Mathlib
 
 This project depends on Mathlib. You can use Mathlib lemmas freely, but:
-- for pedagogial reasons, some concepts are first rebuilt in the repo (not using mathlib), and only later swapped with mathlib version. Don't import mathlib prematurely.
+- for pedagogical reasons, some concepts are first rebuilt in the repo (not using mathlib), and only later swapped with mathlib version. Don't import mathlib prematurely.
 - Prefer discoverable names — if you use an obscure Mathlib lemma, add a short comment.
 - If a proof needs a Mathlib lemma that seems like it should exist but you can't find it, say so rather than building a long workaround.
+- **Don't shortcut exercises with Mathlib.** When a chapter builds up a theory (e.g. finite sums in Chapter 7), exercises are meant to be proved using the chapter's own lemmas — not by calling Mathlib's equivalent (e.g. don't prove `lim_of_finite_series` with `tendsto_finset_sum`). Use Mathlib for basic building blocks (arithmetic, topology basics, `Finset` operations) but not for the result the exercise is asking you to derive. When in doubt, ask.
 
 ## What I Want to Learn
 

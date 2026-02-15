@@ -724,17 +724,16 @@ theorem lim_of_finite_series {X:Type*} [Fintype X] (a: X → ℕ → ℝ) (L : X
     exact (h x₀).add ih
 
 /-- Exercise 7.1.6 -/
-theorem sum_union_disjoint {X S : Type*} [Fintype X] [Fintype S]
-    (E : X → Finset S)
-    (disj : ∀ i j : X, i ≠ j → Disjoint (E i) (E j))
+theorem sum_union_disjoint {n : ℕ} {S : Type*} [Fintype S]
+    (E : Fin n → Finset S)
+    (disj : ∀ i j : Fin n, i ≠ j → Disjoint (E i) (E j))
     (cover : ∀ s : S, ∃ i, s ∈ E i)
     (f : S → ℝ) :
     ∑ s, f s = ∑ i, ∑ s ∈ E i, f s := by
-  have huniv : (univ : Finset S) = (univ : Finset X).biUnion E := by
-    ext s; simp [mem_biUnion]; exact cover s
-  conv_lhs => rw [show ∑ s, f s = ∑ s ∈ (univ : Finset S), f s from rfl, huniv]
-  suffices h : ∀ T : Finset X, ∑ s ∈ T.biUnion E, f s = ∑ i ∈ T, ∑ s ∈ E i, f s from
-    h Finset.univ
+  suffices h : ∀ T : Finset (Fin n), ∑ s ∈ T.biUnion E, f s = ∑ i ∈ T, ∑ s ∈ E i, f s by
+    have huniv : (univ : Finset S) = (univ : Finset (Fin n)).biUnion E := by
+      ext s; simp [mem_biUnion]; exact cover s
+    simpa [huniv] using h univ
   intro T
   induction T using Finset.induction_on with
   | empty => simp

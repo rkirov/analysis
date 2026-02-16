@@ -91,18 +91,72 @@ theorem Series.convergesTo_sum {s : Series} (h: s.converges) : s.convergesTo s.s
 noncomputable abbrev Series.example_7_2_4 := mk' (m := 1) (fun n ↦ (2:ℝ)^(-n:ℤ))
 
 theorem Series.example_7_2_4a {N:ℤ} (hN: N ≥ 1) : example_7_2_4.partial N = 1 - (2:ℝ)^(-N) := by
-  sorry
+  obtain ⟨n, rfl⟩ : ∃ n : ℕ, N = 1 + n := ⟨(N - 1).toNat, by omega⟩
+  induction n with
+  | zero =>
+    simp only [Nat.cast_zero, add_zero]
+    show ∑ n ∈ Finset.Icc 1 1, example_7_2_4.seq n = 1 - (2:ℝ)^(-(1:ℤ))
+    simp [Finset.Icc_self]; norm_num
+  | succ k ih =>
+    rw [show (1:ℤ) + ↑(k + 1) = (1 + ↑k) + 1 from by push_cast; ring]
+    rw [partial_succ _ (show (1:ℤ) + ↑k ≥ 1 - 1 by omega), ih (by omega)]
+    show 1 - (2:ℝ) ^ (-(1 + (↑k:ℤ))) + example_7_2_4.seq (1 + ↑k + 1) = _
+    simp only [example_7_2_4, mk', show (1:ℤ) + ↑k + 1 ≥ 1 from by omega, ↓reduceDIte]
+    rw [show -(1 + (↑k : ℤ) + 1) = (-(1 + ↑k) : ℤ) + (-1 : ℤ) from by ring]
+    rw [zpow_add₀ (by norm_num : (2:ℝ) ≠ 0)]; ring
 
-theorem Series.example_7_2_4b : example_7_2_4.convergesTo 1 := by sorry
+private theorem zpow_two_neg_tendsto : Filter.Tendsto (fun N:ℤ => (2:ℝ)^(-N)) Filter.atTop (nhds 0) := by
+  have h := tendsto_pow_atTop_nhds_zero_of_lt_one (show (0:ℝ) ≤ 2⁻¹ by positivity) (by norm_num : (2:ℝ)⁻¹ < 1)
+  rw [Metric.tendsto_atTop] at h ⊢
+  intro ε hε; obtain ⟨N, hN⟩ := h ε hε
+  exact ⟨N, fun n hn => by
+    rw [show (2:ℝ)^(-n) = ((2:ℝ)⁻¹)^n.toNat from by
+      rw [zpow_neg, ← zpow_natCast, Int.toNat_of_nonneg (le_trans (Nat.cast_nonneg N) hn), inv_zpow]]
+    exact hN n.toNat (by omega)⟩
 
-theorem Series.example_7_2_4c : example_7_2_4.sum = 1 := by sorry
+theorem Series.example_7_2_4b : example_7_2_4.convergesTo 1 := by
+  have key : Filter.Tendsto (fun N:ℤ => 1 - (2:ℝ)^(-N)) Filter.atTop (nhds 1) := by
+    convert (tendsto_const_nhds (x := (1:ℝ))).sub zpow_two_neg_tendsto using 1; ring
+  exact key.congr' (Filter.eventually_atTop.mpr ⟨1, fun N hN => (example_7_2_4a hN).symm⟩)
+
+theorem Series.example_7_2_4c : example_7_2_4.sum = 1 := sum_of_converges example_7_2_4b
 
 noncomputable abbrev Series.example_7_2_4' := mk' (m := 1) (fun n ↦ (2:ℝ)^(n:ℤ))
 
 theorem Series.example_7_2_4'a {N:ℤ} (hN: N ≥ 1) : example_7_2_4'.partial N = (2:ℝ)^(N+1) - 2 := by
-  sorry
+  obtain ⟨n, rfl⟩ : ∃ n : ℕ, N = 1 + n := ⟨(N - 1).toNat, by omega⟩
+  induction n with
+  | zero =>
+    simp only [Nat.cast_zero, add_zero]
+    show ∑ n ∈ Finset.Icc 1 1, example_7_2_4'.seq n = (2:ℝ)^((1:ℤ)+1) - 2
+    simp [Finset.Icc_self]; norm_num
+  | succ k ih =>
+    rw [show (1:ℤ) + ↑(k + 1) = (1 + ↑k) + 1 from by push_cast; ring]
+    rw [partial_succ _ (show (1:ℤ) + ↑k ≥ 1 - 1 by omega), ih (by omega)]
+    show (2:ℝ)^((1:ℤ) + ↑k + 1) - 2 + example_7_2_4'.seq (1 + ↑k + 1) = _
+    simp only [example_7_2_4', mk', show (1:ℤ) + ↑k + 1 ≥ 1 from by omega, ↓reduceDIte]
+    have : (2:ℝ) ^ ((1:ℤ) + ↑k + 1 + 1) = 2 ^ ((1:ℤ) + ↑k + 1) * 2 :=
+      zpow_add_one₀ (by norm_num : (2:ℝ) ≠ 0) _
+    linarith
 
-theorem Series.example_7_2_4'b : example_7_2_4'.diverges := by sorry
+theorem Series.example_7_2_4'b : example_7_2_4'.diverges := by
+  intro ⟨L, hL⟩
+  have hL := Metric.tendsto_atTop.mp hL
+  obtain ⟨N, hN⟩ := hL 1 one_pos
+  set M := max N 1
+  have h1 := hN M (le_max_left _ _)
+  have h2 := hN (M + 1) (by linarith [le_max_left N (1:ℤ)])
+  rw [example_7_2_4'a (le_max_right N 1), Real.dist_eq] at h1
+  rw [example_7_2_4'a (show M + 1 ≥ 1 by linarith [le_max_right N (1:ℤ)]), Real.dist_eq] at h2
+  have habs1 := abs_lt.mp h1
+  have habs2 := abs_lt.mp h2
+  have zpow_double : (2:ℝ) ^ (M + 1 + 1) = 2 * 2 ^ (M + 1) := by
+    rw [zpow_add₀ (by norm_num : (2:ℝ) ≠ 0), zpow_one]; ring
+  have zpow_ge : (2:ℝ) ^ (M + 1) ≥ 4 := by
+    have hM1 : (2:ℤ) ≤ M + 1 := by linarith [le_max_right N (1:ℤ)]
+    have h := zpow_le_zpow_right₀ (show (1:ℝ) ≤ 2 by norm_num) hM1
+    linarith [show (2:ℝ) ^ (2:ℤ) = 4 from by norm_num]
+  linarith
 
 /-- Proposition 7.2.5 / Exercise 7.2.2 -/
 theorem Series.converges_iff_tail_decay (s:Series) :

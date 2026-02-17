@@ -1,5 +1,6 @@
 import Mathlib.Tactic
 import Mathlib.Algebra.Field.Power
+import Mathlib.Analysis.PSeries
 
 /-!
 # Analysis I, Section 7.2: Infinite series
@@ -375,67 +376,42 @@ theorem Series.example_7_2_13a : example_7_2_13.converges := by
       (by exact_mod_cast hxy)
   apply (converges_of_alternating hf_nn hf_anti).mpr
   have : Nonempty { n : ℤ // n ≥ 1 } := ⟨⟨1, le_refl _⟩⟩
-  rw [Metric.tendsto_atTop]
-  intro ε hε
-  obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
-  refine ⟨⟨↑N + 1, by omega⟩, fun ⟨n, hn⟩ hle => ?_⟩
-  simp only [f, Real.dist_eq, sub_zero]
-  have hn_pos : (0 : ℝ) < n := by exact_mod_cast (show (0:ℤ) < n from by omega)
-  rw [abs_of_nonneg (_root_.one_div_nonneg.mpr (le_of_lt hn_pos))]
-  have hn_ge : (↑N : ℝ) + 1 ≤ n := by
-    have := hle; change ↑N + 1 ≤ n at this; exact_mod_cast this
-  calc (1:ℝ) / n ≤ 1 / (↑N + 1) :=
-        _root_.one_div_le_one_div_of_le (by linarith [_root_.one_div_pos.mpr hε]) hn_ge
-    _ < ε := by
-        have := _root_.one_div_lt_one_div_of_lt (_root_.one_div_pos.mpr hε)
-          (show 1 / ε < ↑N + 1 by linarith)
-        rwa [_root_.one_div_one_div] at this
+  have hg : Filter.Tendsto (fun (x : { n : ℤ // n ≥ 1 }) => x.val.toNat)
+      Filter.atTop Filter.atTop :=
+    Filter.tendsto_atTop_atTop.mpr fun b =>
+      ⟨⟨↑b + 1, by omega⟩, fun ⟨n, hn⟩ hle => by
+        show n.toNat ≥ b; have : (↑b : ℤ) + 1 ≤ n := hle; omega⟩
+  exact (tendsto_one_div_atTop_nhds_zero_nat.comp hg).congr fun ⟨n, hn⟩ => by
+    simp only [Function.comp, f]; congr 1
+    exact_mod_cast Int.toNat_of_nonneg (show 0 ≤ n by omega)
 
 theorem Series.example_7_2_13b : ¬ example_7_2_13.absConverges := by
+  have h_abs : ∀ k : ℤ, k ≥ 1 → example_7_2_13.abs.seq k = 1 / (↑k : ℝ) := by
+    intro k hk; simp only [dif_pos hk, abs_div,
+      abs_of_pos (show (0:ℝ) < k from by exact_mod_cast (show (0:ℤ) < k by omega))]
+    rw [show k = (↑k.toNat : ℤ) from (Int.toNat_of_nonneg (by omega)).symm,
+        zpow_natCast, abs_neg_one_pow]
   intro ⟨L, hL⟩
-  have hL := Metric.tendsto_atTop.mp hL
-  obtain ⟨N₀, hN₀⟩ := hL (1/4) (by norm_num)
-  set N := max N₀ 1
-  have hN1 : N ≥ 1 := le_max_right _ _
-  have h1 := hN₀ N (le_max_left _ _)
-  have h2 := hN₀ (2 * N) (by linarith [le_max_left N₀ (1:ℤ)])
-  have h_close : dist (example_7_2_13.abs.partial (2 * N)) (example_7_2_13.abs.partial N) < 1/2 :=
-    calc dist _ _ ≤ dist _ L + dist _ L := dist_triangle_right _ _ L
-      _ < 1/4 + 1/4 := add_lt_add h2 h1
-      _ = 1/2 := by norm_num
-  rw [Real.dist_eq] at h_close
-  have h_abs_seq : ∀ k : ℤ, k ≥ 1 → example_7_2_13.abs.seq k = 1 / (↑k : ℝ) := by
-    intro k hk
-    simp only [dif_pos hk, abs_div]
-    rw [show |(↑k : ℝ)| = (↑k : ℝ) from
-      abs_of_pos (by exact_mod_cast (show (0:ℤ) < k by omega))]
-    congr 1
-    rcases k.even_or_odd with hk_even | hk_odd
-    · rw [hk_even.neg_one_zpow]; simp
-    · rw [hk_odd.neg_one_zpow]; simp
-  have h_split : example_7_2_13.abs.partial (2 * N) - example_7_2_13.abs.partial N =
-      ∑ k ∈ Finset.Icc (N + 1) (2 * N), example_7_2_13.abs.seq k := by
-    show ∑ k ∈ Finset.Icc 1 (2*N), _ - ∑ k ∈ Finset.Icc 1 N, _ = _
-    rw [← Finset.sum_sdiff (Finset.Icc_subset_Icc_right (show N ≤ 2 * N by linarith)),
-        add_sub_cancel_right]
-    exact Finset.sum_congr
-      (Finset.ext (fun k => by simp only [Finset.mem_sdiff, Finset.mem_Icc]; omega))
-      (fun _ _ => rfl)
-  have h_term : ∀ k ∈ Finset.Icc (N + 1) (2 * N),
-      (1:ℝ) / (2 * ↑N) ≤ example_7_2_13.abs.seq k := by
-    intro k hk; simp only [Finset.mem_Icc] at hk
-    rw [h_abs_seq k (by omega)]
-    exact _root_.one_div_le_one_div_of_le
-      (by exact_mod_cast (show (0:ℤ) < k from by omega)) (by exact_mod_cast hk.2)
-  have h_card : (Finset.Icc (N + 1) (2 * N)).card = N.toNat := by
-    rw [Int.card_Icc]; congr 1; omega
-  have h_bound := Finset.card_nsmul_le_sum _ _ _ h_term
-  rw [h_card, nsmul_eq_mul] at h_bound
-  have : (↑N.toNat : ℝ) * (1 / (2 * ↑N)) = 1/2 := by
-    rw [show (↑N.toNat : ℝ) = (↑N : ℝ) from by exact_mod_cast Int.toNat_of_nonneg (by omega)]
-    field_simp; ring
-  rw [this] at h_bound
-  linarith [h_split, (abs_lt.mp h_close).2]
+  have h_nn : ∀ k, 0 ≤ example_7_2_13.abs.seq k := by
+    intro k; by_cases hk : k ≥ 1
+    · rw [h_abs k hk]; positivity
+    · exact le_of_eq (example_7_2_13.abs.vanish k (show k < 1 from by omega)).symm
+  have h_mono : Monotone example_7_2_13.abs.partial :=
+    fun _ _ hN => Finset.sum_le_sum_of_subset_of_nonneg
+      (Finset.Icc_subset_Icc_right hN) (fun k _ _ => h_nn k)
+  have h_le := h_mono.ge_of_tendsto hL
+  have h_eq : ∀ n : ℕ, ∑ i ∈ Finset.range n, (1:ℝ)/((↑i:ℝ)+1) =
+      example_7_2_13.abs.partial ↑n := by
+    intro n; induction n with
+    | zero => show (0:ℝ) = ∑ k ∈ Finset.Icc (1:ℤ) 0, _; simp
+    | succ n ih =>
+      rw [Finset.sum_range_succ, ih,
+          show (↑(n+1) : ℤ) = ↑n + 1 from by push_cast; ring,
+          partial_succ _ (by omega : (↑n : ℤ) ≥ 1 - 1)]
+      congr 1; rw [h_abs (↑n + 1) (by omega)]; push_cast; ring
+  obtain ⟨N, hN⟩ := Filter.eventually_atTop.mp
+    (Filter.tendsto_atTop.mp Real.tendsto_sum_range_one_div_nat_succ_atTop (L + 1))
+  linarith [h_eq N, h_le ↑N, hN N le_rfl]
 
 theorem Series.example_7_2_13c :  example_7_2_13.condConverges :=
   ⟨example_7_2_13a, example_7_2_13b⟩

@@ -248,16 +248,37 @@ theorem Series.example_7_2_7' : ((fun n:ℕ ↦ (-1:ℝ)^n):Series).diverges := 
 /-- Definition 7.2.8 (Absolute convergence) -/
 abbrev Series.abs (s:Series) : Series := mk' (m:=s.m) (fun n ↦ |s.seq n|)
 
+theorem Series.abs_seq (s : Series) (n : ℤ) : s.abs.seq n = |s.seq n| := by
+  unfold Series.abs mk'; simp only
+  split
+  · rfl
+  · next h => rw [s.vanish n (by omega), abs_zero]
+
 abbrev Series.absConverges (s:Series) : Prop := s.abs.converges
 
 abbrev Series.condConverges (s:Series) : Prop := s.converges ∧ ¬ s.absConverges
 
 /-- Proposition 7.2.9 (Absolute convergence test) / Example 7.2.4 -/
 theorem Series.converges_of_absConverges {s:Series} (h : s.absConverges) : s.converges := by
-  sorry
+  rw [absConverges, converges_iff_tail_decay] at h
+  rw [converges_iff_tail_decay]
+  intro ε hε
+  obtain ⟨N, hNm, hN⟩ := h ε hε
+  refine ⟨N, by linarith, fun p hp q hq => ?_⟩
+  calc |∑ n ∈ Finset.Icc p q, s.seq n|
+      ≤ ∑ n ∈ Finset.Icc p q, |s.seq n| := Finset.abs_sum_le_sum_abs _ _
+    _ = ∑ n ∈ Finset.Icc p q, s.abs.seq n := by congr 1; ext n; exact (s.abs_seq n).symm
+    _ ≤ |∑ n ∈ Finset.Icc p q, s.abs.seq n| := le_abs_self _
+    _ ≤ ε := hN p hp q hq
 
 theorem Series.abs_le {s:Series} (h : s.absConverges) : |s.sum| ≤ s.abs.sum := by
-  sorry
+  have hconv := converges_of_absConverges h
+  rw [sum_of_converges (convergesTo_sum hconv), sum_of_converges (convergesTo_sum h)]
+  exact le_of_tendsto_of_tendsto (convergesTo_sum hconv).abs (convergesTo_sum h)
+    (Filter.eventually_atTop.mpr ⟨0, fun N _ =>
+      calc |s.partial N|
+          ≤ ∑ n ∈ Finset.Icc s.m N, |s.seq n| := Finset.abs_sum_le_sum_abs _ _
+        _ = s.abs.partial N := by congr 1; ext n; exact (s.abs_seq n).symm⟩)
 
 /-- Proposition 7.2.12 (Alternating series test) -/
 theorem Series.converges_of_alternating {m:ℤ} {a: { n // n ≥ m} → ℝ} (ha: ∀ n, a n ≥ 0)

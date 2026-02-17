@@ -174,12 +174,23 @@ theorem Series.diverges_of_nodecay {s:Series} (h: ¬ Filter.atTop.Tendsto s.seq 
 
 /-- Example 7.2.7 -/
 theorem Series.example_7_2_7 : ((fun n:ℕ ↦ (1:ℝ)):Series).diverges := by
-  apply diverges_of_nodecay
-  sorry
+  intro h
+  have := Metric.tendsto_atTop.mp (decay_of_converges h) (1/2) (by norm_num)
+  obtain ⟨N, hN⟩ := this
+  have := hN (max N 0) (le_max_left _ _)
+  simp only [show (max N 0 : ℤ) ≥ 0 from le_max_right _ _, ↓reduceIte, Real.dist_eq,
+    sub_zero] at this
+  norm_num at this
 
 theorem Series.example_7_2_7' : ((fun n:ℕ ↦ (-1:ℝ)^n):Series).diverges := by
-  apply diverges_of_nodecay
-  sorry
+  intro h
+  have := Metric.tendsto_atTop.mp (decay_of_converges h) (1/2) (by norm_num)
+  obtain ⟨N, hN⟩ := this
+  have := hN (max N 0) (le_max_left _ _)
+  simp only [show (max N 0 : ℤ) ≥ 0 from le_max_right _ _, ↓reduceIte, Real.dist_eq,
+    sub_zero] at this
+  rw [abs_pow, abs_neg, abs_one, one_pow] at this
+  norm_num at this
 
 /-- Definition 7.2.8 (Absolute convergence) -/
 abbrev Series.abs (s:Series) : Series := mk' (m:=s.m) (fun n ↦ |s.seq n|)
@@ -222,14 +233,53 @@ theorem Series.converges_of_alternating {m:ℤ} {a: { n // n ≥ m} → ℝ} (ha
     simp [claim1 hN, h'.add_one.neg_one_zpow]; apply ha'; simp
   have claim3 {N:ℤ} (hN: N ≥ m) (h': Even N) : S (N+2) ≤ S N := by
     simp [claim1 hN, h'.add_one.neg_one_zpow]; apply ha'; simp
-  have why1 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S (N+2*k) ≤ S N := by sorry
-  have why2 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S (N+2*k+1) ≥ S N - a ⟨ N+1, by grind ⟩ := by sorry
-  have why3 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S (N+2*k+1) ≤ S (N+2*k) := by sorry
+  have why1 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S (N+2*k) ≤ S N := by
+    induction k with
+    | zero => simp
+    | succ k ih =>
+      have : N + 2 * ↑(k + 1) = (N + 2 * ↑k) + 2 := by push_cast; ring
+      rw [this]
+      calc S (N + 2 * ↑k + 2) ≤ S (N + 2 * ↑k) := claim3 (by linarith) (h'.add (even_two_mul _))
+        _ ≤ S N := ih
+  have why2 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S (N+2*k+1) ≥ S N - a ⟨ N+1, by grind ⟩ := by
+    induction k with
+    | zero =>
+      simp [claim0 hN, h'.add_one.neg_one_zpow]
+    | succ k ih =>
+      rw [show N + 2 * ↑(k + 1) + 1 = (N + 2 * ↑k + 1) + 2 from by push_cast; ring]
+      linarith [claim2 (show N + 2 * ↑k + 1 ≥ m by linarith) ((h'.add (even_two_mul (↑k:ℤ))).add_one)]
+  have why3 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S (N+2*k+1) ≤ S (N+2*k) := by
+    rw [show N + 2*↑k + 1 = (N + 2*↑k) + 1 from by ring]
+    simp [claim0 (show N + 2*↑k ≥ m by linarith),
+          (h'.add (even_two_mul (↑k:ℤ))).add_one.neg_one_zpow, ha]
   have claim4 {N:ℤ} (hN: N ≥ m) (h': Even N) (k:ℕ) : S N -
  a ⟨ N+1, by grind ⟩ ≤ S (N + 2*k + 1) ∧ S (N + 2*k + 1) ≤ S (N + 2*k) ∧ S (N + 2*k) ≤ S N := ⟨ ge_iff_le.mp (why2 hN h' k), why3 hN h' k, why1 hN h' k ⟩
   have why4 {N n:ℤ} (hN: N ≥ m) (h': Even N) (hn: n ≥ N) : S N - a ⟨ N+1, by grind ⟩ ≤ S n ∧ S n ≤ S N := by
-    sorry
-  have why5 {ε:ℝ} (hε: ε > 0) : ∃ N, ∀ n ≥ N, ∀ m ≥ N, |S n - S m| ≤ ε := by sorry
+    set j := (n - N).toNat
+    have hjn : n = N + ↑j := by omega
+    rcases j.even_or_odd with ⟨k, hk⟩ | ⟨k, hk⟩
+    · have hSn : S n = S (N + 2 * ↑k) := by congr 1; omega
+      exact ⟨by linarith [(claim4 hN h' k).1, (claim4 hN h' k).2.1, hSn],
+             by linarith [why1 hN h' k, hSn]⟩
+    · have hSn : S n = S (N + 2 * ↑k + 1) := by congr 1; omega
+      exact ⟨by linarith [why2 hN h' k, hSn],
+             by linarith [(claim4 hN h' k).2.1, (claim4 hN h' k).2.2, hSn]⟩
+  have why5 {ε:ℝ} (hε: ε > 0) : ∃ N, ∀ n ≥ N, ∀ m ≥ N, |S n - S m| ≤ ε := by
+    have : Nonempty { n // n ≥ m } := ⟨⟨m, le_refl _⟩⟩
+    obtain ⟨⟨K, hKm⟩, hKε⟩ := Metric.tendsto_atTop.mp h ε hε
+    obtain ⟨N, hNK, hNm, hNeven⟩ : ∃ N ≥ K, N ≥ m ∧ Even N := by
+      rcases K.even_or_odd with hK | hK
+      · exact ⟨K, le_refl _, hKm, hK⟩
+      · exact ⟨K + 1, by omega, by omega, hK.add_one⟩
+    have ha_small : a ⟨N + 1, by linarith⟩ ≤ ε := by
+      have hsub : (⟨K, hKm⟩ : { n // n ≥ m }) ≤ ⟨N + 1, by linarith⟩ := by
+        change K ≤ N + 1; omega
+      have := hKε _ hsub
+      rw [Real.dist_eq, sub_zero, abs_of_nonneg (ha _)] at this; linarith
+    refine ⟨N, fun n₁ hn₁ n₂ hn₂ => ?_⟩
+    have ⟨h1_lo, h1_hi⟩ := why4 hNm hNeven hn₁
+    have ⟨h2_lo, h2_hi⟩ := why4 hNm hNeven hn₂
+    rw [_root_.abs_le]; constructor <;> linarith
   have : CauchySeq S := by
     rw [Metric.cauchySeq_iff']
     intro ε hε; choose N hN using why5 (half_pos hε); use N
@@ -240,13 +290,81 @@ theorem Series.converges_of_alternating {m:ℤ} {a: { n // n ≥ m} → ℝ} (ha
 noncomputable abbrev Series.example_7_2_13 : Series := (mk' (m:=1) (fun n ↦ (-1:ℝ)^(n:ℤ) / (n:ℤ)))
 
 theorem Series.example_7_2_13a : example_7_2_13.converges := by
-  sorry
+  set f : { n : ℤ // n ≥ 1 } → ℝ := fun n ↦ 1 / (↑n.val : ℝ)
+  suffices h : (mk' (m := 1) (fun n ↦ (-1) ^ (↑n : ℤ) * f n)).converges by
+    convert h using 2; ext n; exact (mul_one_div _ _).symm
+  have hf_nn : ∀ n : { n : ℤ // n ≥ 1 }, f n ≥ 0 := fun ⟨n, hn⟩ => by
+    simp only [f]; positivity
+  have hf_anti : Antitone f := fun ⟨x, hx⟩ ⟨y, hy⟩ hxy => by
+    simp only [f]
+    exact one_div_le_one_div_of_le (by exact_mod_cast (show (0:ℤ) < x from by omega))
+      (by exact_mod_cast hxy)
+  apply (converges_of_alternating hf_nn hf_anti).mpr
+  have : Nonempty { n : ℤ // n ≥ 1 } := ⟨⟨1, le_refl _⟩⟩
+  rw [Metric.tendsto_atTop]
+  intro ε hε
+  obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
+  refine ⟨⟨↑N + 1, by omega⟩, fun ⟨n, hn⟩ hle => ?_⟩
+  simp only [f, Real.dist_eq, sub_zero]
+  have hn_pos : (0 : ℝ) < n := by exact_mod_cast (show (0:ℤ) < n from by omega)
+  rw [abs_of_nonneg (_root_.one_div_nonneg.mpr (le_of_lt hn_pos))]
+  have hn_ge : (↑N : ℝ) + 1 ≤ n := by
+    have := hle; change ↑N + 1 ≤ n at this; exact_mod_cast this
+  calc (1:ℝ) / n ≤ 1 / (↑N + 1) :=
+        _root_.one_div_le_one_div_of_le (by linarith [_root_.one_div_pos.mpr hε]) hn_ge
+    _ < ε := by
+        have := _root_.one_div_lt_one_div_of_lt (_root_.one_div_pos.mpr hε)
+          (show 1 / ε < ↑N + 1 by linarith)
+        rwa [_root_.one_div_one_div] at this
 
 theorem Series.example_7_2_13b : ¬ example_7_2_13.absConverges := by
-  sorry
+  intro ⟨L, hL⟩
+  have hL := Metric.tendsto_atTop.mp hL
+  obtain ⟨N₀, hN₀⟩ := hL (1/4) (by norm_num)
+  set N := max N₀ 1
+  have hN1 : N ≥ 1 := le_max_right _ _
+  have h1 := hN₀ N (le_max_left _ _)
+  have h2 := hN₀ (2 * N) (by linarith [le_max_left N₀ (1:ℤ)])
+  have h_close : dist (example_7_2_13.abs.partial (2 * N)) (example_7_2_13.abs.partial N) < 1/2 :=
+    calc dist _ _ ≤ dist _ L + dist _ L := dist_triangle_right _ _ L
+      _ < 1/4 + 1/4 := add_lt_add h2 h1
+      _ = 1/2 := by norm_num
+  rw [Real.dist_eq] at h_close
+  have h_abs_seq : ∀ k : ℤ, k ≥ 1 → example_7_2_13.abs.seq k = 1 / (↑k : ℝ) := by
+    intro k hk
+    simp only [dif_pos hk, abs_div]
+    rw [show |(↑k : ℝ)| = (↑k : ℝ) from
+      abs_of_pos (by exact_mod_cast (show (0:ℤ) < k by omega))]
+    congr 1
+    rcases k.even_or_odd with hk_even | hk_odd
+    · rw [hk_even.neg_one_zpow]; simp
+    · rw [hk_odd.neg_one_zpow]; simp
+  have h_split : example_7_2_13.abs.partial (2 * N) - example_7_2_13.abs.partial N =
+      ∑ k ∈ Finset.Icc (N + 1) (2 * N), example_7_2_13.abs.seq k := by
+    show ∑ k ∈ Finset.Icc 1 (2*N), _ - ∑ k ∈ Finset.Icc 1 N, _ = _
+    rw [← Finset.sum_sdiff (Finset.Icc_subset_Icc_right (show N ≤ 2 * N by linarith)),
+        add_sub_cancel_right]
+    exact Finset.sum_congr
+      (Finset.ext (fun k => by simp only [Finset.mem_sdiff, Finset.mem_Icc]; omega))
+      (fun _ _ => rfl)
+  have h_term : ∀ k ∈ Finset.Icc (N + 1) (2 * N),
+      (1:ℝ) / (2 * ↑N) ≤ example_7_2_13.abs.seq k := by
+    intro k hk; simp only [Finset.mem_Icc] at hk
+    rw [h_abs_seq k (by omega)]
+    exact _root_.one_div_le_one_div_of_le
+      (by exact_mod_cast (show (0:ℤ) < k from by omega)) (by exact_mod_cast hk.2)
+  have h_card : (Finset.Icc (N + 1) (2 * N)).card = N.toNat := by
+    rw [Int.card_Icc]; congr 1; omega
+  have h_bound := Finset.card_nsmul_le_sum _ _ _ h_term
+  rw [h_card, nsmul_eq_mul] at h_bound
+  have : (↑N.toNat : ℝ) * (1 / (2 * ↑N)) = 1/2 := by
+    rw [show (↑N.toNat : ℝ) = (↑N : ℝ) from by exact_mod_cast Int.toNat_of_nonneg (by omega)]
+    field_simp; ring
+  rw [this] at h_bound
+  linarith [h_split, (abs_lt.mp h_close).2]
 
-theorem Series.example_7_2_13c :  example_7_2_13.condConverges := by
-  sorry
+theorem Series.example_7_2_13c :  example_7_2_13.condConverges :=
+  ⟨example_7_2_13a, example_7_2_13b⟩
 
 instance Series.inst_add : Add Series where
   add a b := {

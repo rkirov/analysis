@@ -99,9 +99,9 @@ theorem Series.example_7_2_4a {N:ℤ} (hN: N ≥ 1) : example_7_2_4.partial N = 
     simp [Finset.Icc_self]; norm_num
   | succ k ih =>
     rw [show (1:ℤ) + ↑(k + 1) = (1 + ↑k) + 1 from by push_cast; ring]
-    rw [partial_succ _ (show (1:ℤ) + ↑k ≥ 1 - 1 by omega), ih (by omega)]
+    rw [partial_succ _ (show (1:ℤ) + ↑k ≥ 0 by omega), ih (by omega)]
     show 1 - (2:ℝ) ^ (-(1 + (↑k:ℤ))) + example_7_2_4.seq (1 + ↑k + 1) = _
-    simp only [example_7_2_4, mk', show (1:ℤ) + ↑k + 1 ≥ 1 from by omega, ↓reduceDIte]
+    simp only [show (1:ℤ) + ↑k + 1 ≥ 1 from by omega, ↓reduceDIte]
     rw [show -(1 + (↑k : ℤ) + 1) = (-(1 + ↑k) : ℤ) + (-1 : ℤ) from by ring]
     rw [zpow_add₀ (by norm_num : (2:ℝ) ≠ 0)]; ring
 
@@ -134,7 +134,7 @@ theorem Series.example_7_2_4'a {N:ℤ} (hN: N ≥ 1) : example_7_2_4'.partial N 
     rw [show (1:ℤ) + ↑(k + 1) = (1 + ↑k) + 1 from by push_cast; ring]
     rw [partial_succ _ (show (1:ℤ) + ↑k ≥ 1 - 1 by omega), ih (by omega)]
     show (2:ℝ)^((1:ℤ) + ↑k + 1) - 2 + example_7_2_4'.seq (1 + ↑k + 1) = _
-    simp only [example_7_2_4', mk', show (1:ℤ) + ↑k + 1 ≥ 1 from by omega, ↓reduceDIte]
+    simp only [show (1:ℤ) + ↑k + 1 ≥ 1 from by omega, ↓reduceDIte]
     have : (2:ℝ) ^ ((1:ℤ) + ↑k + 1 + 1) = 2 ^ ((1:ℤ) + ↑k + 1) * 2 :=
       zpow_add_one₀ (by norm_num : (2:ℝ) ≠ 0) _
     linarith
@@ -161,16 +161,69 @@ theorem Series.example_7_2_4'b : example_7_2_4'.diverges := by
 /-- Proposition 7.2.5 / Exercise 7.2.2 -/
 theorem Series.converges_iff_tail_decay (s:Series) :
     s.converges ↔ ∀ ε > 0, ∃ N ≥ s.m, ∀ p ≥ N, ∀ q ≥ N, |∑ n ∈ Finset.Icc p q, s.seq n| ≤ ε := by
-  sorry
+  constructor
+  · -- Forward: convergent ⟹ Cauchy ⟹ tails are small
+    intro ⟨L, hL⟩ ε hε
+    have hcauchy := hL.cauchySeq
+    rw [Metric.cauchySeq_iff] at hcauchy
+    obtain ⟨N₀, hN₀⟩ := hcauchy ε hε
+    use max (N₀ + 1) s.m, le_max_right _ _
+    intro p hp q hq
+    by_cases hpq : p ≤ q
+    · have hsub : Finset.Icc s.m (p-1) ⊆ Finset.Icc s.m q :=
+        Finset.Icc_subset_Icc_right (by omega)
+      have hsdiff := Finset.sum_sdiff hsub (f := s.seq)
+      have hset : Finset.Icc s.m q \ Finset.Icc s.m (p-1) = Finset.Icc p q := by
+        ext x; simp [Finset.mem_sdiff]; omega
+      rw [hset] at hsdiff
+      have key : ∑ n ∈ Finset.Icc p q, s.seq n = s.partial q - s.partial (p - 1) := by
+        unfold Series.partial; linarith
+      rw [key]
+      have := hN₀ q (by linarith [le_max_left (N₀ + 1) s.m])
+                    (p - 1) (by linarith [le_max_left (N₀ + 1) s.m])
+      rw [Real.dist_eq] at this
+      linarith [abs_sub_comm (s.partial q) (s.partial (p - 1))]
+    · push_neg at hpq
+      rw [Finset.Icc_eq_empty (by omega), Finset.sum_empty, abs_zero]; linarith
+  · -- Backward: Cauchy criterion ⟹ convergence (completeness of ℝ)
+    intro h
+    apply cauchySeq_tendsto_of_complete
+    rw [Metric.cauchySeq_iff]
+    intro ε hε
+    obtain ⟨N, hNm, hN⟩ := h (ε / 2) (half_pos hε)
+    refine ⟨N, fun p hp q hq => ?_⟩
+    rw [Real.dist_eq]
+    wlog hpq : p ≤ q with H
+    · rw [abs_sub_comm]; exact H s h ε hε N hNm hN q hq p hp (by omega)
+    have hsub : Finset.Icc s.m p ⊆ Finset.Icc s.m q := Finset.Icc_subset_Icc_right hpq
+    have hsdiff := Finset.sum_sdiff hsub (f := s.seq)
+    have hset : Finset.Icc s.m q \ Finset.Icc s.m p = Finset.Icc (p + 1) q := by
+      ext x; simp [Finset.mem_sdiff]; omega
+    rw [hset] at hsdiff
+    rw [show s.partial p - s.partial q = -(∑ n ∈ Finset.Icc (p+1) q, s.seq n) from by
+      unfold Series.partial; linarith]
+    rw [abs_neg]
+    linarith [hN (p + 1) (by omega) q hq]
 
 /-- Corollary 7.2.6 (Zero test) / Exercise 7.2.3 -/
 theorem Series.decay_of_converges {s:Series} (h: s.converges) :
     Filter.atTop.Tendsto s.seq (nhds 0) := by
-  sorry
+  rw [converges_iff_tail_decay] at h
+  rw [Metric.tendsto_atTop]
+  intro ε hε
+  obtain ⟨N, -, hN⟩ := h (ε / 2) (half_pos hε)
+  use N
+  intro n hn
+  rw [Real.dist_eq, sub_zero]
+  have := hN n hn n hn
+  rw [Finset.Icc_self, Finset.sum_singleton] at this
+  linarith
 
 theorem Series.diverges_of_nodecay {s:Series} (h: ¬ Filter.atTop.Tendsto s.seq (nhds 0)) :
     s.diverges := by
-  sorry
+  by_contra hcon
+  have := decay_of_converges hcon
+  contradiction
 
 /-- Example 7.2.7 -/
 theorem Series.example_7_2_7 : ((fun n:ℕ ↦ (1:ℝ)):Series).diverges := by

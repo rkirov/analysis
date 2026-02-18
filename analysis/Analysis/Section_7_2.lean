@@ -418,22 +418,39 @@ theorem Series.example_7_2_13c :  example_7_2_13.condConverges :=
 
 instance Series.inst_add : Add Series where
   add a b := {
-    m := max a.m b.m
-    seq n := if n ≥ max a.m b.m then a.seq n + b.seq n else 0
-    vanish n hn := by rw [lt_iff_not_ge] at hn; simp [hn]
+    m := min a.m b.m
+    seq n := a.seq n + b.seq n
+    vanish n hn := by simp [a.vanish n (by omega), b.vanish n (by omega)]
   }
 
 theorem Series.add_coe (a b: ℕ → ℝ) : (a:Series) + (b:Series) = (fun n ↦ a n + b n) := by
   ext n; rfl
-  by_cases h:n ≥ 0 <;> simp [h, HAdd.hAdd, Add.add]
+  change (a:Series).seq n + (b:Series).seq n = _
+  by_cases h:n ≥ 0 <;> simp [h]
 
 /-- Proposition 7.2.14 (a) (Series laws) / Exercise 7.2.5.  The `convergesTo` form can be more convenient for applications. -/
 theorem Series.convergesTo.add {s t:Series} {L M: ℝ} (hs: s.convergesTo L) (ht: t.convergesTo M) :
     (s + t).convergesTo (L + M) := by
-  sorry
+  rw [convergesTo] at hs ht ⊢
+  have key : (s + t).partial = s.partial + t.partial := by
+    ext n; simp only [Pi.add_apply]; unfold Series.partial
+    show ∑ i ∈ Finset.Icc (min s.m t.m) n, (s.seq i + t.seq i) =
+         ∑ i ∈ Finset.Icc s.m n, s.seq i + ∑ i ∈ Finset.Icc t.m n, t.seq i
+    rw [Finset.sum_add_distrib]; congr 1
+    · exact (Finset.sum_subset (Finset.Icc_subset_Icc_left (min_le_left ..))
+        (fun x hm hx => s.vanish x (by simp [Finset.mem_Icc] at hm hx; omega))).symm
+    · exact (Finset.sum_subset (Finset.Icc_subset_Icc_left (min_le_right ..))
+        (fun x hm hx => t.vanish x (by simp [Finset.mem_Icc] at hm hx; omega))).symm
+  rw [key]; exact Filter.Tendsto.add hs ht
 
 theorem Series.add {s t:Series} (hs: s.converges) (ht: t.converges) :
-    (s + t).converges ∧ (s+t).sum = s.sum + t.sum := by sorry
+    (s + t).converges ∧ (s+t).sum = s.sum + t.sum := by
+  have hs' := convergesTo_sum hs
+  have ht' := convergesTo_sum ht
+  have := convergesTo.add hs' ht'
+  constructor
+  . exact converges_of_convergesTo this
+  . exact sum_of_converges this
 
 instance Series.inst.smul : SMul ℝ Series where
   smul c s := {
@@ -449,52 +466,146 @@ theorem Series.smul_coe (a: ℕ → ℝ) (c: ℝ) : (c • a:Series) = (fun n �
 /-- Proposition 7.2.14 (b) (Series laws) / Exercise 7.2.5.  The `convergesTo` form can be more convenient for applications. -/
 theorem Series.convergesTo.smul {s:Series} {L c: ℝ} (hs: s.convergesTo L) :
     (c • s).convergesTo (c * L) := by
-  sorry
+  rw [convergesTo] at hs ⊢
+  have key : (c • s).partial = fun n => c * s.partial n := by
+    ext n; unfold Series.partial
+    show ∑ i ∈ Finset.Icc s.m n, (if i ≥ s.m then c * s.seq i else 0) =
+         c * ∑ i ∈ Finset.Icc s.m n, s.seq i
+    rw [Finset.sum_congr rfl fun i hi => if_pos (Finset.mem_Icc.mp hi).1,
+        Finset.mul_sum]
+  rw [key]; exact hs.const_mul c
 
 theorem Series.smul {c:ℝ} {s:Series} (hs: s.converges) :
-    (c • s).converges ∧ (c • s).sum = c * s.sum := by sorry
+    (c • s).converges ∧ (c • s).sum = c * s.sum := by
+  have hs' := convergesTo_sum hs
+  have := convergesTo.smul (c := c) hs'
+  exact ⟨converges_of_convergesTo this, sum_of_converges this⟩
 
 /-- The corresponding API for subtraction was not in the textbook, but is useful in later sections, so is included here. -/
 instance Series.inst_sub : Sub Series where
   sub a b := {
-    m := max a.m b.m
-    seq n := if n ≥ max a.m b.m then a.seq n - b.seq n else 0
-    vanish := by grind
+    m := min a.m b.m
+    seq n := a.seq n - b.seq n
+    vanish n hn := by simp [a.vanish n (by omega), b.vanish n (by omega)]
   }
 
 theorem Series.sub_coe (a b: ℕ → ℝ) : (a:Series) - (b:Series) = (fun n ↦ a n - b n) := by
   ext n; rfl
-  by_cases h:n ≥ 0 <;> simp [h, HSub.hSub, Sub.sub]
+  change (a:Series).seq n - (b:Series).seq n = _
+  by_cases h:n ≥ 0 <;> simp [h]
 
 theorem Series.convergesTo.sub {s t:Series} {L M: ℝ} (hs: s.convergesTo L) (ht: t.convergesTo M) :
     (s - t).convergesTo (L - M) := by
-  sorry
+  rw [convergesTo] at hs ht ⊢
+  have key : (s - t).partial = s.partial - t.partial := by
+    ext n; simp only [Pi.sub_apply]; unfold Series.partial
+    show ∑ i ∈ Finset.Icc (min s.m t.m) n, (s.seq i - t.seq i) =
+         ∑ i ∈ Finset.Icc s.m n, s.seq i - ∑ i ∈ Finset.Icc t.m n, t.seq i
+    rw [Finset.sum_sub_distrib]; congr 1
+    · exact (Finset.sum_subset (Finset.Icc_subset_Icc_left (min_le_left ..))
+        (fun x hm hx => s.vanish x (by simp [Finset.mem_Icc] at hm hx; omega))).symm
+    · exact (Finset.sum_subset (Finset.Icc_subset_Icc_left (min_le_right ..))
+        (fun x hm hx => t.vanish x (by simp [Finset.mem_Icc] at hm hx; omega))).symm
+  rw [key]; exact Filter.Tendsto.sub hs ht
 
 theorem Series.sub {s t:Series} (hs: s.converges) (ht: t.converges) :
-    (s - t).converges ∧ (s-t).sum = s.sum - t.sum := by sorry
+    (s - t).converges ∧ (s-t).sum = s.sum - t.sum := by
+  have hs' := convergesTo_sum hs
+  have ht' := convergesTo_sum ht
+  have := convergesTo.sub hs' ht'
+  exact ⟨converges_of_convergesTo this, sum_of_converges this⟩
 
 abbrev Series.from (s:Series) (m₁:ℤ) : Series := mk' (m := max s.m m₁) (fun n ↦ s.seq (n:ℤ))
 
 /-- Proposition 7.2.14 (c) (Series laws) / Exercise 7.2.5 -/
 theorem Series.converges_from (s:Series) (k:ℕ) : s.converges ↔ (s.from (s.m+k)).converges := by
-  sorry
+  have h_m : (s.from (s.m + ↑k)).m = s.m + ↑k := show max s.m _ = _ by omega
+  have h_sum : ∀ p q, p ≥ s.m + (k:ℤ) →
+      ∑ i ∈ Finset.Icc p q, (s.from (s.m+↑k)).seq i = ∑ i ∈ Finset.Icc p q, s.seq i :=
+    fun p q hp => Finset.sum_congr rfl fun i hi =>
+      eval_mk' _ (show i ≥ max s.m (s.m + ↑k) by simp [Finset.mem_Icc] at hi; omega)
+  rw [converges_iff_tail_decay, converges_iff_tail_decay]
+  constructor
+  · intro h ε hε
+    obtain ⟨N, hNm, hN⟩ := h ε hε
+    exact ⟨max N (s.m+↑k), by rw [h_m]; omega, fun p hp q hq => by
+      rw [h_sum p q (by omega)]; exact hN p (by omega) q (by omega)⟩
+  · intro h ε hε
+    obtain ⟨N, hNm, hN⟩ := h ε hε
+    exact ⟨N, by rw [h_m] at hNm; omega, fun p hp q hq => by
+      rw [← h_sum p q (by rw [h_m] at hNm; omega)]; exact hN p (by omega) q (by omega)⟩
 
 theorem Series.sum_from {s:Series} (k:ℕ) (h: s.converges) :
     s.sum = ∑ n ∈ Finset.Ico s.m (s.m+k), s.seq n + (s.from (s.m+k)).sum := by
-  sorry
+  have hf := (converges_from s k).mp h
+  have h_partial : ∀ N ≥ s.m + (k:ℤ),
+      s.partial N = ∑ i ∈ Finset.Ico s.m (s.m+↑k), s.seq i + (s.from (s.m+↑k)).partial N := by
+    intro N hN; unfold Series.partial
+    rw [show (s.from (s.m+↑k)).m = s.m + ↑k from by show max s.m _ = _; omega]
+    have h1 : ∑ i ∈ Finset.Icc (s.m+↑k) N, (s.from (s.m+↑k)).seq i =
+        ∑ i ∈ Finset.Icc (s.m+↑k) N, s.seq i :=
+      Finset.sum_congr rfl fun i hi => eval_mk' _
+        (max_le (by have := (Finset.mem_Icc.mp hi).1; omega) (Finset.mem_Icc.mp hi).1)
+    rw [h1, ← Finset.sum_union (Finset.disjoint_left.mpr fun x hx hx' => by
+        simp at hx hx'; omega),
+      show Finset.Ico s.m (s.m+↑k) ∪ Finset.Icc (s.m+↑k) N = Finset.Icc s.m N from by
+        ext; simp; omega]
+  exact tendsto_nhds_unique (convergesTo_sum h)
+    (Filter.Tendsto.congr' (Filter.eventually_atTop.mpr ⟨s.m + ↑k, fun N hN => (h_partial N hN).symm⟩)
+      (tendsto_const_nhds.add (convergesTo_sum hf)))
 
 /-- Proposition 7.2.14 (d) (Series laws) / Exercise 7.2.5 -/
 theorem Series.shift {s:Series} {x:ℝ} (h: s.convergesTo x) (L:ℤ) :
     (mk' (m := s.m + L) (fun n ↦ s.seq (n - L))).convergesTo x := by
-  sorry
+  rw [convergesTo] at h ⊢
+  suffices key : (mk' (m := s.m + L) (fun n ↦ s.seq (↑n - L))).partial =
+      s.partial ∘ (· - L) by
+    rw [key]
+    exact h.comp (Filter.tendsto_atTop_atTop.mpr fun b => ⟨b + L, fun n hn => by omega⟩)
+  ext N; unfold Series.partial; simp only [Function.comp]
+  rw [Finset.sum_congr rfl fun i hi =>
+    dif_pos (show i ≥ s.m + L from (Finset.mem_Icc.mp hi).1)]
+  exact Finset.sum_nbij (· - L)
+    (fun a ha => by simp [Finset.mem_Icc] at ha ⊢; omega)
+    (fun a _ b _ h => by dsimp at h; omega)
+    (fun j hj => ⟨j + L, by simp at hj ⊢; omega, by dsimp; omega⟩)
+    (fun _ _ => rfl)
+
+/-- Reindex a sum over `Finset.Icc (0:ℤ) n` to `Finset.range (n.toNat + 1)`. -/
+private lemma sum_Icc_eq_sum_range (f : ℕ → ℝ) {n : ℤ} (hn : 0 ≤ n) :
+    ∑ k ∈ Finset.Icc (0:ℤ) n, f k.toNat = ∑ k ∈ Finset.range (n.toNat + 1), f k := by
+  have h_fwd : ∀ k ∈ Finset.Icc (0:ℤ) n, k.toNat ∈ Finset.range (n.toNat + 1) :=
+    fun k hk => by simp [Finset.mem_Icc] at hk; simp [Finset.mem_range]; omega
+  have h_inv : ∀ k ∈ Finset.range (n.toNat + 1), (k : ℤ) ∈ Finset.Icc (0:ℤ) n :=
+    fun k hk => by simp [Finset.mem_range] at hk; simp [Finset.mem_Icc]; omega
+  have h_left : ∀ k ∈ Finset.Icc (0:ℤ) n, ↑(k.toNat) = k :=
+    fun k hk => Int.toNat_of_nonneg (Finset.mem_Icc.mp hk).1
+  have h_right : ∀ k ∈ Finset.range (n.toNat + 1), (↑k : ℤ).toNat = k :=
+    fun k _ => Int.toNat_natCast k
+  exact Finset.sum_nbij' (·.toNat) (↑·) h_fwd h_inv h_left h_right (fun _ _ => rfl)
 
 /-- Lemma 7.2.15 (telescoping series) / Exercise 7.2.6 -/
 theorem Series.telescope {a:ℕ → ℝ} (ha: Filter.atTop.Tendsto a (nhds 0)) :
-    ((fun n:ℕ ↦ a (n+1) - a n):Series).convergesTo (a 0) := by
-  sorry
+    ((fun n:ℕ ↦ a n - a (n+1)):Series).convergesTo (a 0) := by
+  rw [convergesTo]
+  rw [Metric.tendsto_atTop] at ha ⊢
+  intro ε hε
+  obtain ⟨N, hN⟩ := ha ε hε
+  use N
+  intro n hn
+  rw [Real.dist_eq]
+  have hn0 : (0:ℤ) ≤ n := by omega
+  have h_tel : ((fun n:ℕ ↦ a n - a (n+1)):Series).partial n = a 0 - a (n.toNat + 1) := by
+    unfold Series.partial; show ∑ k ∈ Finset.Icc 0 n, _ = _
+    trans ∑ k ∈ Finset.Icc (0:ℤ) n, (a k.toNat - a (k.toNat + 1))
+    · exact Finset.sum_congr rfl fun k hk => by simp [(Finset.mem_Icc.mp hk).1]
+    exact (sum_Icc_eq_sum_range (fun m => a m - a (m + 1)) hn0).trans
+      (Finset.sum_range_sub' a (n.toNat + 1))
+  rw [h_tel, show a 0 - a (n.toNat + 1) - a 0 = -(a (n.toNat + 1)) from by ring, abs_neg]
+  have := hN (n.toNat + 1) (by omega)
+  rwa [Real.dist_eq, sub_zero] at this
 
 /- Exercise 7.2.1  -/
-
 def Series.exercise_7_2_1_convergent :
   Decidable ( (mk' (m := 1) (fun n ↦ (-1:ℝ)^(n:ℤ))).converges ) := by
   apply isFalse; intro hc
@@ -505,6 +616,5 @@ def Series.exercise_7_2_1_convergent :
     Filter.atTop_neBot_iff.mpr ⟨⟨⟨1, le_refl _⟩⟩, ⟨fun ⟨a, ha⟩ ⟨b, hb⟩ =>
       ⟨⟨max a b, by omega⟩, le_max_left a b, le_max_right a b⟩⟩⟩
   exact absurd (tendsto_nhds_unique tendsto_const_nhds (h hc)) one_ne_zero
-
 
 end Chapter7

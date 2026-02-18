@@ -497,8 +497,14 @@ theorem Series.telescope {a:ℕ → ℝ} (ha: Filter.atTop.Tendsto a (nhds 0)) :
 
 def Series.exercise_7_2_1_convergent :
   Decidable ( (mk' (m := 1) (fun n ↦ (-1:ℝ)^(n:ℤ))).converges ) := by
-  -- The first line of this proof should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse; intro hc
+  have h := (converges_of_alternating (m := 1) (a := fun _ => (1:ℝ))
+    (fun _ => zero_le_one) (fun _ _ _ => le_refl 1)).mp
+  simp only [mul_one] at h
+  haveI : Filter.NeBot (Filter.atTop : Filter { n : ℤ // n ≥ 1 }) :=
+    Filter.atTop_neBot_iff.mpr ⟨⟨⟨1, le_refl _⟩⟩, ⟨fun ⟨a, ha⟩ ⟨b, hb⟩ =>
+      ⟨⟨max a b, by omega⟩, le_max_left a b, le_max_right a b⟩⟩⟩
+  exact absurd (tendsto_nhds_unique tendsto_const_nhds (h hc)) one_ne_zero
 
 
 end Chapter7

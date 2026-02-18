@@ -227,7 +227,7 @@ theorem Series.diverges_of_nodecay {s:Series} (h: ¬ Filter.atTop.Tendsto s.seq 
   contradiction
 
 /-- Example 7.2.7 -/
-theorem Series.example_7_2_7 : ((fun n:ℕ ↦ (1:ℝ)):Series).diverges := by
+theorem Series.example_7_2_7 : ((fun _:ℕ ↦ (1:ℝ)):Series).diverges := by
   intro h
   have := Metric.tendsto_atTop.mp (decay_of_converges h) (1/2) (by norm_num)
   obtain ⟨N, hN⟩ := this
@@ -259,7 +259,7 @@ abbrev Series.absConverges (s:Series) : Prop := s.abs.converges
 
 abbrev Series.condConverges (s:Series) : Prop := s.converges ∧ ¬ s.absConverges
 
-/-- Proposition 7.2.9 (Absolute convergence test) / Example 7.2.4 -/
+/-- Proposition 7.2.9 (Absolute convergence test) / Exercise 7.2.4 -/
 theorem Series.converges_of_absConverges {s:Series} (h : s.absConverges) : s.converges := by
   rw [absConverges, converges_iff_tail_decay] at h
   rw [converges_iff_tail_decay]

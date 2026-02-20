@@ -24,7 +24,11 @@ open Real
 
 abbrev Series.nonneg (s: Series) : Prop := ∀ n, s.seq n ≥ 0
 
-abbrev Series.partial_of_nonneg {s: Series} (h: s.nonneg) : Monotone s.partial := by sorry
+abbrev Series.partial_of_nonneg {s: Series} (h: s.nonneg) : Monotone s.partial := by
+  intro x y hy
+  apply Finset.sum_le_sum_of_subset_of_nonneg (Finset.Icc_subset_Icc_right hy)
+  intro i hi hi'
+  exact h _
 
 /-- Proposition 7.3.1 -/
 theorem Series.converges_of_nonneg_iff {s: Series} (h: s.nonneg) : s.converges ↔ ∃ M, ∀ N, s.partial N ≤ M := by
@@ -65,18 +69,74 @@ theorem Series.sum_of_nonneg {s:Series} (hnon: s.nonneg) : 0 ≤ s.sum := by
   exact ge_of_tendsto' h.choose_spec (partial_nonneg hnon)
 
 /-- Corollary 7.3.2 (Comparison test) / Exercise 7.3.1 -/
-theorem Series.converges_of_le {s t: Series} (hm: s.m = t.m) (hcomp: ∀ n ≥ s.m, |s.seq n| ≤ t.seq n) (hconv : t.converges) : s.absConverges ∧ |s.sum| ≤ s.abs.sum ∧ s.abs.sum ≤ t.sum := by sorry
+theorem Series.converges_of_le {s t: Series} (hm: s.m = t.m) (hcomp: ∀ n ≥ s.m, |s.seq n| ≤ t.seq n)
+    (hconv : t.converges) : s.absConverges ∧ |s.sum| ≤ s.abs.sum ∧ s.abs.sum ≤ t.sum := by
+  have hs : s.abs.nonneg := fun n => by rw [abs_seq]; exact abs_nonneg _
+  have ht : t.nonneg := by
+    intro n
+    by_cases hn : n ≥ t.m
+    · exact le_trans (abs_nonneg _) (hcomp n (by omega))
+    · exact le_of_eq (t.vanish n (by omega)).symm
+  have h_le : ∀ N, s.abs.partial N ≤ t.partial N := fun N => by
+    unfold Series.partial
+    rw [show s.abs.m = s.m from rfl, ← hm]
+    exact Finset.sum_le_sum fun i hi => by
+      rw [abs_seq]; exact hcomp i (Finset.mem_Icc.mp hi).1
+  have h_abs : s.absConverges := by
+    rw [absConverges, converges_of_nonneg_iff hs]
+    obtain ⟨M, hM⟩ := (converges_of_nonneg_iff ht).mp hconv
+    exact ⟨M, fun N => (h_le N).trans (hM N)⟩
+  exact ⟨h_abs, Series.abs_le h_abs,
+    sum_of_nonneg_lt hs fun N => (h_le N).trans (partial_le_sum_of_nonneg ht hconv N)⟩
 
-theorem Series.diverges_of_ge {s t: Series} (hm: s.m = t.m) (hcomp: ∀ n ≥ s.m, |s.seq n| ≤ t.seq n) (hdiv: ¬ s.absConverges) : t.diverges := by sorry
+theorem Series.diverges_of_ge {s t: Series} (hm: s.m = t.m) (hcomp: ∀ n ≥ s.m, |s.seq n| ≤ t.seq n)
+    (hdiv: ¬ s.absConverges) : t.diverges := by
+  by_contra hconv
+  exact hdiv (converges_of_le hm hcomp hconv).1
 
 /-- Lemma 7.3.3 (Geometric series) / Exercise 7.3.2 -/
-theorem Series.converges_geom {x: ℝ} (hx: |x| < 1) : (fun n ↦ x ^ n : Series).convergesTo (1 / (1 - x)) := by sorry
+theorem Series.converges_geom {x: ℝ} (hx: |x| < 1) : (fun n ↦ x ^ n : Series).convergesTo (1 / (1 - x)) := by
+  set s := (fun n ↦ x ^ n : Series)
+  have hx1 : x ≠ 1 := by intro h; simp [h] at hx
+  have h1x : (1 : ℝ) - x ≠ 0 := sub_ne_zero.mpr (Ne.symm hx1)
+  have partial_eq : ∀ n : ℕ, s.partial (n : ℤ) = (1 - x ^ (n + 1)) / (1 - x) := by
+    intro n; induction n with
+    | zero => simp [Series.partial, s]; field_simp
+    | succ n ih =>
+      rw [show (↑(n + 1) : ℤ) = ↑n + 1 from by push_cast; ring,
+          s.partial_succ (by simp [s]), ih]
+      have : s.seq (↑n + 1) = x ^ (n + 1) := by simp [s, show (↑n : ℤ) + 1 ≥ 0 from by omega]
+      rw [this]; field_simp; ring
+  rw [convergesTo,
+      show (Filter.atTop : Filter ℤ) = Filter.map Nat.cast Filter.atTop from by simp,
+      Filter.tendsto_map'_iff]
+  show Filter.Tendsto (fun n : ℕ => s.partial ↑n) Filter.atTop (nhds (1 / (1 - x)))
+  simp_rw [partial_eq, show (1 : ℝ) / (1 - x) = (1 - 0) / (1 - x) from by ring]
+  exact (tendsto_const_nhds.sub
+    ((tendsto_pow_atTop_nhds_zero_of_abs_lt_one hx).comp
+      (Filter.tendsto_atTop_atTop.mpr fun b => ⟨b, fun _ hn => by omega⟩))).div_const _
 
-theorem Series.absConverges_geom {x: ℝ} (hx: |x| < 1) : (fun n ↦ x ^ n : Series).absConverges := by sorry
+theorem Series.absConverges_geom {x: ℝ} (hx: |x| < 1) : (fun n ↦ x ^ n : Series).absConverges := by
+  have : (fun n ↦ x ^ n : Series).abs = (fun n ↦ |x| ^ n : Series) := by
+    ext n
+    · rfl
+    · dsimp; split_ifs <;> simp [abs_pow]
+  rw [absConverges, this]
+  exact ⟨_, converges_geom (by rwa [abs_abs])⟩
 
-theorem Series.diverges_geom {x: ℝ} (hx: |x| ≥ 1) : (fun n ↦ x ^ n : Series).diverges := by sorry
+theorem Series.diverges_geom {x: ℝ} (hx: |x| ≥ 1) : (fun n ↦ x ^ n : Series).diverges := by
+  apply diverges_of_nodecay
+  intro h
+  obtain ⟨N, hN⟩ := (Metric.tendsto_atTop.mp h) (1/2) (by norm_num)
+  have hN' := hN (max N 0) (le_max_left _ _)
+  simp [le_max_right N (0 : ℤ)] at hN'
+  exact absurd (hN'.trans_le (by norm_num)) (not_lt.mpr (one_le_pow₀ hx))
 
-theorem Series.converges_geom_iff (x: ℝ) : (fun n ↦ x ^ n : Series).converges ↔ |x| < 1 := by sorry
+theorem Series.converges_geom_iff (x: ℝ) : (fun n ↦ x ^ n : Series).converges ↔ |x| < 1 := by
+  by_cases hx : |x| < 1
+  . exact ⟨fun _ => hx, fun _ => ⟨_, converges_geom hx⟩⟩
+  . simp at hx
+    exact ⟨fun h => absurd h (diverges_geom hx), fun h => absurd h (not_lt.mpr hx)⟩
 
 /-- Proposition 7.3.4 (Cauchy criterion) -/
 theorem Series.cauchy_criterion {s:Series} (hm: s.m = 1) (hs:s.nonneg) (hmono: ∀ n ≥ 1, s.seq (n+1) ≤ s.seq n) : s.converges ↔ (fun k ↦ 2^k * s.seq (2^k): Series).converges := by
@@ -198,7 +258,27 @@ theorem Series.Basel_problem :  (mk' (m := 1) fun n ↦ 1 / (n:ℝ) ^ 2 : Series
   simpa [←Complex.ofReal_inj]
 
 /-- Exercise 7.3.3 -/
-theorem Series.nonneg_sum_zero {a:ℕ → ℝ} (ha: (a:Series).nonneg) (hconv: (a:Series).converges) : (a:Series).sum = 0 ↔ ∀ n, a n = 0 := by sorry
-
+theorem Series.nonneg_sum_zero {a:ℕ → ℝ} (ha: (a:Series).nonneg) (hconv: (a:Series).converges) :
+    (a:Series).sum = 0 ↔ ∀ n, a n = 0 := by
+  constructor
+  . intro hs n
+    have hle := partial_le_sum_of_nonneg ha hconv (n : ℤ)
+    rw [hs] at hle
+    have hpeq : (a : Series).partial n = 0 := le_antisymm hle (partial_nonneg ha _)
+    have hsuc : (a : Series).partial n = (a : Series).partial (↑n - 1) + a n := by
+      conv_lhs => rw [show (n : ℤ) = (↑n - 1) + 1 from by omega]
+      rw [partial_succ _ (by simp)]; simp
+    linarith [partial_nonneg ha (↑n - 1 : ℤ), show a n ≥ 0 from by simpa using ha (↑n : ℤ)]
+  . intro h
+    apply sum_of_converges
+    show Filter.Tendsto (a : Series).partial Filter.atTop (nhds 0)
+    have hzero : ∀ N : ℤ, (a : Series).partial N = 0 := by
+      intro N; simp [Series.partial]
+      apply Finset.sum_eq_zero; intro k hk
+      split_ifs
+      · exact h _
+      · rfl
+    rw [funext hzero]
+    exact tendsto_const_nhds
 
 end Chapter7

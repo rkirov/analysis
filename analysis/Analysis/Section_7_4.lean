@@ -108,15 +108,86 @@ theorem Series.converges_of_permute_nonneg {a:ℕ → ℝ} (ha: (a:Series).nonne
   linarith [ciSup_le hSL', ciSup_le hTL]
 
 /-- Example 7.4.2 -/
-theorem Series.zeta_2_converges : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).converges := by sorry
+theorem Series.zeta_2_converges : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).converges := by
+  set a := (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series)
+  have ha : a.nonneg := by intro n; simp [a]; by_cases h : n ≥ 0 <;> simp [h]; positivity
+  rw [converges_of_nonneg_iff ha]
+  have hconv : (mk' (m := 1) fun (n : {n : ℤ // n ≥ 1}) ↦ 1 / (↑↑n : ℝ) ^ (2:ℕ) : Series).converges := by
+    convert (converges_qseries 2 (by norm_num)).mpr (by norm_num) using 3 with n; norm_cast
+  set b := (mk' (m := 1) fun (n : {n : ℤ // n ≥ 1}) ↦ 1 / (↑↑n : ℝ) ^ (2:ℕ) : Series)
+  have hb : b.nonneg := by intro n; simp [b]; by_cases h : 1 ≤ n <;> simp [h]; positivity
+  obtain ⟨M, hM⟩ := (converges_of_nonneg_iff hb).mp hconv
+  use M; intro N
+  by_cases hN : N < 0
+  · rw [partial_of_lt (by omega)]; linarith [partial_nonneg hb 0, hM 0]
+  · push_neg at hN
+    have hterm : ∀ k ∈ Finset.Icc (0:ℤ) N, a.seq k = b.seq (k+1) := by
+      intro k hk; simp [Finset.mem_Icc] at hk
+      have hkr : (k.toNat : ℝ) = (k : ℝ) := by exact_mod_cast Int.toNat_of_nonneg hk.1
+      simp [a, b, hk.1, show k + 1 ≥ (1:ℤ) from by omega, hkr]
+    calc a.partial N
+        = ∑ k ∈ Finset.Icc 0 N, b.seq (k+1) := by
+          simp only [Series.partial]; exact Finset.sum_congr rfl hterm
+      _ = ∑ k ∈ Finset.Icc 1 (N+1), b.seq k := by
+          apply Finset.sum_nbij (· + 1)
+          · intro k hk; simp at hk ⊢; omega
+          · intro x _ y _ (h : x + 1 = y + 1); omega
+          · intro k hk
+            simp only [Set.mem_image, Finset.mem_coe, Finset.mem_Icc] at *
+            exact ⟨k - 1, by omega, by omega⟩
+          · intros; rfl
+      _ ≤ b.partial (N+1) := by
+          simp only [Series.partial]
+          apply Finset.sum_le_sum_of_subset_of_nonneg
+          · intro k hk; simp at hk ⊢; exact hk
+          · intro k _ _; exact hb k
+      _ ≤ M := hM _
+
+private def f_perm : ℕ → ℕ := fun n => if Even n then n + 1 else n - 1
+
+private theorem f_perm_involutive : Function.Involutive f_perm := by
+  intro n; simp only [f_perm]
+  by_cases h : Even n
+  · have : ¬ Even (n + 1) := by intro ⟨k, hk⟩; obtain ⟨j, rfl⟩ := h; omega
+    simp [h, this]
+  · have hn : n ≥ 1 := by
+      by_contra h0; push_neg at h0; interval_cases n; simp at h
+    have : Even (n - 1) := by
+      obtain ⟨k, rfl⟩ := Nat.not_even_iff_odd.mp h; exact ⟨k, by omega⟩
+    simp [h, this]; omega
+
+private theorem f_perm_eq (n : ℕ) :
+    (fun k:ℕ ↦ 1/((k:ℝ)+1)^2) (f_perm n) = if Even n then 1/(n+2:ℝ)^2 else 1/(n:ℝ)^2 := by
+  simp only [f_perm]
+  by_cases h : Even n
+  · simp [h]; ring
+  · simp [h]
+    have hn : n ≥ 1 := by
+      by_contra h0; push_neg at h0; interval_cases n; simp at h
+    congr 1; exact_mod_cast show (n - 1 + 1 : ℕ) = n from by omega
+
+private theorem permuted_eq_composed :
+    (fun n:ℕ ↦ if Even n then 1/(n+2:ℝ)^2 else 1/(n:ℝ)^2 : Series) =
+    (fun n ↦ (fun k:ℕ ↦ 1/((k:ℝ)+1)^2) (f_perm n) : Series) := by
+  ext
+  · rfl
+  · next n =>
+    by_cases hn : n ≥ 0 <;> simp only [hn, ite_true, ite_false]
+    exact (f_perm_eq n.toNat).symm
 
 theorem Series.permuted_zeta_2_converges :
   (fun n:ℕ ↦ if Even n then 1/(n+2:ℝ)^2 else 1/(n:ℝ)^2 : Series).converges := by
-    sorry
+    have ha : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).nonneg := by
+      intro n; by_cases h : n ≥ 0 <;> simp [h]; positivity
+    have hperm := @converges_of_permute_nonneg (fun n:ℕ ↦ 1/(n+1:ℝ)^2) ha zeta_2_converges f_perm f_perm_involutive.bijective
+    rw [permuted_eq_composed]; exact hperm.1
 
 theorem Series.permuted_zeta_2_eq_zeta_2 :
   (fun n:ℕ ↦ if Even n then 1/(n+2:ℝ)^2 else 1/(n:ℝ)^2 : Series).sum = (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).sum := by
-    sorry
+    have ha : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).nonneg := by
+      intro n; by_cases h : n ≥ 0 <;> simp [h]; positivity
+    have hperm := @converges_of_permute_nonneg (fun n:ℕ ↦ 1/(n+1:ℝ)^2) ha zeta_2_converges f_perm f_perm_involutive.bijective
+    rw [permuted_eq_composed]; exact hperm.2.symm
 
 /-- Proposition 7.4.3 (Rearrangement of series) -/
 theorem Series.absConverges_of_permute {a:ℕ → ℝ} (ha : (a:Series).absConverges)

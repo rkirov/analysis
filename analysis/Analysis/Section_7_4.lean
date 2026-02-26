@@ -226,7 +226,8 @@ theorem Series.absConverges_of_permute {a:ℕ → ℝ} (ha : (a:Series).absConve
   choose M hM using this; use M; intro M' hM'
   have hM'_pos : M' ≥ 0 := by linarith
   have why : (Finset.Iic M'.toNat).image f ⊇ .Iic N.toNat := by
-    sorry
+    intro n hn; simp at hn ⊢
+    exact ⟨finv n, by have := hM n hn; omega, Function.invFun_eq (hf.2 n)⟩
   set X : Finset ℕ := (Finset.Iic M'.toNat).image f \ .Iic N.toNat
   have claim : ∑ m ∈ .Iic M'.toNat, a (f m) = ∑ n ∈ .Iic N.toNat, a n + ∑ n ∈ X, a n := calc
     _ = ∑ n ∈ (Finset.Iic M'.toNat).image f , a n := by
@@ -238,7 +239,11 @@ theorem Series.absConverges_of_permute {a:ℕ → ℝ} (ha : (a:Series).absConve
       rw [Finset.disjoint_right]; intro n hn; simp only [X, Finset.mem_sdiff] at hn; tauto
   choose q' hq using X.bddAbove
   set q := max q' N.toNat
-  have why2 : X ⊆ Finset.Icc (N.toNat+1) q := by sorry
+  have why2 : X ⊆ Finset.Icc (N.toNat+1) q := by
+    intro x hx
+    have hxX : x ∈ (X : Set ℕ) := hx
+    simp only [X, Finset.mem_sdiff, Finset.mem_Iic] at hx
+    simp [Finset.mem_Icc]; exact ⟨by omega, le_max_of_le_left (hq hxX)⟩
   have claim2 : |∑ n ∈ X, a n| ≤ ε/2 := calc
     _ ≤ ∑ n ∈ X, |a n| := X.abs_sum_le_sum_abs a
     _ ≤ ∑ n ∈ .Icc (N.toNat+1) q, |a n| := by

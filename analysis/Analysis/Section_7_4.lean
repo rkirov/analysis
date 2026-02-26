@@ -315,6 +315,43 @@ theorem Series.absConverges_of_subseries {a:ℕ → ℝ} (ha: (a:Series).absConv
           simp [Series.partial]; symm; exact sum_eq_sum (fun n ↦ |a n|) (by positivity)
       _ ≤ M := hM _
 
+/-- Exercise 7.4.1 (generalization): injective suffices, strict monotonicity not needed. -/
+theorem Series.absConverges_of_subseries' {a:ℕ → ℝ} (ha: (a:Series).absConverges) {f: ℕ → ℕ} (hf: Function.Injective f) :
+  (fun n ↦ a (f n):Series).absConverges := by
+  suffices (fun n ↦ |a (f n)| : Series).converges by
+    have heq : (fun n ↦ a (f n):Series).abs = (fun n ↦ |a (f n)| : Series) := by
+      ext; · rfl
+      next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
+    rwa [absConverges, heq]
+  have ha' : (fun n ↦ |a n| : Series).converges := by
+    have heq : (a:Series).abs = (fun n ↦ |a n| : Series) := by
+      ext; · rfl
+      next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
+    rwa [absConverges, heq] at ha
+  have hnn : (fun n ↦ |a (f n)| : Series).nonneg := by
+    intro n; by_cases h : n ≥ 0 <;> simp [h]
+  have hnn' : (fun n ↦ |a n| : Series).nonneg := by
+    intro n; by_cases h : n ≥ 0 <;> simp [h]
+  obtain ⟨M, hM⟩ := (converges_of_nonneg_iff hnn').mp ha'
+  rw [converges_of_nonneg_iff hnn]; use M; intro N
+  by_cases hN : N < 0
+  · linarith [partial_of_lt (s := (fun n ↦ |a (f n)| : Series)) (by omega : N < 0),
+              hM (-1 : ℤ), partial_of_lt (s := (fun n ↦ |a n| : Series)) (by omega : (-1:ℤ) < 0)]
+  · push_neg at hN
+    set K := ((Finset.Iic N.toNat).image f).sup id
+    calc (fun n ↦ |a (f n)| : Series).partial N
+        = ∑ m ∈ Finset.Iic N.toNat, |a (f m)| := by
+          simp [Series.partial]; exact sum_eq_sum (fun n ↦ |a (f n)|) hN
+      _ = ∑ n ∈ (Finset.Iic N.toNat).image f, |a n| := by
+          symm; exact Finset.sum_image (fun x _ y _ h => hf h)
+      _ ≤ ∑ n ∈ Finset.Iic K, |a n| := by
+          apply Finset.sum_le_sum_of_subset_of_nonneg
+          · intro x hx; exact Finset.mem_Iic.mpr (Finset.le_sup (f := id) hx)
+          · intro _ _ _; exact abs_nonneg _
+      _ = (fun n ↦ |a n| : Series).partial ↑K := by
+          simp [Series.partial]; symm; exact sum_eq_sum (fun n ↦ |a n|) (by positivity)
+      _ ≤ M := hM _
+
 /-- Exercise 7.4.2 : reprove Proposition 7.4.3 using Proposition 7.41, Proposition 7.2.14,
     and expressing `a n` as the difference of `a n + |a n|` and `|a n|`. -/
 theorem Series.absConverges_of_permute' {a:ℕ → ℝ} (ha : (a:Series).absConverges)

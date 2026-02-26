@@ -356,6 +356,43 @@ theorem Series.absConverges_of_subseries' {a:ℕ → ℝ} (ha: (a:Series).absCon
     and expressing `a n` as the difference of `a n + |a n|` and `|a n|`. -/
 theorem Series.absConverges_of_permute' {a:ℕ → ℝ} (ha : (a:Series).absConverges)
   {f: ℕ → ℕ} (hf: Function.Bijective f) :
-    (fun n ↦ a (f n):Series).absConverges  ∧ (a:Series).sum = (fun n ↦ a (f n):Series).sum := by sorry
+    (fun n ↦ a (f n):Series).absConverges  ∧ (a:Series).sum = (fun n ↦ a (f n):Series).sum := by
+  set b : ℕ → ℝ := fun n ↦ a n + |a n|
+  set c : ℕ → ℝ := fun n ↦ |a n|
+  have hc_conv : (c:Series).converges := by
+    have heq : (a:Series).abs = (c:Series) := by
+      ext
+      · rfl
+      · next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [c, hn]
+    rwa [absConverges, heq] at ha
+  have ha_conv := converges_of_absConverges ha
+  have hb_conv : (b:Series).converges := by
+    rw [show (b:Series) = (a:Series) + (c:Series) from (add_coe a c).symm]
+    exact (Series.add ha_conv hc_conv).1
+  have hb_nn : (b:Series).nonneg := by
+    intro n; by_cases h : n ≥ 0 <;> simp [b, h]
+    linarith [neg_abs_le (a n.toNat)]
+  have hc_nn : (c:Series).nonneg := by
+    intro n; by_cases h : n ≥ 0 <;> simp [c, h]
+  have hb_perm := converges_of_permute_nonneg hb_nn hb_conv hf
+  have hc_perm := converges_of_permute_nonneg hc_nn hc_conv hf
+  have ha_eq : (a:Series) = (b:Series) - (c:Series) := by
+    simp only [sub_coe]; congr 1; ext n; simp [b, c]
+  have haf_eq : (fun n ↦ a (f n):Series) =
+      (fun n ↦ b (f n):Series) - (fun n ↦ c (f n):Series) := by
+    congr 1; ext n; by_cases hn : (0:ℤ) ≤ n <;> simp [b, c, hn]
+  constructor
+  · show (fun n ↦ a (f n):Series).abs.converges
+    have heq : (fun n ↦ a (f n):Series).abs = (fun n ↦ c (f n):Series) := by
+      ext
+      · rfl
+      · next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [c, hn]
+    rw [heq]; exact hc_perm.1
+  · have h1 : (a:Series).sum = (b:Series).sum - (c:Series).sum := by
+      conv_lhs => rw [ha_eq]; rw [(Series.sub hb_conv hc_conv).2]
+    have h2 : (fun n ↦ a (f n):Series).sum =
+        (fun n ↦ b (f n):Series).sum - (fun n ↦ c (f n):Series).sum := by
+      conv_lhs => rw [haf_eq]; rw [(Series.sub hb_perm.1 hc_perm.1).2]
+    linarith [hb_perm.2, hc_perm.2]
 
 end Chapter7

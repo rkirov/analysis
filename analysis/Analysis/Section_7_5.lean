@@ -192,12 +192,12 @@ theorem Series.ratio_test_neg {s : Series} (hnon: ∀ n ≥ s.m, s.seq n ≠ 0)
 
 /-- Corollary 7.5.3 (Ratio test) / Exercise 7.5.3 -/
 theorem Series.ratio_test_inconclusive: ∃ s:Series, (∀ n ≥ s.m, s.seq n ≠ 0) ∧
-  atTop.Tendsto (fun n ↦ |s.seq n+1| / |s.seq n|) (nhds 1) ∧ s.diverges := by
+  atTop.Tendsto (fun n ↦ |s.seq (n+1)| / |s.seq n|) (nhds 1) ∧ s.diverges := by
     sorry
 
 /-- Corollary 7.5.3 (Ratio test) / Exercise 7.5.3 -/
 theorem Series.ratio_test_inconclusive' : ∃ s:Series, (∀ n ≥ s.m, s.seq n ≠ 0) ∧
-  atTop.Tendsto (fun n ↦ |s.seq n+1| / |s.seq n|) (nhds 1) ∧ s.absConverges := by
+  atTop.Tendsto (fun n ↦ |s.seq (n+1)| / |s.seq n|) (nhds 1) ∧ s.absConverges := by
     sorry
 
 /-- Proposition 7.5.4 -/

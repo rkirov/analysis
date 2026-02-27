@@ -195,7 +195,7 @@ theorem Series.ex_7_4_4_conv : (a_7_4_4 : Series).converges := by sorry
 
 theorem Series.ex_7_4_4_sum : (a_7_4_4 : Series).sum > 0 := by sorry
 
-abbrev Series.f_7_4_4 : ℕ → ℕ := fun n ↦ if n % 3 = 0 then 2 * (n/3) else 2*n - (n/3) - 1
+abbrev Series.f_7_4_4 : ℕ → ℕ := fun n ↦ if n % 3 = 0 then 2 * (n/3) else 4 * (n/3) + 2 * (n % 3) - 1
 
 theorem Series.f_7_4_4_bij : Function.Bijective f_7_4_4 := by sorry
 

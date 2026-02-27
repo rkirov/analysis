@@ -304,8 +304,33 @@ theorem Series.ratio_test_inconclusive' : ∃ s:Series, (∀ n ≥ s.m, s.seq n 
   simpa using tendsto_const_nhds.sub this
 
 /-- Proposition 7.5.4 -/
-theorem Series.root_self_converges : atTop.Tendsto (fun (n:ℕ) ↦ (n:ℝ)^(1 / (n:ℝ))) (nhds 1) :=
-  tendsto_rpow_div.comp tendsto_natCast_atTop_atTop
+theorem Series.root_self_converges : atTop.Tendsto (fun (n:ℕ) ↦ (n:ℝ)^(1 / (n:ℝ))) (nhds 1) := by
+  -- Apply Lemma 7.5.2 (ratio_ineq) to c(n) = n
+  obtain ⟨hli, _, hls⟩ := ratio_ineq (c := fun n:ℤ ↦ (n:ℝ)) 1
+    (fun n hn ↦ by dsimp; exact_mod_cast (show (0:ℤ) < n by omega))
+  -- The ratio (n+1)/n → 1, so its EReal limsup and liminf both equal 1
+  have hratio : atTop.Tendsto
+      (fun n:ℤ ↦ ((↑(n+1) / ↑n : ℝ) : EReal)) (nhds ((1:ℝ) : EReal)) :=
+    EReal.tendsto_coe.mpr <| by
+      rw [← Nat.map_cast_int_atTop, Filter.tendsto_map'_iff,
+        show ((fun n:ℤ ↦ (↑(n+1) / ↑n : ℝ)) ∘ (Nat.cast : ℕ → ℤ)) =
+          (fun n:ℕ ↦ ((n:ℝ) + 1) / n) from by
+          ext; simp only [Function.comp_apply, Int.cast_natCast, Int.cast_add, Int.cast_one]]
+      have h1 : Tendsto (fun n:ℕ ↦ 1 + 1/(n:ℝ)) atTop (nhds 1) := by
+        simpa using (tendsto_const_nhds (x := (1:ℝ))).add
+          tendsto_one_div_atTop_nhds_zero_nat
+      exact (Filter.tendsto_congr' (eventually_atTop.mpr ⟨1, fun n hn ↦ by
+        have : (n:ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega); field_simp⟩)).mpr h1
+  rw [hratio.liminf_eq] at hli
+  rw [hratio.limsup_eq] at hls
+  -- Squeeze: 1 ≤ liminf(n^{1/n}) ≤ limsup(n^{1/n}) ≤ 1, so the limit is 1
+  have hroot : atTop.Tendsto
+      (fun n:ℤ ↦ (((n:ℝ)^(1/(n:ℝ)) : ℝ) : EReal)) (nhds ((1:ℝ) : EReal)) :=
+    tendsto_of_le_liminf_of_limsup_le hli hls
+  -- Transfer from EReal/ℤ to ℝ/ℕ
+  have hreal := EReal.tendsto_coe.mp hroot
+  rw [← Nat.map_cast_int_atTop, Filter.tendsto_map'_iff] at hreal
+  exact hreal.congr (fun n ↦ by simp [Function.comp_apply, Int.cast_natCast])
 
 /-- Exercise 7.5.2 -/
 theorem Series.poly_mul_geom_converges {x:ℝ} (hx: |x|<1) (q:ℝ) : (fun n:ℕ ↦ (n:ℝ)^q * x^n : Series).converges

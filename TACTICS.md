@@ -25,6 +25,9 @@
 
 **Single `rw [a, b, c]` applies sequentially.** Each rewrite changes the term before the next one matches. If rewrite `b` needs the original form (before `a`), split into `rw [a]; rw [b, c]`.
 
+**Can't match through beta-redexes in coerced composed functions.** If a lemma has LHS `(g : Series).abs` with `g : ℕ → ℝ`, then `rw` can match when `g` is a plain variable (`a`) but fails when `g` is a lambda like `fun n ↦ a (f n)`. The series coercion wraps it as `(fun n ↦ a (f n)) n.toNat`, and `rw` can't unify `?g n.toNat` with that beta-redex.
+- Fix: use `have heq : <LHS> = <RHS> := by ext; ...` to build the rewrite manually, then `rw [heq]`. The explicit `have` gives `rw` a concrete LHS to match.
+
 ## `simp`
 
 **Over-expands `abbrev`s.** `simp` may unfold `abbrev` definitions further than intended, producing raw `if`/`dite` expressions that break subsequent tactic applications.

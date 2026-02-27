@@ -86,14 +86,8 @@ theorem Series.converges_of_permute_nonneg {a:ℕ → ℝ} (ha: (a:Series).nonne
       apply Finset.le_sup (f := id)
       simp [Finset.mem_preimage, hm, hn]
     choose M hM using hM
-    have sum_eq_sum (b:ℕ → ℝ) {N:ℤ} (hN: N ≥ 0)
-      : ∑ n ∈ .Icc 0 N, (if 0 ≤ n then b n.toNat else 0) = ∑ n ∈ .Iic N.toNat, b n := by
-      convert Finset.sum_image (g := Int.ofNat) (by simp)
-      ext x; simp; constructor
-      . intro ⟨ _, _ ⟩; use x.toNat; omega
-      grind
     calc
-      _ = ∑ n ∈ X, a n := by simp [S, sum_eq_sum, hN, X]
+      _ = ∑ n ∈ X, a n := by simp [S, Series.partial, X]; exact sum_eq_sum a hN
       _ = ∑ n ∈ ((Finset.Iic M).filter (f · ∈ X)).image f, a n := by
         congr; ext; simp; constructor
         . intro h; obtain ⟨ m, rfl, hm' ⟩ := hM _ h; use m
@@ -174,18 +168,17 @@ private theorem permuted_eq_composed :
   · by_cases hn : n ≥ 0 <;> simp only [hn, ite_true, ite_false]
     exact (f_perm_eq n.toNat).symm
 
+private lemma zeta_2_nonneg : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).nonneg := by
+  intro n; by_cases h : n ≥ 0 <;> simp [h]; positivity
+
 theorem Series.permuted_zeta_2_converges :
   (fun n:ℕ ↦ if Even n then 1/(n+2:ℝ)^2 else 1/(n:ℝ)^2 : Series).converges := by
-    have ha : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).nonneg := by
-      intro n; by_cases h : n ≥ 0 <;> simp [h]; positivity
-    have hperm := @converges_of_permute_nonneg (fun n:ℕ ↦ 1/(n+1:ℝ)^2) ha zeta_2_converges f_perm f_perm_involutive.bijective
+    have hperm := @converges_of_permute_nonneg (fun n:ℕ ↦ 1/(n+1:ℝ)^2) zeta_2_nonneg zeta_2_converges f_perm f_perm_involutive.bijective
     rw [permuted_eq_composed]; exact hperm.1
 
 theorem Series.permuted_zeta_2_eq_zeta_2 :
   (fun n:ℕ ↦ if Even n then 1/(n+2:ℝ)^2 else 1/(n:ℝ)^2 : Series).sum = (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).sum := by
-    have ha : (fun n:ℕ ↦ 1/(n+1:ℝ)^2 : Series).nonneg := by
-      intro n; by_cases h : n ≥ 0 <;> simp [h]; positivity
-    have hperm := @converges_of_permute_nonneg (fun n:ℕ ↦ 1/(n+1:ℝ)^2) ha zeta_2_converges f_perm f_perm_involutive.bijective
+    have hperm := @converges_of_permute_nonneg (fun n:ℕ ↦ 1/(n+1:ℝ)^2) zeta_2_nonneg zeta_2_converges f_perm f_perm_involutive.bijective
     rw [permuted_eq_composed]; exact hperm.2.symm
 
 /-- Proposition 7.4.3 (Rearrangement of series) -/
@@ -353,6 +346,15 @@ theorem Series.f_7_4_4_bij : Function.Bijective f_7_4_4 := by
       · exact ⟨3 * (m / 4) + 1, by simp only [f_7_4_4]; split_ifs <;> omega⟩
       · exact ⟨3 * (m / 4) + 2, by simp only [f_7_4_4]; split_ifs <;> omega⟩
 
+/- Proof strategy for `ex_7_4_4'_conv` (rearranged series converges):
+   The rearrangement f sends triples (3k, 3k+1, 3k+2) ↦ (2k, 4k+1, 4k+3), pairing each
+   positive term with two negatives.  We group partial sums into triples: each triple sums to
+   c(k) = -1/((2k+2)(4k+3)(4k+5)), which is negative and O(1/k³).  The triple partial sums
+   T(k) = Σ_{j≤k} c(j) form a decreasing sequence bounded below (by comparison with -Σ 1/j²),
+   so they converge to some limit L.  For a general index n between triple boundaries 3k+2 and
+   3(k+1)+2, the gap |partial(n) - T(k)| ≤ 1/(k+2) → 0, so the full partial sums also
+   converge to L. -/
+
 private lemma Series.f_7_4_4_vals (k : ℕ) :
     f_7_4_4 (3*k) = 2*k ∧ f_7_4_4 (3*k+1) = 4*k+1 ∧ f_7_4_4 (3*k+2) = 4*k+3 := by
   simp only [f_7_4_4]; constructor <;> [skip; constructor] <;> split_ifs <;> omega
@@ -427,9 +429,6 @@ private lemma Series.triple_partial_bound (k : ℕ) :
   calc ∑ j ∈ Finset.range (k+1), c_7_4_4 j
       ≤ ∑ j ∈ Finset.range 1, c_7_4_4 j := triple_partial_antitone (by omega)
     _ = -1/30 := h0
-
-private lemma Series.f_7_4_4_lower_bound (n : ℕ) : f_7_4_4 n ≥ 2 * (n / 3) := by
-  simp only [f_7_4_4]; split_ifs <;> omega
 
 private lemma Series.b_7_4_4_bound (n : ℕ) : |b_7_4_4 n| ≤ 1 / (2 * (↑(n/3) : ℝ) + 2) := by
   simp only [b_7_4_4, a_7_4_4, abs_div, abs_pow, abs_neg, abs_one, one_pow]
@@ -557,41 +556,10 @@ theorem Series.ex_7_4_4'_sum : (fun n ↦ a_7_4_4 (f_7_4_4 n) :Series).sum < 0 :
   exact le_of_tendsto hsub (Filter.eventually_atTop.mpr
     ⟨0, fun k _ => by rw [partial_triple]; exact triple_partial_bound k⟩)
 
-/-- Exercise 7.4.1 -/
-theorem Series.absConverges_of_subseries {a:ℕ → ℝ} (ha: (a:Series).absConverges) {f: ℕ → ℕ} (hf: StrictMono f) :
-  (fun n ↦ a (f n):Series).absConverges := by
-  suffices (fun n ↦ |a (f n)| : Series).converges by
-    have heq : (fun n ↦ a (f n):Series).abs = (fun n ↦ |a (f n)| : Series) := by
-      ext; · rfl
-      next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
-    rwa [absConverges, heq]
-  have ha' : (fun n ↦ |a n| : Series).converges := by
-    have heq : (a:Series).abs = (fun n ↦ |a n| : Series) := by
-      ext; · rfl
-      next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
-    rwa [absConverges, heq] at ha
-  have hnn : (fun n ↦ |a (f n)| : Series).nonneg := by
-    intro n; by_cases h : n ≥ 0 <;> simp [h]
-  have hnn' : (fun n ↦ |a n| : Series).nonneg := by
-    intro n; by_cases h : n ≥ 0 <;> simp [h]
-  obtain ⟨M, hM⟩ := (converges_of_nonneg_iff hnn').mp ha'
-  rw [converges_of_nonneg_iff hnn]; use M; intro N
-  by_cases hN : N < 0
-  · linarith [partial_of_lt (s := (fun n ↦ |a (f n)| : Series)) (by omega : N < 0),
-              hM (-1 : ℤ), partial_of_lt (s := (fun n ↦ |a n| : Series)) (by omega : (-1:ℤ) < 0)]
-  · push_neg at hN
-    calc (fun n ↦ |a (f n)| : Series).partial N
-        = ∑ m ∈ Finset.Iic N.toNat, |a (f m)| := by
-          simp [Series.partial]; exact sum_eq_sum (fun n ↦ |a (f n)|) hN
-      _ = ∑ n ∈ (Finset.Iic N.toNat).image f, |a n| := by
-          symm; exact Finset.sum_image (fun x _ y _ h => hf.injective h)
-      _ ≤ ∑ n ∈ Finset.Iic (f N.toNat), |a n| := by
-          apply Finset.sum_le_sum_of_subset_of_nonneg
-          · intro x hx; simp at hx ⊢; obtain ⟨m, hm, rfl⟩ := hx; exact hf.monotone hm
-          · intro _ _ _; exact abs_nonneg _
-      _ = (fun n ↦ |a n| : Series).partial ↑(f N.toNat) := by
-          simp [Series.partial]; symm; exact sum_eq_sum (fun n ↦ |a n|) (by positivity)
-      _ ≤ M := hM _
+private lemma Series.abs_eq_abs (g : ℕ → ℝ) :
+    (g : Series).abs = (fun n ↦ |g n| : Series) := by
+  ext; · rfl
+  next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
 
 /-- Exercise 7.4.1 (generalization): injective suffices, strict monotonicity not needed. -/
 theorem Series.absConverges_of_subseries' {a:ℕ → ℝ} (ha: (a:Series).absConverges) {f: ℕ → ℕ} (hf: Function.Injective f) :
@@ -601,11 +569,7 @@ theorem Series.absConverges_of_subseries' {a:ℕ → ℝ} (ha: (a:Series).absCon
       ext; · rfl
       next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
     rwa [absConverges, heq]
-  have ha' : (fun n ↦ |a n| : Series).converges := by
-    have heq : (a:Series).abs = (fun n ↦ |a n| : Series) := by
-      ext; · rfl
-      next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [hn]
-    rwa [absConverges, heq] at ha
+  have ha' : (fun n ↦ |a n| : Series).converges := by rwa [absConverges, abs_eq_abs] at ha
   have hnn : (fun n ↦ |a (f n)| : Series).nonneg := by
     intro n; by_cases h : n ≥ 0 <;> simp [h]
   have hnn' : (fun n ↦ |a n| : Series).nonneg := by
@@ -630,6 +594,11 @@ theorem Series.absConverges_of_subseries' {a:ℕ → ℝ} (ha: (a:Series).absCon
           simp [Series.partial]; symm; exact sum_eq_sum (fun n ↦ |a n|) (by positivity)
       _ ≤ M := hM _
 
+/-- Exercise 7.4.1 -/
+theorem Series.absConverges_of_subseries {a:ℕ → ℝ} (ha: (a:Series).absConverges) {f: ℕ → ℕ} (hf: StrictMono f) :
+  (fun n ↦ a (f n):Series).absConverges :=
+  absConverges_of_subseries' ha hf.injective
+
 /-- Exercise 7.4.2 : reprove Proposition 7.4.3 using Proposition 7.41, Proposition 7.2.14,
     and expressing `a n` as the difference of `a n + |a n|` and `|a n|`. -/
 theorem Series.absConverges_of_permute' {a:ℕ → ℝ} (ha : (a:Series).absConverges)
@@ -638,11 +607,7 @@ theorem Series.absConverges_of_permute' {a:ℕ → ℝ} (ha : (a:Series).absConv
   set b : ℕ → ℝ := fun n ↦ a n + |a n|
   set c : ℕ → ℝ := fun n ↦ |a n|
   have hc_conv : (c:Series).converges := by
-    have heq : (a:Series).abs = (c:Series) := by
-      ext
-      · rfl
-      · next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [c, hn]
-    rwa [absConverges, heq] at ha
+    simp only [absConverges, abs_eq_abs] at ha; exact ha
   have ha_conv := converges_of_absConverges ha
   have hb_conv : (b:Series).converges := by
     rw [show (b:Series) = (a:Series) + (c:Series) from (add_coe a c).symm]
@@ -662,9 +627,8 @@ theorem Series.absConverges_of_permute' {a:ℕ → ℝ} (ha : (a:Series).absConv
   constructor
   · show (fun n ↦ a (f n):Series).abs.converges
     have heq : (fun n ↦ a (f n):Series).abs = (fun n ↦ c (f n):Series) := by
-      ext
-      · rfl
-      · next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [c, hn]
+      ext; · rfl
+      next n => rw [abs_seq]; by_cases hn : (0:ℤ) ≤ n <;> simp [c, hn]
     rw [heq]; exact hc_perm.1
   · have h1 : (a:Series).sum = (b:Series).sum - (c:Series).sum := by
       conv_lhs => rw [ha_eq]; rw [(Series.sub hb_conv hc_conv).2]

@@ -304,13 +304,50 @@ theorem Series.ratio_test_inconclusive' : ∃ s:Series, (∀ n ≥ s.m, s.seq n 
   simpa using tendsto_const_nhds.sub this
 
 /-- Proposition 7.5.4 -/
-theorem Series.root_self_converges : (fun (n:ℕ) ↦ (n:ℝ)^(1 / n : ℝ) : Series).convergesTo 1 := by
-  -- This proof is written to follow the structure of the original text.
-  sorry
+theorem Series.root_self_converges : atTop.Tendsto (fun (n:ℕ) ↦ (n:ℝ)^(1 / (n:ℝ))) (nhds 1) :=
+  tendsto_rpow_div.comp tendsto_natCast_atTop_atTop
 
 /-- Exercise 7.5.2 -/
 theorem Series.poly_mul_geom_converges {x:ℝ} (hx: |x|<1) (q:ℝ) : (fun n:ℕ ↦ (n:ℝ)^q * x^n : Series).converges
   ∧ atTop.Tendsto (fun n:ℕ ↦ (n:ℝ)^q * x^n) (nhds 0) := by
-  sorry
+  -- Apply root test: |a_n|^(1/n) = n^(q/n) · |x| → |x| < 1
+  have habs : (fun n:ℕ ↦ (n:ℝ)^q * x^n : Series).absConverges := by
+    apply root_test_pos
+    -- Show limsup |a_n|^(1/n) < 1 by showing it tends to |x|
+    have htend : atTop.Tendsto (fun n:ℤ ↦ ((|(fun n:ℕ ↦ (n:ℝ)^q * x^n : Series).seq n|^(1/(n:ℝ)):ℝ):EReal))
+        (nhds ↑(|x|)) := by
+      rw [show (atTop : Filter ℤ) = map Nat.cast atTop from Nat.map_cast_int_atTop.symm,
+        Filter.tendsto_map'_iff]
+      -- Reduce to ℕ, then show |n^q·x^n|^(1/n) = n^(q/n)·|x| for n ≥ 1
+      apply (continuous_coe_real_ereal.tendsto _).comp
+      have hsimp : ∀ n:ℕ, n ≥ 1 →
+          (|(fun n:ℕ ↦ (n:ℝ)^q * x^n : Series).seq (n:ℤ)|^(1/(n:ℝ))) = (n:ℝ)^(q/(n:ℝ)) * |x| := by
+        intro n hn
+        simp only [show (0:ℤ) ≤ (n:ℤ) from Int.natCast_nonneg n, ite_true]
+        have hnpos : (0:ℝ) < n := Nat.cast_pos.mpr (by omega)
+        simp only [Int.toNat_natCast]
+        rw [_root_.abs_mul, _root_.abs_of_nonneg (rpow_nonneg (by positivity) q),
+          abs_pow, mul_rpow (rpow_nonneg (by positivity) q) (by positivity),
+          ← rpow_natCast |x| n, ← rpow_mul (abs_nonneg x), ← rpow_mul (by positivity : (0:ℝ) ≤ n)]
+        congr 1 <;> field_simp
+      apply Filter.Tendsto.congr' (f₁ := fun n:ℕ ↦ (n:ℝ)^(q/(n:ℝ)) * |x|)
+      · rw [Filter.eventuallyEq_iff_exists_mem]; use Set.Ici 1, Filter.Ici_mem_atTop 1
+        intro n hn; exact (hsimp n hn).symm
+      -- n^(q/n) · |x| → 1 · |x| = |x|
+      have : atTop.Tendsto (fun n:ℕ ↦ (n:ℝ)^(q/(n:ℝ))) (nhds 1) := by
+        have : (fun n:ℕ ↦ (n:ℝ)^(q/(n:ℝ))) = (fun n:ℕ ↦ ((n:ℝ)^(1/(n:ℝ)))^q) := by
+          ext n; rw [← rpow_mul (by positivity : (0:ℝ) ≤ n)]; ring_nf
+        rw [this]
+        convert tendsto_rpow_div_nat.rpow_const (Or.inl (by norm_num : (1:ℝ) ≠ 0)) using 2
+        exact (one_rpow q).symm
+      simpa using this.mul tendsto_const_nhds
+    rw [htend.limsup_eq]; exact_mod_cast hx
+  have hconv := converges_of_absConverges habs
+  refine ⟨hconv, ?_⟩
+  have hdecay := decay_of_converges hconv
+  -- decay_of_converges gives Tendsto over ℤ, extract over ℕ
+  rw [show (atTop : Filter ℤ) = map Nat.cast atTop from Nat.map_cast_int_atTop.symm,
+    Filter.tendsto_map'_iff] at hdecay
+  exact hdecay.congr (fun n ↦ by simp)
 
 end Chapter7

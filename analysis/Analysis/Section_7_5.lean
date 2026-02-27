@@ -227,17 +227,22 @@ theorem Series.ratio_ineq {c:ℤ → ℝ} (m:ℤ) (hpos: ∀ n ≥ m, c n > 0) :
             convert rpow_one _; field_simp
         _ = (B * r^n)^(1/(n:ℝ)) := (mul_rpow (by positivity) (by positivity)).symm
         _ ≤ _ := rpow_le_rpow (by positivity) (lower n hn) (by positivity)
-    have hBconv : Tendsto (fun n:ℤ ↦ B ^ (n:ℝ)⁻¹) atTop (nhds 1) := by
-      exact ((continuous_const_rpow (ne_of_gt hB)).tendsto' _ _ (by simp)).comp
-        (tendsto_inv_atTop_zero.comp tendsto_intCast_atTop_atTop)
-    have hconv : Tendsto (fun n:ℤ ↦ ((B^(1/(n:ℝ)) * r:ℝ):EReal)) atTop (nhds r) := by
-      have h2 : Tendsto (fun n:ℤ ↦ B ^ (n:ℝ)⁻¹ * r) atTop (nhds r) := by
-        have := hBconv.mul_const r; simp at this; exact this
-      have h3 := (continuous_coe_real_ereal.tendsto r).comp h2
-      convert h3 using 1; ext n; simp [one_div]
     calc (r:EReal)
-      _ = atTop.liminf (fun n:ℤ ↦ ((B^(1/(n:ℝ)) * r:ℝ):EReal)) := by
-          symm; exact Tendsto.liminf_eq hconv
+      _ = (atTop.liminf (fun n:ℤ ↦ ((B^(1/(n:ℝ)):ℝ):EReal))) *
+          (atTop.liminf (fun n:ℤ ↦ ((r:ℝ):EReal))) := by
+          symm; simp [-coe_mul]; convert one_mul _
+          apply Tendsto.liminf_eq
+          convert Tendsto.comp (f := fun n:ℤ ↦ (B ^ (n:ℝ)⁻¹))
+            (g := fun x:ℝ ↦ (x:EReal)) (y := nhds 1) _ _
+          · apply continuous_coe_real_ereal.tendsto'; norm_num
+          convert Tendsto.comp (f := fun n:ℤ ↦ (n:ℝ)⁻¹)
+            (g := fun x:ℝ ↦ B^x) (y := nhds 0) _ _
+          · apply (continuous_const_rpow (ne_of_gt hB)).tendsto'; simp
+          exact tendsto_inv_atTop_zero.comp tendsto_intCast_atTop_atTop
+      _ ≤ atTop.liminf (fun n:ℤ ↦ ((B^(1/(n:ℝ)) * r:ℝ):EReal)) := by
+          apply EReal.le_liminf_mul
+          · apply Eventually.of_forall; intros; simp; positivity
+          · apply Eventually.of_forall; intros; simp; positivity
       _ ≤ _ := by
           apply liminf_le_liminf <;> try isBoundedDefault
           rw [eventually_atTop]; exact ⟨N, lower_root⟩

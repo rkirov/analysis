@@ -173,7 +173,74 @@ theorem Series.ratio_ineq {c:ℤ → ℝ} (m:ℤ) (hpos: ∀ n ≥ m, c n > 0) :
     := by
   -- This proof is written to follow the structure of the original text.
   refine ⟨ ?_, liminf_le_limsup ?_ ?_, ?_ ⟩ <;> try isBoundedDefault
-  . sorry
+  · set L' := liminf (fun n ↦ ((c (n+1) / c n:ℝ):EReal)) .atTop
+    by_cases hL : L' = ⊥; · simp [hL]
+    have hRootPos : (0:EReal) ≤ liminf (fun n ↦ (((c n) ^ (1 / (n:ℝ)):ℝ):EReal)) atTop := by
+      apply le_liminf_of_le (by isBoundedDefault)
+      rw [eventually_atTop]; use m; intro n hn
+      exact_mod_cast rpow_nonneg (le_of_lt (hpos n hn)) _
+    apply le_of_forall_lt_imp_le_of_dense
+    intro y hy
+    by_cases hy' : y = ⊥; · simp [hy']
+    have hyT : y ≠ ⊤ := ne_top_of_lt hy
+    have : y = y.toReal := (coe_toReal hyT hy').symm
+    rw [this] at hy ⊢
+    by_cases hr : y.toReal ≤ 0
+    · exact le_trans (by exact_mod_cast hr) hRootPos
+    push_neg at hr; set r := y.toReal
+    have hev := eventually_lt_of_lt_liminf hy (by isBoundedDefault)
+    rw [eventually_atTop] at hev; obtain ⟨N', hN⟩ := hev
+    set N := max N' (max m 1)
+    have hratio (n:ℤ) (hn: n ≥ N) : r ≤ c (n+1) / c n := by
+      have := hN n (by omega); norm_cast at this; exact le_of_lt this
+    set B := c N * r^(-N)
+    have hB : 0 < B := mul_pos (hpos N (by omega)) (zpow_pos hr _)
+    have hrne : (r:ℝ) ≠ 0 := ne_of_gt hr
+    have lower (n:ℤ) (hn: n ≥ N) : B * r^n ≤ c n := by
+      suffices h : ∀ k : ℕ, B * r^(N + k) ≤ c (N + k) by
+        have := h (n - N).toNat
+        rwa [show N + ↑(n - N).toNat = n from by omega] at this
+      intro k; induction k with
+      | zero =>
+        simp only [Nat.cast_zero, add_zero, B]
+        rw [mul_assoc, zpow_neg_mul_zpow_self _ hrne, mul_one]
+      | succ k ih =>
+        have hck : c (N + ↑k) > 0 := hpos (N + ↑k) (by omega)
+        have hrat := hratio (N + ↑k) (le_add_of_nonneg_right (Nat.cast_nonneg k))
+        have hrat' : r * c (N + ↑k) ≤ c (N + ↑k + 1) := by
+          nlinarith [mul_comm (c (N + ↑k)) r,
+            div_mul_cancel₀ (c (N + ↑k + 1)) (ne_of_gt hck)]
+        have hstep : (N:ℤ) + ↑(k + 1) = N + ↑k + 1 := by push_cast; ring
+        rw [hstep]
+        calc B * r ^ (N + ↑k + 1)
+            = r * (B * r ^ (N + ↑k)) := by rw [zpow_add_one₀ hrne]; ring
+          _ ≤ r * c (N + ↑k) := mul_le_mul_of_nonneg_left ih hr.le
+          _ ≤ c (N + ↑k + 1) := hrat'
+    have lower_root (n:ℤ) (hn: n ≥ N) :
+        ((B^(1/(n:ℝ)) * r:ℝ):EReal) ≤ (((c n)^(1/(n:ℝ)):ℝ):EReal) := by
+      rw [EReal.coe_le_coe_iff]
+      have hn' : n > 0 := by omega
+      calc B^(1/(n:ℝ)) * r
+          = B^(1/(n:ℝ)) * ((r^n)^(1/(n:ℝ))) := by
+            congr 1
+            rw [←rpow_intCast, ←rpow_mul hr.le]
+            convert rpow_one _; field_simp
+        _ = (B * r^n)^(1/(n:ℝ)) := (mul_rpow (by positivity) (by positivity)).symm
+        _ ≤ _ := rpow_le_rpow (by positivity) (lower n hn) (by positivity)
+    have hBconv : Tendsto (fun n:ℤ ↦ B ^ (n:ℝ)⁻¹) atTop (nhds 1) := by
+      exact ((continuous_const_rpow (ne_of_gt hB)).tendsto' _ _ (by simp)).comp
+        (tendsto_inv_atTop_zero.comp tendsto_intCast_atTop_atTop)
+    have hconv : Tendsto (fun n:ℤ ↦ ((B^(1/(n:ℝ)) * r:ℝ):EReal)) atTop (nhds r) := by
+      have h2 : Tendsto (fun n:ℤ ↦ B ^ (n:ℝ)⁻¹ * r) atTop (nhds r) := by
+        have := hBconv.mul_const r; simp at this; exact this
+      have h3 := (continuous_coe_real_ereal.tendsto r).comp h2
+      convert h3 using 1; ext n; simp [one_div]
+    calc (r:EReal)
+      _ = atTop.liminf (fun n:ℤ ↦ ((B^(1/(n:ℝ)) * r:ℝ):EReal)) := by
+          symm; exact Tendsto.liminf_eq hconv
+      _ ≤ _ := by
+          apply liminf_le_liminf <;> try isBoundedDefault
+          rw [eventually_atTop]; exact ⟨N, lower_root⟩
   set L' := limsup (fun n ↦ ((c (n+1) / c n:ℝ):EReal)) .atTop
   by_cases hL : L' = ⊤; simp [hL]
   have hL'pos : 0 ≤ L' := by
@@ -183,7 +250,7 @@ theorem Series.ratio_ineq {c:ℤ → ℝ} (m:ℤ) (hpos: ∀ n ≥ m, c n > 0) :
     have hpos1 := hpos (max N m) (by omega)
     have hpos2 := hpos ((max N m)+1) (by omega)
     positivity
-  have why : L' ≠ ⊥ := by sorry
+  have why : L' ≠ ⊥ := (bot_lt_zero.trans_le hL'pos).ne'
   set L := L'.toReal
   have hL' : L' = L := (coe_toReal hL why).symm
   have hLpos : 0 ≤ L := by rw [hL'] at hL'pos; norm_cast at hL'pos
@@ -206,8 +273,30 @@ theorem Series.ratio_ineq {c:ℤ → ℝ} (m:ℤ) (hpos: ∀ n ≥ m, c n > 0) :
     specialize hN n this; norm_cast at hN; order
   set A := c N * (L+ε)^(-N)
   have hA : 0 < A := by specialize hpos N (by omega); positivity
+  have hLε : (L + ε : ℝ) ≠ 0 := ne_of_gt (by linarith)
+  have hLεpos : (0:ℝ) < L + ε := by linarith
+  have hratio := this
   have why2 (n:ℤ) (hn: n ≥ N) : c n ≤ A * (L+ε)^n := by
-    sorry
+    suffices h : ∀ k : ℕ, c (N + k) ≤ A * (L+ε)^(N + k) by
+      have := h (n - N).toNat
+      rwa [show N + ↑(n - N).toNat = n from by omega] at this
+    intro k; induction k with
+    | zero =>
+      simp only [Nat.cast_zero, add_zero, A]
+      rw [mul_assoc, zpow_neg_mul_zpow_self _ hLε, mul_one]
+    | succ k ih =>
+      have hck : c (N + ↑k) > 0 := hpos (N + ↑k) (by omega)
+      have hrat := hratio (N + ↑k) (le_add_of_nonneg_right (Nat.cast_nonneg k))
+      have hrat' : c (N + ↑k + 1) ≤ (L + ε) * c (N + ↑k) := by
+        nlinarith [mul_comm (c (N + ↑k)) (L + ε), div_mul_cancel₀ (c (N + ↑k + 1)) (ne_of_gt hck)]
+      have : (N:ℤ) + ↑(k + 1) = N + ↑k + 1 := by push_cast; ring
+      rw [this]
+      calc c (N + ↑k + 1)
+          ≤ (L + ε) * c (N + ↑k) := hrat'
+        _ ≤ (L + ε) * (A * (L + ε) ^ (N + ↑k)) :=
+            mul_le_mul_of_nonneg_left ih hLεpos.le
+        _ = A * (L + ε) ^ (N + ↑k + 1) := by
+            rw [zpow_add_one₀ hLε]; ring
   have why2_root (n:ℤ) (hn: n ≥ N) : (((c n)^(1/(n:ℝ)):ℝ):EReal) ≤ (A^(1/(n:ℝ)) * (L+ε):ℝ) := by
     rw [EReal.coe_le_coe_iff]
     have hn' : n > 0 := by omega

@@ -201,8 +201,7 @@ theorem Series.ratio_test_inconclusive' : ∃ s:Series, (∀ n ≥ s.m, s.seq n 
     sorry
 
 /-- Proposition 7.5.4 -/
-theorem Series.root_self_converges : (fun (n:ℕ) ↦ (n:ℝ)^(1 / n : ℝ) : Series).convergesTo 1 := by
-  -- This proof is written to follow the structure of the original text.
+theorem Series.root_self_converges : atTop.Tendsto (fun (n:ℕ) ↦ (n:ℝ)^(1 / (n:ℝ))) (nhds 1) := by
   sorry
 
 /-- Exercise 7.5.2 -/

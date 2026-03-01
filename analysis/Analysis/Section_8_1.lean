@@ -36,14 +36,21 @@ theorem EqualCard.iff {X Y : Type} : EqualCard X Y ↔ Nonempty (X ≃ Y) := by
 theorem EqualCard.iff' {X Y : Type} : EqualCard X Y ↔ Cardinal.mk X = Cardinal.mk Y := by
   simp [Cardinal.eq, iff]
 
-theorem EqualCard.refl (X : Type) : EqualCard X X := sorry
+theorem EqualCard.refl (X : Type) : EqualCard X X := by
+  use id
+  exact Function.bijective_id
 
 theorem EqualCard.symm {X Y : Type} (hXY : EqualCard X Y) : EqualCard Y X := by
-  sorry
+  obtain ⟨f, hf⟩ := hXY
+  let e := Equiv.ofBijective f hf
+  exact ⟨e.symm, e.symm.bijective⟩
 
 theorem EqualCard.trans {X Y Z : Type} (hXY : EqualCard X Y) (hYZ : EqualCard Y Z) :
   EqualCard X Z := by
-  sorry
+  obtain ⟨f, hf⟩ := hXY
+  obtain ⟨g, hg⟩ := hYZ
+  use g ∘ f
+  exact hg.comp hf
 
 instance EqualCard.instSetoid : Setoid Type := ⟨ EqualCard, ⟨ refl, symm, trans ⟩ ⟩
 
@@ -102,26 +109,64 @@ theorem CountablyInfinite.iff_image_inj {A:Type} (X: Set A) : CountablyInfinite 
   intro n; use ⟨ f n, by aesop ⟩; grind
 
 /-- Examples 8.1.3 -/
-example : CountablyInfinite ℕ := by sorry
+example : CountablyInfinite ℕ := by
+  unfold CountablyInfinite; use id; exact Function.bijective_id
 
-example : CountablyInfinite (.univ \ {0}: Set ℕ) := by sorry
+example : CountablyInfinite (.univ \ {0}: Set ℕ) := by
+  use fun ⟨x, hx⟩ ↦ x - 1
+  constructor
+  · intro ⟨a, ha⟩ ⟨b, hb⟩ h
+    simp at ha hb h; congr; omega
+  · intro n; use ⟨n + 1, by simp⟩; simp
 
-example : CountablyInfinite ((fun n:ℕ ↦ 2*n) '' .univ) := by sorry
-
+example : CountablyInfinite ((fun n:ℕ ↦ 2*n) '' .univ) := by
+  use fun ⟨x, hx⟩ ↦ x / 2
+  constructor
+  · intro ⟨a, ha⟩ ⟨b, hb⟩ h
+    simp at ha hb h
+    obtain ⟨m, rfl⟩ := ha; obtain ⟨n, rfl⟩ := hb
+    congr 1; omega
+  · intro n; use ⟨2 * n, by simp⟩; simp
 
 /-- Proposition 8.1.4 (Well ordering principle / Exercise 8.1.2 -/
 theorem Nat.exists_unique_min {X : Set ℕ} (hX : X.Nonempty) :
   ∃! m ∈ X, ∀ n ∈ X, m ≤ n := by
-  sorry
+  obtain ⟨x, hx⟩ := hX
+  induction x using Nat.strongRecOn with
+  | _ x ih =>
+    by_cases h : ∃ y ∈ X, y < x
+    · obtain ⟨y, hy, hyx⟩ := h
+      exact ih y hyx hy
+    · push_neg at h
+      use x
+      exact ⟨⟨hx, h⟩, fun y ⟨hy, hle⟩ ↦ le_antisymm (hle x hx) (h y hy)⟩
 
 def Int.exists_unique_min : Decidable (∀ (X : Set ℤ) (hX : X.Nonempty), ∃! m ∈ X, ∀ n ∈ X, m ≤ n) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use .univ
+  simp only [Set.univ_nonempty, Set.mem_univ, forall_const, true_and]
+  intro h
+  obtain ⟨m, hm, hmin⟩ := h
+  specialize hm (m - 1)
+  linarith
+
 
 def NNRat.exists_unique_min : Decidable (∀ (X : Set NNRat) (hX : X.Nonempty), ∃! m ∈ X, ∀ n ∈ X, m ≤ n) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
+  apply isFalse
+  push_neg
+  use .univ \ {0}
+  constructor
+  · exact ⟨1, by simp⟩
+  · intro h
+    obtain ⟨m, ⟨⟨_, hm_ne⟩, hle⟩, _⟩ := h
+    simp at hm_ne
+    have hm_pos : 0 < m := pos_iff_ne_zero.mpr hm_ne
+    have hmem : m / 2 ∈ Set.univ \ {(0:NNRat)} := by
+      simp; exact ne_of_gt (by positivity)
+    exact absurd (hle (m / 2) hmem) (not_le.mpr (div_lt_self hm_pos one_lt_two))
 
 open Classical in
 noncomputable abbrev Nat.min (X : Set ℕ) : ℕ := if hX : X.Nonempty then (exists_unique_min hX).exists.choose else 0

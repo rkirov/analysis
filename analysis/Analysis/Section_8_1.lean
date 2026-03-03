@@ -569,8 +569,140 @@ example {I X:Type} (hI: AtMostCountable I) (A: I → Set X) (hA: ∀ i, AtMostCo
     exact Subtype.ext (congrArg (Subtype.val (p := (· ∈ A (idx q)))) (hfA _ key))
   exact (atMost_iff_injective _).mpr ⟨f, hf⟩
 
-/-- Exercise 8.1.10.  Note the lack of the `noncomputable` keyword in the `abbrev`. -/
-abbrev explicit_bijection : ℕ → ℚ := sorry
+/-- Stern's diatomic sequence (fusc function).
+  fusc(0) = 0, fusc(1) = 1, fusc(2n) = fusc(n), fusc(2n+1) = fusc(n) + fusc(n+1). -/
+def fusc : ℕ → ℕ
+  | 0 => 0
+  | 1 => 1
+  | n + 2 =>
+    if (n + 2) % 2 = 0 then fusc ((n + 2) / 2)
+    else fusc ((n + 2) / 2) + fusc ((n + 2) / 2 + 1)
+
+@[simp] theorem fusc_zero : fusc 0 = 0 := by native_decide
+@[simp] theorem fusc_one : fusc 1 = 1 := by native_decide
+@[simp] theorem fusc_two : fusc 2 = 1 := by native_decide
+
+theorem fusc_even (n : ℕ) (hn : n ≥ 1) : fusc (2 * n) = fusc n := by
+  rw [show 2 * n = (2 * n - 2) + 2 from by omega]
+  simp only [fusc]
+  rw [if_pos (show (2 * n - 2 + 2) % 2 = 0 from by omega)]
+  congr 1; omega
+
+theorem fusc_odd (n : ℕ) (hn : n ≥ 1) : fusc (2 * n + 1) = fusc n + fusc (n + 1) := by
+  rw [show 2 * n + 1 = (2 * n - 1) + 2 from by omega]
+  simp only [fusc]
+  rw [if_neg (show ¬ ((2 * n - 1 + 2) % 2 = 0) from by omega)]
+  congr 1 <;> congr 1 <;> omega
+
+theorem fusc_pos (n : ℕ) (hn : n ≥ 1) : fusc n > 0 := by
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+  obtain rfl | hn1 := eq_or_lt_of_le' hn
+  · simp
+  rcases Nat.even_or_odd n with ⟨k, hk⟩ | ⟨k, hk⟩
+  · rw [show n = 2 * k from by omega, fusc_even _ (by omega)]
+    exact ih _ (by omega) (by omega)
+  · rw [show n = 2 * k + 1 from by omega, fusc_odd _ (by omega)]
+    have := ih k (by omega) (by omega)
+    omega
+
+theorem fusc_coprime (n : ℕ) (hn : n ≥ 1) : Nat.Coprime (fusc n) (fusc (n + 1)) := by
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+  obtain rfl | hn1 := eq_or_lt_of_le' hn
+  · simp [Nat.Coprime]
+  rcases Nat.even_or_odd n with ⟨k, hk⟩ | ⟨k, hk⟩
+  · rw [show n = 2 * k from by omega, fusc_even _ (by omega),
+        show 2 * k + 1 = 2 * k + 1 from rfl, fusc_odd _ (by omega)]
+    exact Nat.coprime_self_add_right.mpr (ih k (by omega) (by omega))
+  · rw [show n = 2 * k + 1 from by omega, fusc_odd _ (by omega),
+        show 2 * k + 1 + 1 = 2 * (k + 1) from by omega, fusc_even _ (by omega)]
+    exact Nat.coprime_add_self_left.mpr (ih k (by omega) (by omega))
+
+theorem fusc_even_lt (k : ℕ) (hk : k ≥ 1) : fusc (2 * k) < fusc (2 * k + 1) := by
+  rw [fusc_even _ hk, fusc_odd _ hk]; linarith [fusc_pos (k + 1) (by omega)]
+
+theorem fusc_odd_gt (k : ℕ) (hk : k ≥ 1) : fusc (2 * k + 1) > fusc (2 * (k + 1)) := by
+  rw [fusc_odd _ hk, fusc_even _ (by omega)]; linarith [fusc_pos k (by omega)]
+
+theorem even_of_fusc_lt (n : ℕ) (hn : n ≥ 2) (h : fusc n < fusc (n + 1)) :
+    ∃ k ≥ 1, n = 2 * k := by
+  rcases Nat.even_or_odd n with ⟨k, hk⟩ | ⟨k, hk⟩
+  · exact ⟨k, by omega, by omega⟩
+  · exfalso; have h1 := fusc_odd_gt k (by omega)
+    rw [hk, show 2 * k + 1 + 1 = 2 * (k + 1) from by omega] at h; linarith
+
+theorem odd_of_fusc_gt (n : ℕ) (hn : n ≥ 2) (h : fusc n > fusc (n + 1)) :
+    ∃ k ≥ 1, n = 2 * k + 1 := by
+  rcases Nat.even_or_odd n with ⟨k, hk⟩ | ⟨k, hk⟩
+  · exfalso; have h1 := fusc_even_lt k (by omega)
+    -- hk : n = k + k, so h becomes fusc(k+k) > fusc(k+k+1)
+    -- rewrite k+k to 2*k and k+k+1 to 2*k+1
+    rw [show n = 2 * k from by omega] at h
+    rw [show 2 * k + 1 = 2 * k + 1 from rfl] at h; linarith
+  · exact ⟨k, by omega, by omega⟩
+
+theorem fusc_ne_succ (n : ℕ) (hn : n ≥ 2) : fusc n ≠ fusc (n + 1) := by
+  rcases Nat.even_or_odd n with ⟨k, hk⟩ | ⟨k, hk⟩
+  · have := fusc_even_lt k (by omega)
+    rw [show n = 2 * k from by omega]; exact ne_of_lt (by linarith)
+  · have := fusc_odd_gt k (by omega)
+    rw [hk, show 2 * k + 1 + 1 = 2 * (k + 1) from by omega]; omega
+
+private theorem fusc_pair_one (n : ℕ) (hn : n ≥ 1) (h1 : fusc n = 1) (h2 : fusc (n + 1) = 1) :
+    n = 1 := by
+  obtain rfl | hn2 := eq_or_lt_of_le' hn; · rfl
+  exact absurd (h1.symm ▸ h2.symm ▸ rfl : fusc n = fusc (n + 1)) (fusc_ne_succ n hn2)
+
+theorem fusc_pair_injective (m n : ℕ) (hm : m ≥ 1) (hn : n ≥ 1)
+    (h1 : fusc m = fusc n) (h2 : fusc (m + 1) = fusc (n + 1)) : m = n := by
+  induction m using Nat.strongRecOn generalizing n with
+  | ind m ih =>
+  obtain rfl | hm2 := eq_or_lt_of_le' hm
+  · simp at h1 h2; exact (fusc_pair_one n hn h1.symm h2.symm).symm
+  obtain rfl | hn2 := eq_or_lt_of_le' hn
+  · simp at h1 h2; exact fusc_pair_one m hm h1 h2
+  -- m, n ≥ 2: detect parity from fusc m vs fusc(m+1)
+  rcases lt_trichotomy (fusc m) (fusc (m + 1)) with hlt | heq | hgt
+  · -- fusc m < fusc(m+1) ⇒ m even; same comparison for n via h1,h2 ⇒ n even
+    obtain ⟨j, hj, rfl⟩ := even_of_fusc_lt m hm2 hlt
+    obtain ⟨l, hl, rfl⟩ := even_of_fusc_lt n hn2 (h1 ▸ h2 ▸ hlt)
+    rw [fusc_even _ hj, fusc_even _ hl] at h1
+    rw [show 2 * j + 1 = 2 * j + 1 from rfl, show 2 * l + 1 = 2 * l + 1 from rfl,
+        fusc_odd _ hj, fusc_odd _ hl] at h2
+    have := ih j (by omega) l (by omega) (by omega) h1 (by linarith)
+    omega
+  · exact absurd heq (fusc_ne_succ m hm2)
+  · -- fusc m > fusc(m+1) ⇒ m odd; same for n
+    obtain ⟨j, hj, rfl⟩ := odd_of_fusc_gt m hm2 hgt
+    obtain ⟨l, hl, rfl⟩ := odd_of_fusc_gt n hn2 (h1 ▸ h2 ▸ hgt)
+    rw [fusc_odd _ hj, fusc_odd _ hl] at h1
+    rw [show 2 * j + 1 + 1 = 2 * (j + 1) from by omega,
+        show 2 * l + 1 + 1 = 2 * (l + 1) from by omega,
+        fusc_even _ (by omega), fusc_even _ (by omega)] at h2
+    have := ih j (by omega) l (by omega) (by omega) (by linarith) h2
+    omega
+
+theorem fusc_pair_surjective (a b : ℕ) (ha : a > 0) (hb : b > 0) (hc : Nat.Coprime a b) :
+    ∃ n ≥ 1, fusc n = a ∧ fusc (n + 1) = b := by sorry
+
+/-- The n-th positive rational in the Calkin-Wilf sequence (for n ≥ 1). -/
+def calkinWilf (n : ℕ) : ℚ := fusc n / fusc (n + 1)
+
+theorem calkinWilf_pos (n : ℕ) (hn : n ≥ 1) : calkinWilf n > 0 := by sorry
+
+theorem calkinWilf_injective (m n : ℕ) (hm : m ≥ 1) (hn : n ≥ 1)
+    (h : calkinWilf m = calkinWilf n) : m = n := by sorry
+
+theorem calkinWilf_surjective (q : ℚ) (hq : q > 0) :
+    ∃ n ≥ 1, calkinWilf n = q := by sorry
+
+/-- Exercise 8.1.10.  Note the lack of the `noncomputable` keyword in the `abbrev`.
+  Uses the Calkin-Wilf enumeration: 0 ↦ 0, 2k+1 ↦ CW(k+1), 2k+2 ↦ -CW(k+1). -/
+abbrev explicit_bijection (n : ℕ) : ℚ :=
+  if n = 0 then 0
+  else if n % 2 = 1 then calkinWilf ((n + 1) / 2)
+  else -calkinWilf (n / 2)
 
 theorem explicit_bijection_spec : Function.Bijective explicit_bijection := by sorry
 

@@ -684,18 +684,61 @@ theorem fusc_pair_injective (m n : ℕ) (hm : m ≥ 1) (hn : n ≥ 1)
     omega
 
 theorem fusc_pair_surjective (a b : ℕ) (ha : a > 0) (hb : b > 0) (hc : Nat.Coprime a b) :
-    ∃ n ≥ 1, fusc n = a ∧ fusc (n + 1) = b := by sorry
+    ∃ n ≥ 1, fusc n = a ∧ fusc (n + 1) = b := by
+  suffices h : ∀ s, ∀ a b : ℕ, a + b = s → a > 0 → b > 0 → Nat.Coprime a b →
+      ∃ n ≥ 1, fusc n = a ∧ fusc (n + 1) = b from h _ a b rfl ha hb hc
+  intro s
+  induction s using Nat.strongRecOn with
+  | ind s ih =>
+  intro a b hs ha hb hc
+  obtain rfl | hab := eq_or_ne a b
+  · have : a = 1 := by rwa [Nat.Coprime, Nat.gcd_self] at hc
+    subst this; exact ⟨1, by omega, by simp, by simp⟩
+  rcases lt_or_gt_of_ne hab with hab | hab
+  · -- a < b: IH with (a, b - a), then n = 2k
+    have hc' : Nat.Coprime a (b - a) := (Nat.coprime_sub_self_right (by omega)).mpr hc
+    obtain ⟨k, hk, hfk, hfk1⟩ := ih (a + (b - a)) (by omega) a (b - a) (by omega) ha (by omega) hc'
+    refine ⟨2 * k, by omega, ?_, ?_⟩
+    · rw [fusc_even _ (by omega)]; exact hfk
+    · rw [fusc_odd _ (by omega), hfk, hfk1]; omega
+  · -- a > b: IH with (a - b, b), then n = 2k+1
+    have hc' : Nat.Coprime (a - b) b := (Nat.coprime_sub_self_left (by omega)).mpr hc
+    obtain ⟨k, hk, hfk, hfk1⟩ := ih (a - b + b) (by omega) (a - b) b (by omega) (by omega) hb hc'
+    refine ⟨2 * k + 1, by omega, ?_, ?_⟩
+    · rw [fusc_odd _ (by omega), hfk, hfk1]; omega
+    · rw [show 2 * k + 1 + 1 = 2 * (k + 1) from by omega, fusc_even _ (by omega)]; exact hfk1
 
 /-- The n-th positive rational in the Calkin-Wilf sequence (for n ≥ 1). -/
 def calkinWilf (n : ℕ) : ℚ := fusc n / fusc (n + 1)
 
-theorem calkinWilf_pos (n : ℕ) (hn : n ≥ 1) : calkinWilf n > 0 := by sorry
+theorem calkinWilf_pos (n : ℕ) (hn : n ≥ 1) : calkinWilf n > 0 := by
+  simp only [calkinWilf]
+  exact div_pos (Nat.cast_pos.mpr (fusc_pos n hn)) (Nat.cast_pos.mpr (fusc_pos (n + 1) (by omega)))
 
 theorem calkinWilf_injective (m n : ℕ) (hm : m ≥ 1) (hn : n ≥ 1)
-    (h : calkinWilf m = calkinWilf n) : m = n := by sorry
+    (h : calkinWilf m = calkinWilf n) : m = n := by
+  simp only [calkinWilf] at h
+  rw [show (fusc m : ℚ) = ((fusc m : ℤ) : ℚ) from by push_cast; ring,
+      show (fusc (m + 1) : ℚ) = ((fusc (m + 1) : ℤ) : ℚ) from by push_cast; ring,
+      show (fusc n : ℚ) = ((fusc n : ℤ) : ℚ) from by push_cast; ring,
+      show (fusc (n + 1) : ℚ) = ((fusc (n + 1) : ℤ) : ℚ) from by push_cast; ring] at h
+  have := Rat.div_int_inj
+    (by exact_mod_cast fusc_pos (m + 1) (by omega))
+    (by exact_mod_cast fusc_pos (n + 1) (by omega))
+    (by exact_mod_cast fusc_coprime m hm)
+    (by exact_mod_cast fusc_coprime n hn) h
+  exact fusc_pair_injective m n hm hn (by exact_mod_cast this.1) (by exact_mod_cast this.2)
 
 theorem calkinWilf_surjective (q : ℚ) (hq : q > 0) :
-    ∃ n ≥ 1, calkinWilf n = q := by sorry
+    ∃ n ≥ 1, calkinWilf n = q := by
+  have hnum : q.num > 0 := Rat.num_pos.mpr hq
+  obtain ⟨n, hn, hfn, hfn1⟩ := fusc_pair_surjective q.num.natAbs q.den
+    (by omega) q.pos q.reduced
+  refine ⟨n, hn, ?_⟩
+  simp only [calkinWilf, hfn, hfn1]
+  have : (q.num.natAbs : ℤ) = q.num := Int.natAbs_of_nonneg hnum.le
+  rw [show (q.num.natAbs : ℚ) = ((q.num.natAbs : ℤ) : ℚ) from by simp, this]
+  exact Rat.num_div_den q
 
 /-- Exercise 8.1.10.  Note the lack of the `noncomputable` keyword in the `abbrev`.
   Uses the Calkin-Wilf enumeration: 0 ↦ 0, 2k+1 ↦ CW(k+1), 2k+2 ↦ -CW(k+1). -/
@@ -704,6 +747,52 @@ abbrev explicit_bijection (n : ℕ) : ℚ :=
   else if n % 2 = 1 then calkinWilf ((n + 1) / 2)
   else -calkinWilf (n / 2)
 
-theorem explicit_bijection_spec : Function.Bijective explicit_bijection := by sorry
+@[simp] private theorem eb_zero : explicit_bijection 0 = 0 := rfl
+
+@[simp] private theorem eb_odd (k : ℕ) :
+    explicit_bijection (2 * k + 1) = calkinWilf (k + 1) := by
+  unfold explicit_bijection; simp [show (2 * k + 1 + 1) / 2 = k + 1 from by omega]
+
+@[simp] private theorem eb_even (k : ℕ) :
+    explicit_bijection (2 * (k + 1)) = -calkinWilf (k + 1) := by
+  unfold explicit_bijection; simp [show 2 * (k + 1) / 2 = k + 1 from by omega]
+
+private theorem eb_pos_of_odd (k : ℕ) : explicit_bijection (2 * k + 1) > 0 := by
+  rw [eb_odd]; exact calkinWilf_pos _ (by omega)
+
+private theorem eb_neg_of_even (k : ℕ) : explicit_bijection (2 * (k + 1)) < 0 := by
+  rw [eb_even]; linarith [calkinWilf_pos (k + 1) (by omega)]
+
+theorem explicit_bijection_spec : Function.Bijective explicit_bijection := by
+  have cases (n : ℕ) (hn : n ≠ 0) : (∃ k, n = 2 * k + 1) ∨ (∃ k, n = 2 * (k + 1)) := by
+    rcases Nat.even_or_odd n with ⟨k, hk⟩ | ⟨k, hk⟩
+    · right; exact ⟨k - 1, by omega⟩
+    · left; exact ⟨k, by omega⟩
+  constructor
+  · -- Injective
+    intro a b h
+    by_contra hab
+    rcases eq_or_ne a 0 with rfl | ha <;> rcases eq_or_ne b 0 with rfl | hb
+    · exact hab rfl
+    · rcases cases b hb with ⟨k, rfl⟩ | ⟨k, rfl⟩
+      · simp at h; linarith [calkinWilf_pos (k + 1) (by omega)]
+      · simp at h; linarith [calkinWilf_pos (k + 1) (by omega)]
+    · rcases cases a ha with ⟨k, rfl⟩ | ⟨k, rfl⟩
+      · simp at h; linarith [calkinWilf_pos (k + 1) (by omega)]
+      · simp at h; linarith [calkinWilf_pos (k + 1) (by omega)]
+    · rcases cases a ha with ⟨j, rfl⟩ | ⟨j, rfl⟩ <;> rcases cases b hb with ⟨k, rfl⟩ | ⟨k, rfl⟩
+      · simp at h; exact hab (by have := calkinWilf_injective _ _ (by omega) (by omega) h; omega)
+      · simp at h; linarith [calkinWilf_pos (j + 1) (by omega), calkinWilf_pos (k + 1) (by omega)]
+      · simp at h; linarith [calkinWilf_pos (j + 1) (by omega), calkinWilf_pos (k + 1) (by omega)]
+      · simp at h; exact hab (by have := calkinWilf_injective _ _ (by omega) (by omega) h; omega)
+  · -- Surjective
+    intro q
+    rcases lt_trichotomy q 0 with hq | rfl | hq
+    · obtain ⟨k, hk, hcwk⟩ := calkinWilf_surjective (-q) (by linarith)
+      refine ⟨2 * ((k - 1) + 1), ?_⟩
+      rw [eb_even, show k - 1 + 1 = k from by omega]; linarith
+    · exact ⟨0, rfl⟩
+    · obtain ⟨k, hk, hcwk⟩ := calkinWilf_surjective q hq
+      refine ⟨2 * (k - 1) + 1, ?_⟩; simp; rw [show k - 1 + 1 = k from by omega]; exact hcwk
 
 end Chapter8

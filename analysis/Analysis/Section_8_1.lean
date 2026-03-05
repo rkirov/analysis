@@ -547,7 +547,7 @@ private lemma fA_transport {I X : Type} {A : I → Set X}
 
 open Classical in
 /-- Exercise 8.1.9 -/
-example {I X:Type} (hI: AtMostCountable I) (A: I → Set X) (hA: ∀ i, AtMostCountable (A i)) :
+theorem AtMostCountable.iUnion {I X:Type} (hI: AtMostCountable I) (A: I → Set X) (hA: ∀ i, AtMostCountable (A i)) :
   AtMostCountable (⋃ i, A i) := by
   obtain ⟨fi, hfi⟩ := (atMost_iff_injective I).mp hI
   choose fA hfA using fun i => (atMost_iff_injective (A i)).mp (hA i)

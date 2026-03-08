@@ -4,7 +4,8 @@
       "type": "stdio",
       "command": "uvx",
       "args": [
-        "lean-lsp-mcp"
+        "lean-lsp-mcp",
+        "--repl"
       ],
       "env": {}
     }

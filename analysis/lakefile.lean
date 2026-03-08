@@ -16,6 +16,9 @@ package «Analysis» where
 require mathlib from git
   "https://github.com/leanprover-community/mathlib4.git" @ "v4.23.0-rc2"
 
+require REPL from git
+  "https://github.com/leanprover-community/repl" @ "v4.23.0-rc2"
+
 -- This library is needed to build the online version.
 -- If ../book/lakefile.lean requires verso @ "v4.X.Y", then this line should require
 -- subverso @ "verso-v4.X.Y".

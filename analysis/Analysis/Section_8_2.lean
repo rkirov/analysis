@@ -730,7 +730,10 @@ theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
   (ha': ¬ (a:Series).absConverges) :
   ¬ AbsConvergent (fun n : {n | a n ≥ 0} ↦ a n) ∧ ¬ AbsConvergent (fun n : {n | a n < 0} ↦ a n)
   := by
-  -- Strategy: route through Mathlib's `Summable` (index-agnostic, no bijection needed).
+  -- Strategy: AbsConvergent → AbsConvergent' (index-agnostic) → Summable (for Mathlib API:
+  -- summable_of_sum_range_le, tendsto_sum_tsum_nat) → indicator arithmetic → absConverges.
+  -- The Summable detour is needed because AbsConvergent' lacks range-sum convergence lemmas.
+  -- The ℤ↔ℕ bridge (partial_eq / ha_tendsto) is the main boilerplate cost.
   have hCI_of_abs {S : Set ℕ} : AbsConvergent (fun n : S ↦ a n) → CountablyInfinite S := by
     intro ⟨g, hg, _⟩
     have : Infinite S := Infinite.of_injective g hg.1

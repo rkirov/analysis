@@ -506,7 +506,6 @@ atTop.Tendsto f l ↔ atTop.Tendsto (f ∘ Nat.cast) l := by
   simp [←eventually_atTop]
   convert Eventually.int_natCast_atTop _
 
-
 /-- Connection with Mathlib's `tsum` (or `Σ'`) operation -/
 theorem Sum'.eq_tsum {X:Type} (f:X → ℝ) (h: AbsConvergent' f) :
   Sum' f = ∑' x, f x := by
@@ -534,7 +533,6 @@ theorem Sum'.eq_tsum {X:Type} (f:X → ℝ) (h: AbsConvergent' f) :
     exact h.comp_injective (i := Subtype.val ∘ g) (Subtype.val_injective.comp hg.1)
   rw [of_finsupp (A := E.toFinite.toFinset)]; symm; apply tsum_eq_sum
   all_goals simp [E]
-
 
 /-- Proposition 8.2.6 (a) (Absolutely convergent series laws) / Exercise 8.2.3 -/
 theorem Sum'.add {X:Type} {f g:X → ℝ} (hf: AbsConvergent' f) (hg: AbsConvergent' g) :
@@ -725,18 +723,21 @@ theorem Sum'.of_univ {X:Type} {f:X → ℝ} (hf: AbsConvergent' f) :
   Sum' (fun x: (.univ : Set X) ↦ f x) = Sum' f :=
   (of_comp hf ⟨Subtype.val_injective, fun x ↦ ⟨⟨x, Set.mem_univ _⟩, rfl⟩⟩).2.symm
 
+private theorem partial_eq_sum_range {a : ℕ → ℝ} :
+    ∀ K : ℕ, (a:Series).partial (K : ℤ) = ∑ n ∈ Finset.range (K + 1), a n := by
+  intro K
+  show ∑ n ∈ Finset.Icc (0:ℤ) K, (if n ≥ 0 then a n.toNat else 0) =
+    ∑ n ∈ Finset.range (K + 1), a n
+  rw [Finset.Icc_eq_cast, Finset.sum_map]
+  apply Finset.sum_congr (by ext; simp; omega) (fun n hn ↦ by simp [show (n:ℤ) ≥ 0 from by omega])
+
 /-- If ∑ a converges and one sign-part is summable, then a absolutely converges.
 Factored out from Lemma 8.2.7 for reuse in the Riemann rearrangement theorem. -/
 private theorem absConverges_of_summable_sign_part {a : ℕ → ℝ}
     (ha : (a:Series).converges)
     (h : Summable (fun n : {n | a n ≥ 0} ↦ a n) ∨ Summable (fun n : {n | a n < 0} ↦ a n)) :
     (a:Series).absConverges := by
-  have partial_eq : ∀ K : ℕ, (a:Series).partial (K : ℤ) = ∑ n ∈ Finset.range (K + 1), a n := by
-    intro K
-    show ∑ n ∈ Finset.Icc (0:ℤ) K, (if n ≥ 0 then a n.toNat else 0) =
-      ∑ n ∈ Finset.range (K + 1), a n
-    rw [Finset.Icc_eq_cast, Finset.sum_map]
-    apply Finset.sum_congr (by ext; simp; omega) (fun n hn ↦ by simp [show (n:ℤ) ≥ 0 from by omega])
+  have partial_eq := partial_eq_sum_range (a := a)
   have ha_tendsto : ∃ S, Filter.Tendsto (fun N ↦ ∑ i ∈ Finset.range N, a i)
       Filter.atTop (nhds S) := by
     obtain ⟨L, hL⟩ := (Chapter6.Sequence.converges_iff_Tendsto'
@@ -1184,11 +1185,370 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
 theorem permute_diverges_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
   (ha': ¬ (a:Series).absConverges)  :
   ∃ f : ℕ → ℕ,  Bijective f ∧ atTop.Tendsto (fun N ↦ ((a ∘ f:Series).partial N : EReal)) (nhds ⊤) := by
-  sorry
+  have h1 := (divergent_parts_of_divergent ha ha').1
+  set A_plus := { n | a n ≥ 0 }
+  set A_minus := { n | a n < 0 }
+  obtain ⟨hA_plus_inf, hA_minus_inf⟩ := infinite_sign_set_of_not_absConverges ha ha'
+  obtain ⟨a_plus, ha_plus_bij, ha_plus_mono⟩ := (Nat.monotone_enum_of_infinite A_plus).exists
+  obtain ⟨a_minus, ha_minus_bij, ha_minus_mono⟩ := (Nat.monotone_enum_of_infinite A_minus).exists
+  have ha_plus_nn (i : ℕ) : a (a_plus i : ℕ) ≥ 0 := (a_plus i).2
+  have ha_minus_neg (i : ℕ) : a (a_minus i : ℕ) < 0 := (a_minus i).2
+  -- A_plus partial sums are unbounded (nonneg, not abs convergent → not summable)
+  have hA_plus_unbounded : ∀ M : ℝ, ∃ N,
+      ∑ i ∈ Finset.range N, a (a_plus i : ℕ) > M := by
+    by_contra h; push_neg at h; obtain ⟨M, hM⟩ := h
+    apply h1; exact AbsConvergent.mk ha_plus_bij
+      (by rw [absConverges, converges_of_nonneg_iff (by intro n; simp; split_ifs <;> simp)]
+          use M; intro N; by_cases hN : N ≥ 0
+          · lift N to ℕ using hN
+            simp only [Series.partial, Finset.Icc_eq_cast]; rw [Finset.sum_map]
+            calc ∑ x ∈ Finset.Icc 0 N, (if (x:ℤ) ≥ 0 then |a ↑(a_plus (x:ℤ).toNat)| else 0)
+                = ∑ x ∈ Finset.Icc 0 N, a ↑(a_plus x) := by
+                  apply Finset.sum_congr rfl; intro n hn
+                  simp [show (n:ℤ) ≥ 0 from by omega, abs_of_nonneg (ha_plus_nn n)]
+              _ = ∑ x ∈ Finset.range (N + 1), a ↑(a_plus x) := by
+                  apply Finset.sum_congr (by ext; simp; omega) (fun _ _ ↦ rfl)
+              _ ≤ M := by linarith [hM (N + 1)]
+          · rw [partial_of_lt (by simp; omega)]
+            have := hM 0; simp at this; linarith)
+  -- For any starting index and deficit, we can accumulate enough a_plus terms to go positive
+  set b := fun i ↦ a (a_plus i : ℕ) with b_def
+  have hb_nn (i : ℕ) : b i ≥ 0 := ha_plus_nn i
+  have hb_unbounded : ∀ M : ℝ, ∃ N, ∑ i ∈ Finset.range N, b i > M := hA_plus_unbounded
+  have hb_exceed : ∀ (start : ℕ) (deficit : ℝ),
+      ∃ q > start, ∑ i ∈ Finset.Ico start q, b i + deficit > 0 := by
+    intro start deficit
+    obtain ⟨N, hN⟩ := hb_unbounded (-deficit + ∑ i ∈ Finset.range start, b i)
+    refine ⟨max N start + 1, by omega, ?_⟩
+    have key : ∑ i ∈ Finset.Ico start (max N start + 1), b i =
+        ∑ i ∈ Finset.range (max N start + 1), b i - ∑ i ∈ Finset.range start, b i := by
+      have := Finset.sum_range_add_sum_Ico b (show start ≤ max N start + 1 by omega)
+      linarith
+    linarith [key, Finset.sum_le_sum_of_subset_of_nonneg (f := b)
+      (Finset.range_mono (show N ≤ max N start + 1 by omega)) (fun i _ _ ↦ hb_nn i)]
+  -- Round construction: in round k, emit a_minus(k) then enough a_plus terms until sum > k
+  -- State: (p, S) where p = positives used so far, S = running sum
+  let next : ℕ → ℕ × ℝ → ℕ × ℝ := fun k ⟨pk, Sk⟩ ↦
+    let S' := Sk + a (a_minus k : ℕ)
+    let q := (hb_exceed pk (S' - ↑k)).choose
+    (q, S' + ∑ i ∈ Finset.Ico pk q, b i)
+  let state : ℕ → ℕ × ℝ := fun k ↦ Nat.rec (0, (0 : ℝ)) (fun k st ↦ next k st) k
+  set pk := fun k ↦ (state k).1 with pk_def
+  set Sk := fun k ↦ (state k).2 with Sk_def
+  have hpk0 : pk 0 = 0 := rfl
+  have hSk0 : Sk 0 = 0 := rfl
+  have hpk_succ (k : ℕ) : pk (k + 1) = (hb_exceed (pk k) (Sk k + a (a_minus k : ℕ) - ↑k)).choose := rfl
+  have hSk_succ (k : ℕ) : Sk (k + 1) = Sk k + a (a_minus k : ℕ) +
+      ∑ i ∈ Finset.Ico (pk k) (pk (k + 1)), b i := rfl
+  -- p is strictly increasing
+  have hpk_lt (k : ℕ) : pk k < pk (k + 1) := by
+    rw [hpk_succ]; exact (hb_exceed (pk k) _).choose_spec.1
+  -- S(k+1) > k
+  have hSk_gt (k : ℕ) : Sk (k + 1) > ↑k := by
+    rw [hSk_succ, hpk_succ]
+    have := (hb_exceed (pk k) (Sk k + a (a_minus k : ℕ) - ↑k)).choose_spec.2
+    linarith
+  -- pk is monotone
+  have hpk_mono : StrictMono pk := strictMono_nat_of_lt_succ hpk_lt
+  -- Round k starts at position rstart(k) = k + pk(k)
+  set rstart := fun k ↦ k + pk k with rstart_def
+  have hrstart_lt (k : ℕ) : rstart k < rstart (k + 1) := by
+    simp only [rstart_def]; have := hpk_lt k; omega
+  have hrstart_mono : StrictMono rstart := strictMono_nat_of_lt_succ hrstart_lt
+  -- For any j, find the round: largest k with rstart(k) ≤ j
+  have hround_exists (j : ℕ) : ∃ k, j < rstart (k + 1) := by
+    exact ⟨j, by simp [rstart_def]; omega⟩
+  let round : ℕ → ℕ := fun j ↦ Nat.find (hround_exists j)
+  -- Within round k: position rstart(k) → a_minus(k),
+  -- positions rstart(k)+1+i → a_plus(pk(k)+i)
+  let f : ℕ → ℕ := fun j ↦
+    let k := round j
+    let offset := j - rstart k
+    if offset = 0 then (a_minus k : ℕ) else (a_plus (pk k + offset - 1) : ℕ)
+  -- Basic properties of round
+  have hround_spec (j : ℕ) : j < rstart (round j + 1) :=
+    Nat.find_spec (hround_exists j)
+  have hround_min (j : ℕ) : ∀ k < round j, ¬(j < rstart (k + 1)) :=
+    fun k hk ↦ Nat.find_min (hround_exists j) hk
+  have hround_ge (j : ℕ) : rstart (round j) ≤ j := by
+    by_contra h; push_neg at h
+    rcases Nat.eq_zero_or_pos (round j) with h0 | h0
+    · simp [rstart_def, h0, hpk0] at h
+    · have := hround_min j (round j - 1) (by omega)
+      simp only [show round j - 1 + 1 = round j by omega] at this
+      exact this h
+  -- round j is the unique k with rstart k ≤ j < rstart (k+1)
+  have hround_eq (j k : ℕ) (h1 : rstart k ≤ j) (h2 : j < rstart (k + 1)) :
+      round j = k := by
+    have hle : round j ≤ k := by
+      by_contra hc; push_neg at hc
+      have : rstart (k + 1) ≤ rstart (round j) := hrstart_mono.monotone (by omega)
+      linarith [hround_ge j]
+    have hge : k ≤ round j := by
+      by_contra hc; push_neg at hc
+      have : rstart (round j + 1) ≤ rstart k := hrstart_mono.monotone (by omega)
+      linarith [hround_spec j]
+    omega
+  -- offset within round
+  have hoffset_bound (j : ℕ) : j - rstart (round j) < pk (round j + 1) - pk (round j) + 1 := by
+    have := hround_spec j; simp [rstart_def] at this ⊢; omega
+  -- f is injective
+  have hf_inj : Function.Injective f := by
+    intro j1 j2 hfeq
+    simp only [f] at hfeq
+    have hge1 := hround_ge j1; have hge2 := hround_ge j2
+    by_cases ho1 : j1 - rstart (round j1) = 0 <;> by_cases ho2 : j2 - rstart (round j2) = 0
+    · -- both at offset 0: a_minus(round j1) = a_minus(round j2)
+      simp only [ho1, ho2, ↓reduceIte] at hfeq
+      have hk := ha_minus_bij.1 (Subtype.coe_injective hfeq)
+      rw [hk] at ho1 hge1; omega
+    · -- offset 0 vs offset > 0: a_minus vs a_plus, impossible
+      simp only [ho1, ho2, ↓reduceIte] at hfeq
+      have : (a_minus (round j1) : ℕ) ∈ A_plus :=
+        hfeq ▸ (a_plus (pk (round j2) + (j2 - rstart (round j2)) - 1)).2
+      exact absurd (ha_minus_neg _) (not_lt.mpr this)
+    · simp only [ho1, ho2, ↓reduceIte] at hfeq
+      have : (a_plus (pk (round j1) + (j1 - rstart (round j1)) - 1) : ℕ) ∈ A_minus :=
+        hfeq ▸ (a_minus (round j2)).2
+      exact absurd (ha_plus_nn _) (not_le.mpr this)
+    · -- both at offset > 0: a_plus indices must match
+      simp only [ho1, ho2, ↓reduceIte] at hfeq
+      have hidx := ha_plus_bij.1 (Subtype.coe_injective hfeq)
+      have hob1 := hoffset_bound j1
+      have hob2 := hoffset_bound j2
+      -- if rounds differ, pk ranges are disjoint → contradiction
+      have hk : round j1 = round j2 := by
+        by_contra hne
+        rcases Ne.lt_or_gt hne with h12 | h12
+        · have hle : pk (round j1 + 1) ≤ pk (round j2) :=
+            hpk_mono.monotone (by omega : round j1 + 1 ≤ round j2)
+          omega
+        · have hle : pk (round j2 + 1) ≤ pk (round j1) :=
+            hpk_mono.monotone (by omega : round j2 + 1 ≤ round j1)
+          omega
+      rw [hk] at ho1 hge1 hidx hob1; omega
+  -- f is surjective: every n is either a_minus(k) or a_plus(i)
+  have hf_surj : Function.Surjective f := by
+    intro n
+    rcases le_or_gt 0 (a n) with hn | hn
+    · -- n ∈ A_plus, so n = a_plus(i) for some i
+      have hmem : n ∈ A_plus := hn
+      obtain ⟨i, hi⟩ := ha_plus_bij.2 ⟨n, hmem⟩
+      -- Find k such that pk(k) ≤ i < pk(k+1)
+      have hpk_id_le : ∀ n, n ≤ pk n := hpk_mono.id_le
+      have hk_exists : ∃ k, i < pk (k + 1) := ⟨i, by linarith [hpk_id_le (i + 1)]⟩
+      set k := Nat.find hk_exists
+      have hi_lt : i < pk (k + 1) := Nat.find_spec hk_exists
+      have hi_ge : pk k ≤ i := by
+        rcases Nat.eq_zero_or_pos k with hk0 | hk0
+        · simp [hk0, hpk0]
+        · by_contra h; push_neg at h
+          have := Nat.find_min hk_exists (show k - 1 < k by omega)
+          push_neg at this
+          rw [show k - 1 + 1 = k by omega] at this
+          omega
+      -- j = rstart(k) + (i - pk(k)) + 1 is the position
+      set offset := i - pk k + 1
+      refine ⟨rstart k + offset, ?_⟩
+      simp only [f]
+      have hrj : round (rstart k + offset) = k :=
+        hround_eq _ k (by omega) (by simp [rstart_def, offset]; omega)
+      simp only [hrj, show rstart k + offset - rstart k = offset from by omega]
+      simp only [show (offset = 0) = False from by simp [offset] , ↓reduceIte]
+      rw [show pk k + offset - 1 = i from by simp [offset]; omega]
+      exact congrArg Subtype.val hi
+    · -- n ∈ A_minus, so n = a_minus(k) for some k
+      have hmem : n ∈ A_minus := hn
+      obtain ⟨k, hk⟩ := ha_minus_bij.2 ⟨n, hmem⟩
+      refine ⟨rstart k, ?_⟩
+      simp only [f]
+      have hrk : round (rstart k) = k := hround_eq _ k le_rfl (hrstart_lt k)
+      simp only [hrk, show rstart k - rstart k = 0 from by omega, ↓reduceIte]
+      exact congrArg Subtype.val hk
+  -- f at positions within round k
+  have hf_at_rstart (k : ℕ) : f (rstart k) = (a_minus k : ℕ) := by
+    simp only [f]
+    rw [hround_eq _ k le_rfl (hrstart_lt k)]
+    simp
+  have hf_at_offset (k d : ℕ) (hd : 0 < d) (hd' : d < pk (k + 1) - pk k + 1) :
+      f (rstart k + d) = (a_plus (pk k + d - 1) : ℕ) := by
+    simp only [f]
+    rw [hround_eq _ k (by omega) (by simp [rstart_def]; omega)]
+    rw [show rstart k + d - rstart k = d from by omega]
+    simp only [show d ≠ 0 from by omega, ↓reduceIte]
+  -- Partial sum of a ∘ f over a full round k equals Sk(k+1) - Sk(k)
+  -- i.e. ∑_{j ∈ [rstart k, rstart(k+1))} a(f(j)) = a(a_minus k) + ∑_{i ∈ [pk k, pk(k+1))} b(i)
+  have hpartial_round (k : ℕ) :
+      ∑ j ∈ Finset.Ico (rstart k) (rstart (k + 1)),
+        (a ∘ f) j = a (a_minus k : ℕ) + ∑ i ∈ Finset.Ico (pk k) (pk (k + 1)), b i := by
+    have hlen := hrstart_lt k
+    have hpk := hpk_lt k
+    -- Split Ico at rstart k: first elem + rest
+    rw [show Finset.Ico (rstart k) (rstart (k + 1)) =
+      Finset.Ico (rstart k) (rstart k + 1) ∪ Finset.Ico (rstart k + 1) (rstart (k + 1)) from by
+        rw [Finset.Ico_union_Ico_eq_Ico (by omega) (by omega)]]
+    rw [Finset.sum_union (by
+      rw [Finset.disjoint_left]; intro j hj1 hj2
+      simp [Finset.mem_Ico] at hj1 hj2; omega)]
+    rw [show Finset.Ico (rstart k) (rstart k + 1) = {rstart k} from by ext; simp]
+    simp only [Finset.sum_singleton, Function.comp, hf_at_rstart]
+    congr 1
+    -- ∑ over [rstart k+1, rstart(k+1)) = ∑ over [pk k, pk(k+1)) of b, via j ↦ pk k + (j - rstart k - 1)
+    apply Finset.sum_nbij (fun j ↦ pk k + (j - (rstart k + 1)))
+    · intro j hj
+      simp only [Finset.mem_Ico] at hj ⊢
+      constructor
+      · omega
+      · have : rstart (k + 1) = rstart k + 1 + (pk (k + 1) - pk k) := by
+          simp [rstart_def]; omega
+        omega
+    · intro j1 hj1 j2 hj2 h
+      simp only [Finset.mem_coe, Finset.mem_Ico] at hj1 hj2
+      dsimp at h; omega
+    · intro i hi
+      simp only [Finset.mem_coe, Finset.mem_Ico] at hi ⊢
+      refine ⟨rstart k + 1 + (i - pk k), ?_, by dsimp; omega⟩
+      simp only [Finset.mem_coe, Finset.mem_Ico]
+      have : rstart (k + 1) = rstart k + 1 + (pk (k + 1) - pk k) := by
+        simp [rstart_def]; omega
+      omega
+    · intro j hj
+      simp only [Finset.mem_Ico] at hj
+      have hrst : rstart (k + 1) = rstart k + 1 + (pk (k + 1) - pk k) := by
+        simp [rstart_def]; omega
+      conv_lhs => rw [show j = rstart k + (j - rstart k) from by omega]
+      rw [hf_at_offset k (j - rstart k) (by omega) (by omega)]
+      -- a ↑(a_plus (pk k + (j - rstart k) - 1)) = b (pk k + (j - (rstart k + 1)))
+      -- b i = a ↑(a_plus i), so suffices pk k + (j - rstart k) - 1 = pk k + (j - (rstart k + 1))
+      show a ↑(a_plus (pk k + (j - rstart k) - 1)) = b (pk k + (j - (rstart k + 1)))
+      dsimp [b]
+      have hj1 : j ≥ rstart k + 1 := hj.1
+      rw [show pk k + (j - rstart k) - 1 = pk k + (j - rstart k - 1) from by omega]
+      rw [show j - rstart k - 1 = j - (rstart k + 1) from by omega]
+  -- Partial sum at rstart(k) = Sk(k)
+  have hpartial_rstart : ∀ k, ∑ j ∈ Finset.range (rstart k), (a ∘ f) j = Sk k := by
+    intro k; induction k with
+    | zero => simp [rstart_def, hpk0, hSk0]
+    | succ k ih =>
+      have hsplit : ∑ j ∈ Finset.range (rstart (k + 1)), (a ∘ f) j =
+          ∑ j ∈ Finset.range (rstart k), (a ∘ f) j +
+          ∑ j ∈ Finset.Ico (rstart k) (rstart (k + 1)), (a ∘ f) j := by
+        rw [← Finset.sum_range_add_sum_Ico _ (hrstart_lt k).le]
+      rw [hsplit, ih, hpartial_round, hSk_succ]; ring
+  -- At any position in round r, the partial sum ≥ Sk(r) + a(a_minus r)
+  have hpartial_lower (n : ℕ) :
+      ∑ j ∈ Finset.range (n + 1), (a ∘ f) j ≥
+        Sk (round n) + a (a_minus (round n) : ℕ) := by
+    have hge := hround_ge n
+    -- ∑ range(n+1) = ∑ range(rstart(round n)) + ∑ Ico(rstart(round n), n+1)
+    have hle : rstart (round n) ≤ n + 1 := by omega
+    rw [← Finset.sum_range_add_sum_Ico (a ∘ f) hle, hpartial_rstart]
+    -- Ico(rstart(round n), n+1) starts with a_minus, rest are nonneg a_plus terms
+    suffices h : ∑ j ∈ Finset.Ico (rstart (round n)) (n + 1), (a ∘ f) j ≥
+        a (a_minus (round n) : ℕ) by linarith
+    rw [show Finset.Ico (rstart (round n)) (n + 1) =
+      {rstart (round n)} ∪ Finset.Ico (rstart (round n) + 1) (n + 1) from by
+        ext j; simp [Finset.mem_Ico]; omega]
+    rw [Finset.sum_union (by
+      rw [Finset.disjoint_left]; intro j hj
+      simp only [Finset.mem_singleton] at hj; simp [Finset.mem_Ico, hj])]
+    simp only [Finset.sum_singleton, Function.comp, hf_at_rstart]
+    have hrest_nn : ∑ j ∈ Finset.Ico (rstart (round n) + 1) (n + 1), (a ∘ f) j ≥ 0 := by
+      apply Finset.sum_nonneg; intro j hj
+      simp only [Finset.mem_Ico] at hj
+      have hlt := hround_spec n
+      have hj_eq : j = rstart (round n) + (j - rstart (round n)) := by omega
+      have hoff_bound : j - rstart (round n) < pk (round n + 1) - pk (round n) + 1 := by
+        have hlt' := hround_spec n
+        simp only [rstart_def] at hlt' hj ⊢; omega
+      rw [Function.comp, hj_eq, hf_at_offset (round n) (j - rstart (round n)) (by omega) hoff_bound]
+      exact ha_plus_nn _
+    simp only [Function.comp] at hrest_nn; linarith
+  -- Sk(k) > k - 1 for all k
+  have hSk_lower : ∀ k : ℕ, Sk k ≥ (k : ℝ) - 1 := by
+    intro k; cases k with
+    | zero => simp [hSk0]
+    | succ k => have := hSk_gt k; push_cast at this ⊢; linarith
+  -- a(a_minus k) → 0
+  have ha_minus_decay : Filter.Tendsto (fun k ↦ a (a_minus k : ℕ)) Filter.atTop (nhds 0) := by
+    have hdecay := decay_of_converges ha
+    -- Series.seq n = a n.toNat for n ≥ 0, so a n → 0 as n : ℕ → ∞
+    have hdecay' : Filter.Tendsto (fun n : ℕ ↦ a n) Filter.atTop (nhds 0) := by
+      have hnat_tendsto : Filter.Tendsto (fun n : ℕ ↦ (n : ℤ)) Filter.atTop Filter.atTop := by
+        rw [Filter.tendsto_atTop_atTop]; intro b; use b.toNat; intro n hn; omega
+      have : (fun n : ℕ ↦ a n) = (fun n : ℕ ↦ (a:Series).seq (n : ℤ)) := by
+        ext n; simp [show (n:ℤ) ≥ 0 from by omega]
+      rw [this]; exact hdecay.comp hnat_tendsto
+    have ha_minus_tendsto : Filter.Tendsto (fun k ↦ (a_minus k : ℕ)) Filter.atTop Filter.atTop := by
+      rw [Filter.tendsto_atTop_atTop]
+      intro n; use n; intro m hm; exact le_trans hm (StrictMono.id_le ha_minus_mono m)
+    exact hdecay'.comp ha_minus_tendsto
+  have partial_eq := partial_eq_sum_range (a := a ∘ f)
+  -- Divergence
+  have hf_div : atTop.Tendsto (fun N ↦ ((a ∘ f:Series).partial N : EReal)) (nhds ⊤) := by
+    rw [EReal.tendsto_coe_nhds_top_iff, Filter.tendsto_atTop_atTop]
+    intro M
+    -- a(a_minus k) → 0, so eventually a(a_minus k) > -1
+    have h1 := Metric.tendsto_nhds.mp ha_minus_decay 1 one_pos
+    rw [Filter.eventually_atTop] at h1
+    obtain ⟨K₀, hK₀'⟩ := h1
+    have hK₀ : ∀ k ≥ K₀, a (a_minus k : ℕ) > -1 := by
+      intro k hk; have := hK₀' k hk; rw [Real.dist_eq, sub_zero] at this
+      linarith [(abs_lt.mp this).1]
+    -- Choose k large enough that k - 2 > M
+    obtain ⟨K₁, hK₁⟩ : ∃ K₁ : ℕ, (K₁ : ℝ) > M + 2 := ⟨⌈M + 3⌉₊, by
+      linarith [Nat.le_ceil (M + 3)]⟩
+    use (rstart (max K₀ K₁) : ℤ)
+    intro n hn
+    have hn_eq : n = (n.toNat : ℤ) := by omega
+    rw [hn_eq, partial_eq]
+    have hn' : n.toNat ≥ rstart (max K₀ K₁) := by omega
+    have hround_large : round n.toNat ≥ max K₀ K₁ := by
+      by_contra hc; push_neg at hc
+      have : rstart (round n.toNat + 1) ≤ rstart (max K₀ K₁) :=
+        hrstart_mono.monotone (by omega)
+      linarith [hround_spec n.toNat]
+    have hlow := hpartial_lower n.toNat
+    have hSk_low := hSk_lower (round n.toNat)
+    have ha_low := hK₀ (round n.toNat) (by omega)
+    have hround_ge_K₁ : (round n.toNat : ℝ) ≥ K₁ := by
+      exact_mod_cast le_trans (le_max_right K₀ K₁) hround_large
+    linarith
+  exact ⟨f, ⟨hf_inj, hf_surj⟩, hf_div⟩
+
+private theorem neg_series_eq (c : ℕ → ℝ) :
+    (fun n ↦ -c n : Series) = (-1 : ℝ) • (c:Series) := by
+  show Series.mk .. = Series.mk ..
+  congr 1; ext n; simp; omega
+
+private theorem neg_abs_series_eq (c : ℕ → ℝ) :
+    (fun n ↦ -c n : Series).abs = (c:Series).abs := by
+  show Series.mk .. = Series.mk ..
+  congr 1; ext n; simp; split_ifs <;> simp [abs_neg]
 
 theorem permute_diverges_of_divergent' {a: ℕ → ℝ} (ha: (a:Series).converges)
   (ha': ¬ (a:Series).absConverges)  :
   ∃ f : ℕ → ℕ,  Bijective f ∧ atTop.Tendsto (fun N ↦ ((a ∘ f:Series).partial N : EReal)) (nhds ⊥) := by
-  sorry
+  -- Apply the +∞ result to -a, then negate back
+  have ha'_conv : (fun n ↦ -a n : Series).converges := by
+    rw [neg_series_eq]; exact (Series.smul (c := -1) ha).1
+  have ha'_abs : ¬ (fun n ↦ -a n : Series).absConverges := by
+    intro h; apply ha'
+    show (a:Series).abs.converges
+    have h' : (fun n ↦ -a n : Series).abs.converges := h
+    rwa [neg_abs_series_eq] at h'
+  obtain ⟨f, hf_bij, hf_div⟩ :
+      ∃ f : ℕ → ℕ, Bijective f ∧
+        atTop.Tendsto (fun N ↦ (((fun n ↦ -a n) ∘ f : Series).partial N : EReal)) (nhds ⊤) :=
+    permute_diverges_of_divergent ha'_conv ha'_abs
+  refine ⟨f, hf_bij, ?_⟩
+  rw [EReal.tendsto_coe_nhds_bot_iff]
+  rw [EReal.tendsto_coe_nhds_top_iff] at hf_div
+  rw [← Filter.tendsto_neg_atTop_iff]
+  exact hf_div.congr fun N ↦ by
+    simp only [Series.partial, Function.comp]
+    conv_lhs => arg 2; ext x; rw [show (if x ≥ 0 then -a (f x.toNat) else 0) =
+      -(if x ≥ 0 then a (f x.toNat) else 0) from by split_ifs <;> simp]
+    rw [Finset.sum_neg_distrib]
 
 end Chapter8

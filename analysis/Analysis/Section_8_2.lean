@@ -1037,51 +1037,7 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
     rcases Ne.lt_or_gt hne with h | h
     · have := hn'_ne j ⟨i, h⟩; simp at this; exact this hij.symm
     · have := hn'_ne i ⟨j, h⟩; simp at this; exact this hij
-  have h_case_I : Infinite { j | ∑ i:Fin j, a (n' i) ≥ L } := by
-    -- If finitely many, eventually ∑ < L so we always pick from A_plus (nonneg terms).
-    rw [Set.infinite_coe_iff]; intro hfin
-    obtain ⟨J, hJ⟩ := hfin.bddAbove
-    have hlt : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) < L := by
-      intro j hj; by_contra h; push_neg at h
-      exact absurd (hJ h) (by omega)
-    have hplus : ∀ j ≥ J + 1, n' j ∈ A_plus := by
-      intro j hj; have := hn'_mem j
-      simp [hlt j hj] at this; exact this
-    have hcover : ∀ m ∈ A_plus, ∃ j, n' j = m :=
-      cover_of_min_injective (J := J + 1) hn'_inj
-        (fun j hj ↦ by rw [hn' j]; simp [hlt j hj])
-        (fun j ↦ hn'_nonempty_plus j)
-    -- The sum of A_plus terms in the partial sums is bounded → contradicts h1
-    apply h1
-    have hCI : CountablyInfinite A_plus := (CountablyInfinite.iff' _).mpr ⟨inferInstance, hA_plus_inf⟩
-    rw [← AbsConvergent'.of_countable hCI, AbsConvergent'.iff_Summable]
-    -- Step 1: The tail fun k ↦ a(n'(k + (J+1))) is summable (nonneg, bounded partial sums)
-    have htail : Summable (fun k ↦ a (n' (k + (J + 1)))) := by
-      apply summable_of_sum_range_le (c := L - ∑ i ∈ Finset.range (J + 1), a (n' i))
-        (fun k ↦ hplus (k + (J + 1)) (by omega))
-      intro N
-      -- ∑_{k<N} a(n'(k+J+1)) = ∑_{i<(J+1)+N} a(n'(i)) - ∑_{i<J+1} a(n'(i)) ≤ L - ∑_{i<J+1} a(n'(i))
-      have key : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) =
-          ∑ i ∈ Finset.range (J + 1), a (n' i) + ∑ i ∈ Finset.range N, a (n' (i + (J + 1))) := by
-        rw [Finset.sum_range_add]; congr 1; apply Finset.sum_congr rfl
-        intro i _; ring_nf
-      have hle' : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) < L := by
-        convert hlt ((J + 1) + N) (by omega) using 1
-        rw [← Finset.sum_range (n := (J + 1) + N) (f := fun i ↦ a (n' i))]
-      linarith
-    -- Step 2: max(a(n' k), 0) is summable, transfer to A_plus via comp_injective
-    have hfull : Summable (fun k : ℕ ↦ max (a (n' k)) 0) := by
-      apply Summable.comp_nat_add (k := J + 1)
-      exact htail.congr (fun k ↦ (max_eq_left (hplus (k + (J + 1)) (by omega))).symm)
-    choose g hg using fun m (hm : m ∈ A_plus) ↦ hcover m hm
-    have hg_inj : Function.Injective (fun x : A_plus ↦ g x.1 x.2) := by
-      intro ⟨x, hx⟩ ⟨y, hy⟩ h; ext
-      have : n' (g x hx) = n' (g y hy) := congrArg n' h
-      rwa [hg x hx, hg y hy] at this
-    exact (hfull.comp_injective hg_inj).of_nonneg_of_le
-      (fun ⟨_, hx⟩ ↦ hx)
-      (fun ⟨x, hx⟩ ↦ by show a x ≤ max (a (n' (g x hx))) 0; rw [hg x hx]; exact le_max_left _ _)
-  have h_case_II : Infinite { j | ∑ i:Fin j, a (n' i) < L } := by
+  have h_case_I : Infinite { j | ∑ i:Fin j, a (n' i) < L } := by
     rw [Set.infinite_coe_iff]; intro hfin
     obtain ⟨J, hJ⟩ := hfin.bddAbove
     have hge : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) ≥ L := by
@@ -1126,6 +1082,49 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
       (fun ⟨_, hx⟩ ↦ neg_nonneg.mpr hx.le)
       (fun ⟨x, hx⟩ ↦ by
         show -a x ≤ max (-(a (n' (g x hx)))) 0; rw [hg x hx]; exact le_max_left _ _)).of_neg
+  have h_case_II : Infinite { j | ∑ i:Fin j, a (n' i) ≥ L } := by
+    -- If finitely many, eventually ∑ < L so we always pick from A_plus (nonneg terms).
+    rw [Set.infinite_coe_iff]; intro hfin
+    obtain ⟨J, hJ⟩ := hfin.bddAbove
+    have hlt : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) < L := by
+      intro j hj; by_contra h; push_neg at h
+      exact absurd (hJ h) (by omega)
+    have hplus : ∀ j ≥ J + 1, n' j ∈ A_plus := by
+      intro j hj; have := hn'_mem j
+      simp [hlt j hj] at this; exact this
+    have hcover : ∀ m ∈ A_plus, ∃ j, n' j = m :=
+      cover_of_min_injective (J := J + 1) hn'_inj
+        (fun j hj ↦ by rw [hn' j]; simp [hlt j hj])
+        (fun j ↦ hn'_nonempty_plus j)
+    -- The sum of A_plus terms in the partial sums is bounded → contradicts h1
+    apply h1
+    have hCI : CountablyInfinite A_plus := (CountablyInfinite.iff' _).mpr ⟨inferInstance, hA_plus_inf⟩
+    rw [← AbsConvergent'.of_countable hCI, AbsConvergent'.iff_Summable]
+    -- Step 1: The tail fun k ↦ a(n'(k + (J+1))) is summable (nonneg, bounded partial sums)
+    have htail : Summable (fun k ↦ a (n' (k + (J + 1)))) := by
+      apply summable_of_sum_range_le (c := L - ∑ i ∈ Finset.range (J + 1), a (n' i))
+        (fun k ↦ hplus (k + (J + 1)) (by omega))
+      intro N
+      have key : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) =
+          ∑ i ∈ Finset.range (J + 1), a (n' i) + ∑ i ∈ Finset.range N, a (n' (i + (J + 1))) := by
+        rw [Finset.sum_range_add]; congr 1; apply Finset.sum_congr rfl
+        intro i _; ring_nf
+      have hle' : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) < L := by
+        convert hlt ((J + 1) + N) (by omega) using 1
+        rw [← Finset.sum_range (n := (J + 1) + N) (f := fun i ↦ a (n' i))]
+      linarith
+    -- Step 2: max(a(n' k), 0) is summable, transfer to A_plus via comp_injective
+    have hfull : Summable (fun k : ℕ ↦ max (a (n' k)) 0) := by
+      apply Summable.comp_nat_add (k := J + 1)
+      exact htail.congr (fun k ↦ (max_eq_left (hplus (k + (J + 1)) (by omega))).symm)
+    choose g hg using fun m (hm : m ∈ A_plus) ↦ hcover m hm
+    have hg_inj : Function.Injective (fun x : A_plus ↦ g x.1 x.2) := by
+      intro ⟨x, hx⟩ ⟨y, hy⟩ h; ext
+      have : n' (g x hx) = n' (g y hy) := congrArg n' h
+      rwa [hg x hx, hg y hy] at this
+    exact (hfull.comp_injective hg_inj).of_nonneg_of_le
+      (fun ⟨_, hx⟩ ↦ hx)
+      (fun ⟨x, hx⟩ ↦ by show a x ≤ max (a (n' (g x hx))) 0; rw [hg x hx]; exact le_max_left _ _)
   have hn'_surj : Surjective n' := by
     intro m; by_contra h; push_neg at h
     have hmem : m ∈ A_plus ∨ m ∈ A_minus := by
@@ -1169,7 +1168,7 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
     simp only [show (∑ i : Fin j, a (n' ↑i)) < L from hlt, ite_true] at this; exact this
   have hsum : (a ∘ n':Series).convergesTo L :=
     convergesTo_of_sign_control hconv hn'_sign_ge hn'_sign_lt
-      (Set.infinite_coe_iff.mp h_case_I) (Set.infinite_coe_iff.mp h_case_II)
+      (Set.infinite_coe_iff.mp h_case_II) (Set.infinite_coe_iff.mp h_case_I)
   exact ⟨n', ⟨hn'_inj, hn'_surj⟩, by convert hsum⟩
 
 /-- Exercise 8.2.6 -/

@@ -843,6 +843,148 @@ theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
     have h2 := other_summable_neg h1
     exact ha' (both_summable h2 h1)
 
+private theorem absConverges_of_eventually_constant_sign {a: ℕ → ℝ}
+    (ha: (a:Series).converges) (N₁ : ℕ)
+    (hsign : (∀ n ≥ N₁, a n < 0) ∨ (∀ n ≥ N₁, a n ≥ 0)) :
+    (a:Series).absConverges := by
+  rw [absConverges, converges_iff_tail_decay]
+  have ha_copy := ha; rw [converges_iff_tail_decay] at ha_copy
+  intro ε hε; obtain ⟨N₀, hN₀m, hN₀⟩ := ha_copy ε hε
+  refine ⟨max N₀ ↑N₁, by simp, fun p hp q hq ↦ ?_⟩
+  rcases hsign with hsign | hsign
+  · have : ∀ i ∈ Finset.Icc p q, (a:Series).abs.seq i = -(a:Series).seq i := by
+      intro i hi
+      have hi' := (Finset.mem_Icc.mp hi).1; have hge : i ≥ 0 := by omega
+      rw [Series.abs_seq, show (a:Series).seq i = a i.toNat from by simp [hge],
+        abs_of_neg (hsign i.toNat (by omega))]
+    rw [Finset.sum_congr rfl this, Finset.sum_neg_distrib, abs_neg]
+    exact hN₀ p (by omega) q (by omega)
+  · have : ∀ i ∈ Finset.Icc p q, (a:Series).abs.seq i = (a:Series).seq i := by
+      intro i hi
+      have hi' := (Finset.mem_Icc.mp hi).1; have hge : i ≥ 0 := by omega
+      rw [Series.abs_seq, show (a:Series).seq i = a i.toNat from by simp [hge],
+        abs_of_nonneg (hsign i.toNat (by omega))]
+    rw [Finset.sum_congr rfl this]
+    exact hN₀ p (by omega) q (by omega)
+
+private theorem infinite_sign_set_of_not_absConverges {a: ℕ → ℝ}
+    (ha: (a:Series).converges) (ha': ¬ (a:Series).absConverges) :
+    Infinite { n | a n ≥ 0 } ∧ Infinite { n | a n < 0 } := by
+  constructor <;> (rw [Set.infinite_coe_iff]; intro hfin; apply ha')
+  · obtain ⟨M, hM⟩ := hfin.bddAbove
+    exact absConverges_of_eventually_constant_sign ha (M + 1)
+      (Or.inl fun n hn ↦ by
+        by_contra h; push_neg at h
+        exact absurd (hM h) (by omega))
+  · obtain ⟨M, hM⟩ := hfin.bddAbove
+    exact absConverges_of_eventually_constant_sign ha (M + 1)
+      (Or.inr fun n hn ↦ by
+        by_contra h; push_neg at h
+        exact absurd (hM h) (by omega))
+
+private theorem infinite_available_set {S : Set ℕ} (hS : S.Infinite) (n' : ℕ → ℕ) (j : ℕ) :
+    Infinite { n ∈ S | ∀ i : Fin j, n ≠ n' i } := by
+  have hsub : S \ (n' '' (Finset.range j : Set ℕ)) ⊆
+      {n | n ∈ S ∧ ∀ i : Fin j, n ≠ n' i} := by
+    intro x ⟨hx, hne⟩
+    exact ⟨hx, fun i ↦ by intro h; exact hne ⟨i, Finset.mem_range.mpr i.isLt, h.symm⟩⟩
+  exact hS.diff (Set.Finite.image _ (Finset.finite_toSet _)) |>.mono hsub |>.to_subtype
+
+private theorem cover_of_min_injective {S : Set ℕ} {n' : ℕ → ℕ} {J : ℕ}
+    (hn'_inj : Injective n')
+    (hn'_eq : ∀ j ≥ J, n' j = Nat.min { n ∈ S | ∀ i : Fin j, n ≠ n' i })
+    (hne : ∀ j, { n ∈ S | ∀ i : Fin j, n ≠ n' i }.Nonempty) :
+    ∀ m ∈ S, ∃ j, n' j = m := by
+  intro m hm; by_contra h; push_neg at h
+  have : ∀ j ≥ J, n' j ≤ m := by
+    intro j hj; rw [hn'_eq j hj]
+    exact (Nat.min_spec (hne j)).2 m ⟨hm, fun i ↦ Ne.symm (h ↑i)⟩
+  exact not_injective_infinite_finite
+    (fun j : (Set.Ici J : Set ℕ) ↦ (⟨n' j, this j j.2⟩ : Set.Iic m))
+    (fun ⟨j₁, _⟩ ⟨j₂, _⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
+
+/-- Oscillation damping: if a rearranged series has terms → 0, and the sign of each term
+is controlled by whether the partial sum is above or below L, and both cases occur infinitely
+often, then the partial sums converge to L. -/
+private theorem convergesTo_of_sign_control {b : ℕ → ℝ} {L : ℝ}
+    (hconv : atTop.Tendsto b (nhds 0))
+    (h_sign_ge : ∀ j, (∑ i : Fin j, b i) ≥ L → b j < 0)
+    (h_sign_lt : ∀ j, (∑ i : Fin j, b i) < L → b j ≥ 0)
+    (h_inf_ge : {j | ∑ i : Fin j, b i ≥ L}.Infinite)
+    (h_inf_lt : {j | ∑ i : Fin j, b i < L}.Infinite) :
+    (b : Series).convergesTo L := by
+  set S := fun j ↦ ∑ i : Fin j, b i with S_def
+  suffices h : atTop.Tendsto S (nhds L) by
+    change atTop.Tendsto (b : Series).partial (nhds L)
+    rw [show (atTop : Filter ℤ) = Filter.map (Nat.cast : ℕ → ℤ) atTop
+      from Nat.map_cast_int_atTop.symm]
+    rw [Filter.tendsto_map'_iff]
+    suffices heq : (b : Series).partial ∘ (Nat.cast : ℕ → ℤ) = S ∘ (· + 1) by
+      rw [heq]; exact h.comp (Filter.tendsto_atTop_atTop.mpr fun n ↦ ⟨n, fun m hm ↦ by omega⟩)
+    ext N; simp only [Function.comp, Series.partial, S_def]
+    have : ∀ x ∈ Finset.Icc (0 : ℤ) (↑N : ℤ), (if x ≥ 0 then b x.toNat else 0) = b x.toNat := by
+      intro x hx; simp [(Finset.mem_Icc.mp hx).1]
+    rw [Finset.sum_congr rfl this]
+    rw [show Finset.Icc (0 : ℤ) (↑N : ℤ) = (Finset.range (N + 1)).image (Nat.cast) from by
+      ext x; simp [Finset.mem_Icc, Finset.mem_image, Finset.mem_range]; constructor
+      · intro ⟨h1, h2⟩; exact ⟨x.toNat, by omega, by omega⟩
+      · intro ⟨y, hy, hyx⟩; exact ⟨y, by omega, by omega⟩]
+    rw [Finset.sum_image (by intro a _ b _ h; omega)]
+    simp only [Int.toNat_natCast]
+    exact (Fin.sum_univ_eq_sum_range _ _).symm
+  rw [Metric.tendsto_atTop]; intro ε hε
+  obtain ⟨J, hJ⟩ := (Metric.tendsto_atTop.mp hconv) ε hε
+  have hterm : ∀ j ≥ J, |b j| < ε := by
+    intro j hj; specialize hJ j hj; rwa [dist_zero_right] at hJ
+  have hS_succ : ∀ j, S (j + 1) = S j + b j := by
+    intro j; simp [S_def, Fin.sum_univ_castSucc]
+  have hrec : ∀ j, |S (j + 1) - L| ≤ max (|S j - L|) (|b j|) := by
+    intro j; rw [hS_succ]
+    by_cases hge : S j ≥ L
+    · have hminus := h_sign_ge j hge
+      by_cases hge' : S j + b j ≥ L
+      · rw [abs_of_nonneg (by linarith), abs_of_nonneg (by linarith)]
+        exact le_max_of_le_left (by linarith)
+      · push_neg at hge'
+        rw [abs_of_nonpos (by linarith), abs_of_nonpos hminus.le]
+        exact le_max_of_le_right (by linarith)
+    · push_neg at hge; have := h_sign_lt j hge
+      by_cases hge' : S j + b j ≥ L
+      · rw [abs_of_nonneg (by linarith), abs_of_nonneg this]
+        exact le_max_of_le_right (by linarith)
+      · push_neg at hge'
+        rw [abs_of_nonpos (by linarith), abs_of_nonpos (by linarith)]
+        exact le_max_of_le_left (by linarith)
+  obtain ⟨j₁, hj₁_lt : S j₁ < L, hj₁_ge⟩ := h_inf_lt.exists_gt J
+  obtain ⟨j₂, hj₂_ge : S j₂ ≥ L, hj₂_ge'⟩ := h_inf_ge.exists_gt j₁
+  have : ∃ k, j₁ ≤ k ∧ k < j₂ ∧ S k < L ∧ S (k + 1) ≥ L := by
+    by_contra hall; push_neg at hall
+    have : ∀ k, j₁ ≤ k → k ≤ j₂ → S k < L := by
+      intro k hk1 hk2
+      induction k with
+      | zero => rcases Nat.eq_or_lt_of_le hk1 with h | h <;> [exact h ▸ hj₁_lt; omega]
+      | succ k ih =>
+        rcases Nat.eq_or_lt_of_le hk1 with h | h
+        · exact h ▸ hj₁_lt
+        · exact hall k (by omega) (by omega) (ih (by omega) (by omega))
+    exact absurd (this j₂ (by omega) le_rfl) (not_lt.mpr hj₂_ge)
+  obtain ⟨j₀, hj₀_ge₁, _, hj₀_lt, hj₀_ge'⟩ := this
+  have hj₀_ge : j₀ ≥ J := by omega
+  have hstart : |S (j₀ + 1) - L| < ε := by
+    have heq := hS_succ j₀
+    rw [abs_of_nonneg (by linarith [heq])]
+    have hnn := h_sign_lt j₀ hj₀_lt
+    calc S (j₀ + 1) - L = S j₀ + b j₀ - L := by linarith [heq]
+      _ ≤ b j₀ := by linarith
+      _ = |b j₀| := (abs_of_nonneg hnn).symm
+      _ < ε := hterm j₀ hj₀_ge
+  use j₀ + 1; intro n hn; rw [Real.dist_eq]
+  induction n, hn using Nat.le_induction with
+  | base => exact hstart
+  | succ n hn ih =>
+    calc |S (n + 1) - L| ≤ max (|S n - L|) (|b n|) := hrec n
+      _ < ε := max_lt ih (hterm n (by omega))
+
 /-- Theorem 8.2.8 (Riemann rearrangement theorem) / Exercise 8.2.5 -/
 theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
   (ha': ¬ (a:Series).absConverges) (L:ℝ) :
@@ -851,80 +993,29 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
   -- This proof is written to follow the structure of the original text.
   choose h1 h2 using divergent_parts_of_divergent ha ha'
   set A_plus := { n | a n ≥ 0 }
-  set A_minus := {n | a n < 0 }
+  set A_minus := { n | a n < 0 }
   have hdisj : Disjoint A_plus A_minus := by
     rw [Set.disjoint_iff_inter_eq_empty]; ext; simp [A_plus, A_minus]
   have hunion : A_plus ∪ A_minus = .univ := by
     ext; simp [A_plus, A_minus]; grind
-  have hA_plus_inf : Infinite A_plus := by
-    rw [Set.infinite_coe_iff]; intro hfin; apply ha'
-    -- If A_plus is finite, for large n, a n < 0, so |a n| = -a n
-    obtain ⟨N₁, hN₁⟩ : ∃ N₁ : ℕ, ∀ n ≥ N₁, a n < 0 := by
-      obtain ⟨M, hM⟩ := hfin.bddAbove
-      use M + 1; intro n hn
-      by_contra h; push_neg at h
-      have : n ∈ A_plus := h
-      exact absurd (hM this) (by omega)
-    rw [absConverges, converges_iff_tail_decay]
-    have ha_copy := ha; rw [converges_iff_tail_decay] at ha_copy
-    intro ε hε; obtain ⟨N₀, hN₀m, hN₀⟩ := ha_copy ε hε
-    refine ⟨max N₀ ↑N₁, by simp, fun p hp q hq ↦ ?_⟩
-    have key : ∀ i ∈ Finset.Icc p q, (a:Series).abs.seq i = -(a:Series).seq i := by
-      intro i hi
-      have hi' := (Finset.mem_Icc.mp hi).1
-      have hge : i ≥ 0 := by omega
-      rw [Series.abs_seq, show (a:Series).seq i = a i.toNat from by simp [hge],
-        abs_of_neg (hN₁ i.toNat (by omega))]
-    rw [show ∑ n ∈ Finset.Icc p q, (a:Series).abs.seq n =
-        ∑ n ∈ Finset.Icc p q, -(a:Series).seq n from Finset.sum_congr rfl key,
-      Finset.sum_neg_distrib, abs_neg]
-    exact hN₀ p (by omega) q (by omega)
-  have hA_minus_inf : Infinite A_minus := by
-    rw [Set.infinite_coe_iff]; intro hfin; apply ha'
-    obtain ⟨N₁, hN₁⟩ : ∃ N₁ : ℕ, ∀ n ≥ N₁, a n ≥ 0 := by
-      obtain ⟨M, hM⟩ := hfin.bddAbove
-      use M + 1; intro n hn
-      by_contra h; push_neg at h
-      have : n ∈ A_minus := h
-      exact absurd (hM this) (by omega)
-    rw [absConverges, converges_iff_tail_decay]
-    have ha_copy := ha; rw [converges_iff_tail_decay] at ha_copy
-    intro ε hε; obtain ⟨N₀, hN₀m, hN₀⟩ := ha_copy ε hε
-    refine ⟨max N₀ ↑N₁, by simp, fun p hp q hq ↦ ?_⟩
-    have key : ∀ i ∈ Finset.Icc p q, (a:Series).abs.seq i = (a:Series).seq i := by
-      intro i hi
-      have hi' := (Finset.mem_Icc.mp hi).1
-      have hge : i ≥ 0 := by omega
-      rw [Series.abs_seq, show (a:Series).seq i = a i.toNat from by simp [hge],
-        abs_of_nonneg (hN₁ i.toNat (by omega))]
-    rw [show ∑ n ∈ Finset.Icc p q, (a:Series).abs.seq n =
-        ∑ n ∈ Finset.Icc p q, (a:Series).seq n from Finset.sum_congr rfl key]
-    exact hN₀ p (by omega) q (by omega)
+  obtain ⟨hA_plus_inf, hA_minus_inf⟩ := infinite_sign_set_of_not_absConverges ha ha'
   obtain ⟨ a_plus, ha_plus_bij, ha_plus_mono ⟩ := (Nat.monotone_enum_of_infinite A_plus).exists
   obtain ⟨ a_minus, ha_minus_bij, ha_minus_mono ⟩ := (Nat.monotone_enum_of_infinite A_minus).exists
   let F : (n : ℕ) → ((m : ℕ) → m < n → ℕ) → ℕ :=
-    fun j n' ↦ if ∑ i:Fin j, a (n' i (by simp)) > L then
-      Nat.min { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i (by simp) }
-    else
+    fun j n' ↦ if ∑ i:Fin j, a (n' i (by simp)) < L then
       Nat.min { n ∈ A_plus | ∀ i:Fin j, n ≠ n' i (by simp) }
-  let n' : ℕ → ℕ := Nat.strongRec F
-  have hn' (j:ℕ) : n' j = if ∑ i:Fin j, a (n' i) > L then
-      Nat.min { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i }
     else
+      Nat.min { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i (by simp) }
+  let n' : ℕ → ℕ := Nat.strongRec F
+  have hn' (j:ℕ) : n' j = if ∑ i:Fin j, a (n' i) < L then
       Nat.min { n ∈ A_plus | ∀ i:Fin j, n ≠ n' i }
+    else
+      Nat.min { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i }
     := Nat.strongRec.eq_def _ j
-  have hn'_plus_inf (j:ℕ) : Infinite { n ∈ A_plus | ∀ i:Fin j, n ≠ n' i } := by
-    have hsub : A_plus \ (n' '' (Finset.range j : Set ℕ)) ⊆
-        {n | n ∈ A_plus ∧ ∀ i : Fin j, n ≠ n' i} := by
-      intro x ⟨hx, hne⟩; exact ⟨hx, fun i ↦ by intro h; exact hne ⟨i, Finset.mem_range.mpr i.isLt, h.symm⟩⟩
-    exact (Set.infinite_coe_iff.mp hA_plus_inf).diff
-      (Set.Finite.image _ (Finset.finite_toSet _)) |>.mono hsub |>.to_subtype
-  have hn'_minus_inf (j:ℕ) : Infinite { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i } := by
-    have hsub : A_minus \ (n' '' (Finset.range j : Set ℕ)) ⊆
-        {n | n ∈ A_minus ∧ ∀ i : Fin j, n ≠ n' i} := by
-      intro x ⟨hx, hne⟩; exact ⟨hx, fun i ↦ by intro h; exact hne ⟨i, Finset.mem_range.mpr i.isLt, h.symm⟩⟩
-    exact (Set.infinite_coe_iff.mp hA_minus_inf).diff
-      (Set.Finite.image _ (Finset.finite_toSet _)) |>.mono hsub |>.to_subtype
+  have hn'_plus_inf (j:ℕ) : Infinite { n ∈ A_plus | ∀ i:Fin j, n ≠ n' i } :=
+    infinite_available_set (Set.infinite_coe_iff.mp hA_plus_inf) n' j
+  have hn'_minus_inf (j:ℕ) : Infinite { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i } :=
+    infinite_available_set (Set.infinite_coe_iff.mp hA_minus_inf) n' j
   have hn'_nonempty_plus (j:ℕ) : { n ∈ A_plus | ∀ i:Fin j, n ≠ n' i }.Nonempty :=
     Set.Nonempty.of_subtype
   have hn'_nonempty_minus (j:ℕ) : { n ∈ A_minus | ∀ i:Fin j, n ≠ n' i }.Nonempty :=
@@ -933,48 +1024,33 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
     intro i
     rw [hn' j]
     split
-    · exact (Nat.min_spec (hn'_nonempty_minus j)).1.2 i
     · exact (Nat.min_spec (hn'_nonempty_plus j)).1.2 i
-  have hn'_mem (j:ℕ) : if ∑ i:Fin j, a (n' i) > L then n' j ∈ A_minus else n' j ∈ A_plus := by
+    · exact (Nat.min_spec (hn'_nonempty_minus j)).1.2 i
+  have hn'_mem (j:ℕ) : if ∑ i:Fin j, a (n' i) < L then n' j ∈ A_plus else n' j ∈ A_minus := by
     rw [hn' j]
     split
-    · exact (Nat.min_spec (hn'_nonempty_minus j)).1.1
     · exact (Nat.min_spec (hn'_nonempty_plus j)).1.1
+    · exact (Nat.min_spec (hn'_nonempty_minus j)).1.1
   have hn'_inj : Injective n' := by
     intro i j hij
     by_contra hne
     rcases Ne.lt_or_gt hne with h | h
     · have := hn'_ne j ⟨i, h⟩; simp at this; exact this hij.symm
     · have := hn'_ne i ⟨j, h⟩; simp at this; exact this hij
-  have h_case_I : Infinite { j | ∑ i:Fin j, a (n' i) > L } := by
-    -- If finitely many, eventually we always pick from A_plus (nonneg terms).
-    -- Partial sums nondecreasing and bounded ⟹ sum of positive parts converges ⟹ contradiction.
+  have h_case_I : Infinite { j | ∑ i:Fin j, a (n' i) ≥ L } := by
+    -- If finitely many, eventually ∑ < L so we always pick from A_plus (nonneg terms).
     rw [Set.infinite_coe_iff]; intro hfin
     obtain ⟨J, hJ⟩ := hfin.bddAbove
-    -- For j ≥ J+1, partial sums ≤ L so we pick from A_plus
-    have hle : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) ≤ L := by
+    have hlt : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) < L := by
       intro j hj; by_contra h; push_neg at h
       exact absurd (hJ h) (by omega)
     have hplus : ∀ j ≥ J + 1, n' j ∈ A_plus := by
       intro j hj; have := hn'_mem j
-      simp [show ¬ (∑ i : Fin j, a (n' i) > L) from not_lt.mpr (hle j hj)] at this
-      exact this
-    -- Every element of A_plus is in the range of n'
-    have hcover : ∀ m ∈ A_plus, ∃ j, n' j = m := by
-      intro m hm
-      by_contra h; push_neg at h
-      -- For j ≥ J+1, n'(j) = min of {n ∈ A_plus | n ≠ n'(i) ∀ i < j} and m is in that set
-      -- so n'(j) ≤ m. But n' is injective, giving infinitely many distinct values ≤ m.
-      have : ∀ j ≥ J + 1, n' j ≤ m := by
-        intro j hj
-        have := hn' j
-        simp [show ¬ (∑ i : Fin j, a (n' i) > L) from not_lt.mpr (hle j hj)] at this
-        rw [this]
-        exact (Nat.min_spec (hn'_nonempty_plus j)).2 m ⟨hm, fun i ↦ Ne.symm (h ↑i)⟩
-      -- n' maps {j ≥ J+1} injectively into {0,...,m}, impossible
-      exact not_injective_infinite_finite
-        (fun j : (Set.Ici (J + 1) : Set ℕ) ↦ (⟨n' j, this j j.2⟩ : Set.Iic m))
-        (fun ⟨j₁, h₁⟩ ⟨j₂, h₂⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
+      simp [hlt j hj] at this; exact this
+    have hcover : ∀ m ∈ A_plus, ∃ j, n' j = m :=
+      cover_of_min_injective (J := J + 1) hn'_inj
+        (fun j hj ↦ by rw [hn' j]; simp [hlt j hj])
+        (fun j ↦ hn'_nonempty_plus j)
     -- The sum of A_plus terms in the partial sums is bounded → contradicts h1
     apply h1
     have hCI : CountablyInfinite A_plus := (CountablyInfinite.iff' _).mpr ⟨inferInstance, hA_plus_inf⟩
@@ -989,8 +1065,8 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
           ∑ i ∈ Finset.range (J + 1), a (n' i) + ∑ i ∈ Finset.range N, a (n' (i + (J + 1))) := by
         rw [Finset.sum_range_add]; congr 1; apply Finset.sum_congr rfl
         intro i _; ring_nf
-      have hle' : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) ≤ L := by
-        convert hle ((J + 1) + N) (by omega) using 1
+      have hle' : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) < L := by
+        convert hlt ((J + 1) + N) (by omega) using 1
         rw [← Finset.sum_range (n := (J + 1) + N) (f := fun i ↦ a (n' i))]
       linarith
     -- Step 2: max(a(n' k), 0) is summable, transfer to A_plus via comp_injective
@@ -1005,26 +1081,21 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
     exact (hfull.comp_injective hg_inj).of_nonneg_of_le
       (fun ⟨_, hx⟩ ↦ hx)
       (fun ⟨x, hx⟩ ↦ by show a x ≤ max (a (n' (g x hx))) 0; rw [hg x hx]; exact le_max_left _ _)
-  have h_case_II : Infinite { j | ∑ i:Fin j, a (n' i) ≤ L } := by
+  have h_case_II : Infinite { j | ∑ i:Fin j, a (n' i) < L } := by
     rw [Set.infinite_coe_iff]; intro hfin
     obtain ⟨J, hJ⟩ := hfin.bddAbove
-    have hgt : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) > L := by
+    have hge : ∀ j ≥ J + 1, ∑ i : Fin j, a (n' i) ≥ L := by
       intro j hj; by_contra h; push_neg at h
       have : j ≤ J := hJ h
       omega
     have hminus : ∀ j ≥ J + 1, n' j ∈ A_minus := by
       intro j hj; have := hn'_mem j
-      simp [hgt j hj] at this; exact this
-    have hcover : ∀ m ∈ A_minus, ∃ j, n' j = m := by
-      intro m hm; by_contra h; push_neg at h
-      have : ∀ j ≥ J + 1, n' j ≤ m := by
-        intro j hj
-        have := hn' j
-        simp [hgt j hj] at this; rw [this]
-        exact (Nat.min_spec (hn'_nonempty_minus j)).2 m ⟨hm, fun i ↦ Ne.symm (h ↑i)⟩
-      exact not_injective_infinite_finite
-        (fun j : (Set.Ici (J + 1) : Set ℕ) ↦ (⟨n' j, this j j.2⟩ : Set.Iic m))
-        (fun ⟨j₁, h₁⟩ ⟨j₂, h₂⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
+      simp [show ¬ (∑ i : Fin j, a (n' i) < L) from not_lt.mpr (hge j hj)] at this
+      exact this
+    have hcover : ∀ m ∈ A_minus, ∃ j, n' j = m :=
+      cover_of_min_injective (J := J + 1) hn'_inj
+        (fun j hj ↦ by rw [hn' j]; simp [show ¬ (∑ i : Fin j, a (n' i) < L) from not_lt.mpr (hge j hj)])
+        (fun j ↦ hn'_nonempty_minus j)
     apply h2
     have hCI : CountablyInfinite A_minus := (CountablyInfinite.iff' _).mpr ⟨inferInstance, hA_minus_inf⟩
     rw [← AbsConvergent'.of_countable hCI, AbsConvergent'.iff_Summable]
@@ -1037,8 +1108,8 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
         have key : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) =
             ∑ i ∈ Finset.range (J + 1), a (n' i) + ∑ i ∈ Finset.range N, a (n' (i + (J + 1))) := by
           rw [Finset.sum_range_add]; congr 1; apply Finset.sum_congr rfl; intro i _; ring_nf
-        have hgt' : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) > L := by
-          convert hgt ((J + 1) + N) (by omega) using 1
+        have hge' : ∑ i ∈ Finset.range ((J + 1) + N), a (n' i) ≥ L := by
+          convert hge ((J + 1) + N) (by omega) using 1
           rw [← Finset.sum_range (n := (J + 1) + N) (f := fun i ↦ a (n' i))]
         rw [Finset.sum_neg_distrib]; linarith
       exact htail_neg.of_neg
@@ -1063,130 +1134,43 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
     -- When we pick from the set containing m, n'(j) ≤ m by minimality
     -- Infinitely many such j gives contradiction
     rcases hmem with hm | hm
-    · -- m ∈ A_plus: infinitely many j with ∑ ≤ L pick from A_plus
-      have hle : ∀ j, ¬(∑ i : Fin j, a (n' i) > L) → n' j ≤ m := by
+    · -- m ∈ A_plus: infinitely many j with ∑ < L pick from A_plus
+      have hle : ∀ j, (∑ i : Fin j, a (n' i) < L) → n' j ≤ m := by
         intro j hj
         have := hn' j; simp [hj] at this; rw [this]
         exact (Nat.min_spec (hn'_nonempty_plus j)).2 m ⟨hm, fun i ↦ Ne.symm (h ↑i)⟩
-      -- {j | ∑ ≤ L} is infinite (h_case_II), and n' maps it injectively into {0,...,m}
-      have hsub : {j | ∑ i : Fin j, a (n' i) ≤ L} ⊆ {j | n' j ≤ m} := by
-        intro j hj; exact hle j (not_lt.mpr hj)
+      have hsub : {j | ∑ i : Fin j, a (n' i) < L} ⊆ {j | n' j ≤ m} := by
+        intro j hj; exact hle j hj
       exact not_injective_infinite_finite
-        (fun j : {j | ∑ i : Fin j, a (n' i) ≤ L} ↦ (⟨n' j, hsub j.2⟩ : Set.Iic m))
+        (fun j : {j | ∑ i : Fin j, a (n' i) < L} ↦ (⟨n' j, hsub j.2⟩ : Set.Iic m))
         (fun ⟨j₁, _⟩ ⟨j₂, _⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
-    · -- m ∈ A_minus: infinitely many j with ∑ > L pick from A_minus
-      have hle : ∀ j, (∑ i : Fin j, a (n' i) > L) → n' j ≤ m := by
+    · -- m ∈ A_minus: infinitely many j with ∑ ≥ L pick from A_minus
+      have hle : ∀ j, ¬(∑ i : Fin j, a (n' i) < L) → n' j ≤ m := by
         intro j hj
         have := hn' j; simp [hj] at this; rw [this]
         exact (Nat.min_spec (hn'_nonempty_minus j)).2 m ⟨hm, fun i ↦ Ne.symm (h ↑i)⟩
-      have hsub : {j | ∑ i : Fin j, a (n' i) > L} ⊆ {j | n' j ≤ m} := by
-        intro j hj; exact hle j hj
+      have hsub : {j | ∑ i : Fin j, a (n' i) ≥ L} ⊆ {j | n' j ≤ m} := by
+        intro j hj; exact hle j (not_lt.mpr hj)
       exact not_injective_infinite_finite
-        (fun j : {j | ∑ i : Fin j, a (n' i) > L} ↦ (⟨n' j, hsub j.2⟩ : Set.Iic m))
+        (fun j : {j | ∑ i : Fin j, a (n' i) ≥ L} ↦ (⟨n' j, hsub j.2⟩ : Set.Iic m))
         (fun ⟨j₁, _⟩ ⟨j₂, _⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
-  have hn'_tendsto : atTop.Tendsto (Nat.cast ∘ n' : ℕ → ℤ) atTop :=
-    tendsto_natCast_atTop_atTop.comp (hn'_inj.nat_tendsto_atTop)
   have hconv : atTop.Tendsto (a ∘ n') (nhds 0) := by
-    have hdecay := decay_of_converges ha
-    -- a n → 0 as ℤ, compose with n' → ∞ to get a(n'(j)) → 0
+    have hn'_tendsto : atTop.Tendsto (Nat.cast ∘ n' : ℕ → ℤ) atTop :=
+      tendsto_natCast_atTop_atTop.comp (hn'_inj.nat_tendsto_atTop)
     have : atTop.Tendsto (fun j : ℕ ↦ (a : Series).seq (n' j : ℤ)) (nhds 0) :=
-      hdecay.comp hn'_tendsto
-    rw [show (fun j : ℕ ↦ (a : Series).seq (↑(n' j) : ℤ)) = a ∘ n' from by ext j; simp] at this
+      (decay_of_converges ha).comp hn'_tendsto
+    rwa [show (fun j : ℕ ↦ (a : Series).seq (↑(n' j) : ℤ)) = a ∘ n' from by ext j; simp] at this
+  have hn'_sign_ge : ∀ j, (∑ i : Fin j, a (n' i)) ≥ L → a (n' j) < 0 := by
+    intro j hge; have := hn'_mem j
+    simp only [show ¬((∑ i : Fin j, a (n' ↑i)) < L) from not_lt.mpr hge, ite_false] at this
     exact this
-  have hsum : (a ∘ n':Series).convergesTo L := by
-    set S := fun j ↦ ∑ i : Fin j, a (n' i) with S_def
-    -- Sign of n'(j) depends on whether S(j) > L
-    have hn'_sign : ∀ j, S j > L → a (n' j) < 0 := by
-      intro j hgt; have := hn'_mem j
-      simp only [show (∑ i : Fin j, a (n' ↑i) > L) = (S j > L) from rfl, hgt, ite_true] at this
-      exact this
-    have hn'_sign' : ∀ j, S j ≤ L → a (n' j) ≥ 0 := by
-      intro j hle; have := hn'_mem j
-      simp only [show (∑ i : Fin j, a (n' ↑i) > L) = (S j > L) from rfl,
-        show ¬(S j > L) from not_lt.mpr hle, ite_false] at this
-      exact this
-    suffices h : atTop.Tendsto S (nhds L) by
-      -- partial N = S(N+1) for N ≥ 0; use Tendsto.congr to transfer from S
-      change atTop.Tendsto (a ∘ n' : Series).partial (nhds L)
-      rw [show (atTop : Filter ℤ) = Filter.map (Nat.cast : ℕ → ℤ) atTop
-        from Nat.map_cast_int_atTop.symm]
-      rw [Filter.tendsto_map'_iff]
-      suffices heq : (a ∘ n' : Series).partial ∘ (Nat.cast : ℕ → ℤ) = S ∘ (· + 1) by
-        rw [heq]; exact h.comp (Filter.tendsto_atTop_atTop.mpr fun b ↦ ⟨b, fun n hn ↦ by omega⟩)
-      ext N; simp only [Function.comp, Series.partial, S_def]
-      have : ∀ x ∈ Finset.Icc (0 : ℤ) (↑N : ℤ), (if x ≥ 0 then a (n' x.toNat) else 0) = a (n' x.toNat) := by
-        intro x hx; simp [(Finset.mem_Icc.mp hx).1]
-      rw [Finset.sum_congr rfl this]
-      rw [show Finset.Icc (0 : ℤ) (↑N : ℤ) = (Finset.range (N + 1)).image (Nat.cast) from by
-        ext x; simp [Finset.mem_Icc, Finset.mem_image, Finset.mem_range]; constructor
-        · intro ⟨h1, h2⟩; exact ⟨x.toNat, by omega, by omega⟩
-        · intro ⟨y, hy, hyx⟩; exact ⟨y, by omega, by omega⟩]
-      rw [Finset.sum_image (by intro a _ b _ h; omega)]
-      simp only [Int.toNat_natCast]
-      exact (Fin.sum_univ_eq_sum_range _ _).symm
-    rw [Metric.tendsto_atTop]; intro ε hε
-    obtain ⟨J, hJ⟩ := (Metric.tendsto_atTop.mp hconv) ε hε
-    have hterm : ∀ j ≥ J, |a (n' j)| < ε := by
-      intro j hj; specialize hJ j hj; rwa [Function.comp, dist_zero_right] at hJ
-    have hS_succ : ∀ j, S (j + 1) = S j + a (n' j) := by
-      intro j; simp [S_def, Fin.sum_univ_castSucc]
-    -- Key recurrence: |S(j+1) - L| ≤ max(|S(j) - L|, |a(n'(j))|)
-    have hrec : ∀ j, |S (j + 1) - L| ≤ max (|S j - L|) (|a (n' j)|) := by
-      intro j; rw [hS_succ]
-      by_cases hgt : S j > L
-      · have hminus := hn'_sign j hgt
-        by_cases hgt' : S j + a (n' j) > L
-        · rw [abs_of_pos (by linarith), abs_of_pos (by linarith)]
-          exact le_max_of_le_left (by linarith)
-        · push_neg at hgt'
-          rw [abs_of_nonpos (by linarith), abs_of_nonpos hminus.le]
-          exact le_max_of_le_right (by linarith)
-      · push_neg at hgt; have := hn'_sign' j hgt
-        by_cases hgt' : S j + a (n' j) > L
-        · rw [abs_of_pos (by linarith), abs_of_nonneg this]
-          exact le_max_of_le_right (by linarith)
-        · push_neg at hgt'
-          rw [abs_of_nonpos (by linarith), abs_of_nonpos (by linarith)]
-          exact le_max_of_le_left (by linarith)
-    -- Find j₀ ≥ J where S transitions from ≤L to >L, giving |S(j₀+1) - L| < ε
-    -- Both {j | S j > L} and {j | S j ≤ L} are infinite, so transitions occur above J
-    have hI : {j | S j > L}.Infinite :=
-      Set.infinite_coe_iff.mp (by convert h_case_I using 1)
-    have hII : {j | S j ≤ L}.Infinite :=
-      Set.infinite_coe_iff.mp (by convert h_case_II using 1)
-    obtain ⟨j₁, hj₁_le : S j₁ ≤ L, hj₁_ge⟩ := hII.exists_gt J
-    obtain ⟨j₂, hj₂_gt : S j₂ > L, hj₂_ge⟩ := hI.exists_gt j₁
-    -- Between j₁ (S ≤ L) and j₂ (S > L), find transition point
-    have : ∃ k, j₁ ≤ k ∧ k < j₂ ∧ S k ≤ L ∧ S (k + 1) > L := by
-      by_contra hall; push_neg at hall
-      have : ∀ k, j₁ ≤ k → k ≤ j₂ → S k ≤ L := by
-        intro k hk1 hk2
-        induction k with
-        | zero => rcases Nat.eq_or_lt_of_le hk1 with h | h <;> [exact h ▸ hj₁_le; omega]
-        | succ k ih =>
-          rcases Nat.eq_or_lt_of_le hk1 with h | h
-          · exact h ▸ hj₁_le
-          · exact hall k (by omega) (by omega) (ih (by omega) (by omega))
-      exact absurd (this j₂ (by omega) le_rfl) (not_le.mpr hj₂_gt)
-    obtain ⟨j₀, hj₀_ge₁, _, hj₀_le, hj₀_gt⟩ := this
-    have hj₀_ge : j₀ ≥ J := by omega
-    have hstart : |S (j₀ + 1) - L| < ε := by
-      have heq := hS_succ j₀
-      rw [abs_of_pos (by linarith [heq])]
-      have hnn := hn'_sign' j₀ hj₀_le
-      calc S (j₀ + 1) - L = S j₀ + a (n' j₀) - L := by linarith [heq]
-        _ ≤ a (n' j₀) := by linarith
-        _ = |a (n' j₀)| := (abs_of_nonneg hnn).symm
-        _ < ε := hterm j₀ hj₀_ge
-    -- From j₀+1 onward, |S(j) - L| < ε by the recurrence
-    use j₀ + 1; intro n hn; rw [Real.dist_eq]
-    induction n, hn using Nat.le_induction with
-    | base => exact hstart
-    | succ n hn ih =>
-      calc |S (n + 1) - L| ≤ max (|S n - L|) (|a (n' n)|) := hrec n
-        _ < ε := max_lt ih (hterm n (by omega))
-  use n'
-  refine ⟨ ⟨ hn'_inj, hn'_surj ⟩, ?_ ⟩; convert hsum
+  have hn'_sign_lt : ∀ j, (∑ i : Fin j, a (n' i)) < L → a (n' j) ≥ 0 := by
+    intro j hlt; have := hn'_mem j
+    simp only [show (∑ i : Fin j, a (n' ↑i)) < L from hlt, ite_true] at this; exact this
+  have hsum : (a ∘ n':Series).convergesTo L :=
+    convergesTo_of_sign_control hconv hn'_sign_ge hn'_sign_lt
+      (Set.infinite_coe_iff.mp h_case_I) (Set.infinite_coe_iff.mp h_case_II)
+  exact ⟨n', ⟨hn'_inj, hn'_surj⟩, by convert hsum⟩
 
 /-- Exercise 8.2.6 -/
 theorem permute_diverges_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)

@@ -731,37 +731,19 @@ theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
   ¬ AbsConvergent (fun n : {n | a n ≥ 0} ↦ a n) ∧ ¬ AbsConvergent (fun n : {n | a n < 0} ↦ a n)
   := by
   -- Strategy: route through Mathlib's `Summable` (index-agnostic, no bijection needed).
-  -- We can't stay in `Series.converges` because `AbsConvergent` gives a *reindexed* series
-  -- `a ∘ g` whose partial sums don't align with the original — subtracting them is meaningless.
-  -- `Summable` avoids reindexing: we transfer to indicators, do arithmetic on `ℕ → ℝ`, then
-  -- convert back: AbsConvergent → Summable → indicator split → Summable a → absConverges.
-  -- Helper: AbsConvergent on a subtype of ℕ implies CountablyInfinite
   have hCI_of_abs {S : Set ℕ} : AbsConvergent (fun n : S ↦ a n) → CountablyInfinite S := by
     intro ⟨g, hg, _⟩
     have : Infinite S := Infinite.of_injective g hg.1
     exact (CountablyInfinite.iff' _).mpr ⟨inferInstance, this⟩
-  -- Step A: AbsConvergent on same-sign part ↔ Summable (via AbsConvergent' ↔ Summable)
   have abs_to_summable : ∀ {S : Set ℕ},
       AbsConvergent (fun n : S ↦ a n) → Summable (fun n : S ↦ a n) :=
     fun h ↦ (AbsConvergent'.iff_Summable _).mp ((AbsConvergent'.of_countable (hCI_of_abs h)).mpr h)
-  -- Step B: a converges + one part Summable → other part Summable
-  -- Bridge: bounded partial sums of a (from convergence)
-  have hbdd := Chapter6.Sequence.bounded_of_convergent
-    (a := ⟨0, (a:Series).partial, by intro n hn; simp [Series.partial, hn]⟩)
-    (by rw [Chapter6.Sequence.converges_iff_Tendsto']; exact ha)
-  obtain ⟨M, _, hM⟩ := hbdd
   have partial_eq : ∀ K : ℕ, (a:Series).partial (K : ℤ) = ∑ n ∈ Finset.range (K + 1), a n := by
     intro K
     show ∑ n ∈ Finset.Icc (0:ℤ) K, (if n ≥ 0 then a n.toNat else 0) =
       ∑ n ∈ Finset.range (K + 1), a n
     rw [Finset.Icc_eq_cast, Finset.sum_map]
     apply Finset.sum_congr (by ext; simp; omega) (fun n hn ↦ by simp [show (n:ℤ) ≥ 0 from by omega])
-  have hpartial : ∀ K : ℕ, |∑ n ∈ Finset.range (K + 1), a n| ≤ M := by
-    intro K; rw [← partial_eq]; exact hM (K : ℤ)
-  -- One part Summable → other part Summable, using a = pos_indicator + neg_indicator.
-  -- Summable indicator has convergent range sums; ha gives convergent range sums of a;
-  -- difference converges; nonpositive + convergent → Summable.
-  -- Extract Tendsto for range sums of a from conditional convergence
   have ha_tendsto : ∃ S, Filter.Tendsto (fun N ↦ ∑ i ∈ Finset.range N, a i)
       Filter.atTop (nhds S) := by
     obtain ⟨L, hL⟩ := (Chapter6.Sequence.converges_iff_Tendsto'
@@ -776,88 +758,65 @@ theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
       rw [show ((n - 1 : ℕ) : ℤ) = (n : ℤ) - 1 from by omega] at h1
       simp only [h1.symm]
       exact hN _ (by omega)⟩
-  have a_decomp : a = {n | a n ≥ 0}.indicator a + {n | a n < 0}.indicator a := by
-    ext n; simp only [Set.indicator, Pi.add_apply, Set.mem_setOf_eq]
-    by_cases h : a n ≥ 0 <;> simp [h, not_lt.mpr, lt_of_not_ge]
+  -- One indicator Summable + complement has constant sign → complement Summable
+  have summable_compl {S : Set ℕ} (hS : Summable (S.indicator a))
+      (hsign : (∀ n, 0 ≤ Sᶜ.indicator a n) ∨ (∀ n, Sᶜ.indicator a n ≤ 0)) :
+      Summable (Sᶜ.indicator a) := by
+    obtain ⟨L, hL⟩ := ha_tendsto
+    have hconv : Filter.Tendsto (fun N ↦ ∑ i ∈ Finset.range N, Sᶜ.indicator a i)
+        Filter.atTop (nhds (L - ∑' i, S.indicator a i)) := by
+      have : (fun N ↦ ∑ i ∈ Finset.range N, Sᶜ.indicator a i) =
+          (fun N ↦ ∑ i ∈ Finset.range N, a i - ∑ i ∈ Finset.range N, S.indicator a i) := by
+        ext N
+        have h := Finset.sum_congr (show Finset.range N = Finset.range N from rfl)
+          (fun n _ ↦ show a n = S.indicator a n + Sᶜ.indicator a n from by
+            by_cases hn : n ∈ S <;> simp [hn])
+        linarith [Finset.sum_add_distrib.symm.trans h.symm]
+      rw [this]; exact hL.sub hS.tendsto_sum_tsum_nat
+    rcases hsign with hnn | hnp
+    · apply summable_of_sum_range_le (c := L - ∑' i, S.indicator a i)
+      · exact hnn
+      · intro N
+        exact (isLUB_of_tendsto_atTop (fun m n hmn ↦ Finset.sum_le_sum_of_subset_of_nonneg
+          (Finset.range_mono hmn) (fun i _ _ ↦ hnn i)) hconv).1 ⟨N, rfl⟩
+    · rw [← summable_neg_iff]
+      apply summable_of_sum_range_le (c := -(L - ∑' i, S.indicator a i))
+      · intro n; exact neg_nonneg.mpr (hnp n)
+      · intro N
+        have hanti : Antitone (fun N ↦ ∑ i ∈ Finset.range N, Sᶜ.indicator a i) :=
+          fun m n hmn ↦ by
+            have := Finset.sum_le_sum_of_subset_of_nonneg (f := fun i ↦ -(Sᶜ.indicator a i))
+              (Finset.range_mono hmn) (fun i _ _ ↦ neg_nonneg.mpr (hnp i))
+            simp only [Finset.sum_neg_distrib, neg_le_neg_iff] at this; exact this
+        have := (isGLB_of_tendsto_atTop hanti hconv).1 ⟨N, rfl⟩
+        simp only [Finset.sum_neg_distrib]; linarith
+  have compl_eq : {n | a n ≥ 0}ᶜ = {n | a n < 0} := by ext; simp [not_le]
+  have compl_eq' : {n | a n < 0}ᶜ = {n | a n ≥ 0} := by ext; simp [not_lt]
   have other_summable_pos : Summable (fun n : {n | a n ≥ 0} ↦ a n) →
       Summable (fun n : {n | a n < 0} ↦ a n) := by
-    intro hpos
-    have hpos_ind := summable_subtype_iff_indicator.mp hpos
-    obtain ⟨S, hS⟩ := ha_tendsto
-    set Lp := ∑' i, {n | a n ≥ 0}.indicator a i
-    have hLp := hpos_ind.tendsto_sum_tsum_nat
-    -- neg indicator range sums = a range sums - pos indicator range sums → converge
-    have h_neg_tendsto : Filter.Tendsto
-        (fun N ↦ ∑ i ∈ Finset.range N, {n | a n < 0}.indicator a i)
-        Filter.atTop (nhds (S - Lp)) := by
-      have : (fun N ↦ ∑ i ∈ Finset.range N, {n | a n < 0}.indicator a i) =
-          (fun N ↦ ∑ i ∈ Finset.range N, a i - ∑ i ∈ Finset.range N, {n | a n ≥ 0}.indicator a i) := by
-        ext N
-        have h := Finset.sum_congr (show Finset.range N = Finset.range N from rfl)
-          (fun n _ ↦ show a n = {n | a n ≥ 0}.indicator a n + {n | a n < 0}.indicator a n
-            from congr_fun a_decomp n)
-        linarith [Finset.sum_add_distrib.symm.trans h.symm]
-      rw [this]; exact hS.sub hLp
-    -- neg indicator ≤ 0, so -neg indicator ≥ 0 with convergent partial sums → Summable
-    show Summable (a ∘ Subtype.val)
-    rw [summable_subtype_iff_indicator, ← summable_neg_iff]
-    apply summable_of_sum_range_le (c := -(S - Lp))
-    · intro n; simp only [neg_nonneg, Set.indicator_apply]
-      split_ifs with h <;> [exact le_of_lt h; exact le_refl _]
-    · intro N
-      -- neg indicator partial sums are antitone (each term ≤ 0)
-      have hanti : Antitone (fun N ↦ ∑ i ∈ Finset.range N, {n | a n < 0}.indicator a i) :=
-        fun m n hmn ↦ by
-          have := Finset.sum_le_sum_of_subset_of_nonneg (f := fun i ↦ -({n | a n < 0}.indicator a i))
-            (Finset.range_mono hmn) (fun i _ _ ↦ by
-              simp only [Set.indicator_apply, neg_nonneg]; split_ifs with h
-              · exact le_of_lt h
-              · exact le_refl _)
-          simp only [Finset.sum_neg_distrib, neg_le_neg_iff] at this; exact this
-      have hglb := isGLB_of_tendsto_atTop hanti h_neg_tendsto
-      have := hglb.1 ⟨N, rfl⟩
-      simp only [Finset.sum_neg_distrib]; linarith
+    intro hpos; show Summable (a ∘ Subtype.val)
+    rw [summable_subtype_iff_indicator, ← compl_eq]
+    exact summable_compl (summable_subtype_iff_indicator.mp hpos) (Or.inr fun n ↦ by
+      simp only [compl_eq, Set.indicator_apply, Set.mem_setOf_eq]
+      split_ifs with h <;> [exact le_of_lt h; exact le_refl _])
   have other_summable_neg : Summable (fun n : {n | a n < 0} ↦ a n) →
       Summable (fun n : {n | a n ≥ 0} ↦ a n) := by
-    intro hneg
-    have hneg_ind := summable_subtype_iff_indicator.mp hneg
-    obtain ⟨S, hS⟩ := ha_tendsto
-    set Ln := ∑' i, {n | a n < 0}.indicator a i
-    have hLn := hneg_ind.tendsto_sum_tsum_nat
-    have h_pos_tendsto : Filter.Tendsto
-        (fun N ↦ ∑ i ∈ Finset.range N, {n | a n ≥ 0}.indicator a i)
-        Filter.atTop (nhds (S - Ln)) := by
-      have : (fun N ↦ ∑ i ∈ Finset.range N, {n | a n ≥ 0}.indicator a i) =
-          (fun N ↦ ∑ i ∈ Finset.range N, a i - ∑ i ∈ Finset.range N, {n | a n < 0}.indicator a i) := by
-        ext N
-        have h := Finset.sum_congr (show Finset.range N = Finset.range N from rfl)
-          (fun n _ ↦ show a n = {n | a n ≥ 0}.indicator a n + {n | a n < 0}.indicator a n
-            from congr_fun a_decomp n)
-        linarith [Finset.sum_add_distrib.symm.trans h.symm]
-      rw [this]; exact hS.sub hLn
-    show Summable (a ∘ Subtype.val)
-    rw [summable_subtype_iff_indicator]
-    apply summable_of_sum_range_le (c := S - Ln)
-    · intro n; simp only [Set.indicator_apply]
-      split_ifs with h <;> [exact h; exact le_refl _]
-    · intro N
-      have hmono : Monotone (fun N ↦ ∑ i ∈ Finset.range N, {n | a n ≥ 0}.indicator a i) :=
-        fun m n hmn ↦ Finset.sum_le_sum_of_subset_of_nonneg (Finset.range_mono hmn)
-          (fun i _ _ ↦ by simp only [Set.indicator_apply]; split_ifs with h <;> [exact h; exact le_refl _])
-      exact (isLUB_of_tendsto_atTop hmono h_pos_tendsto).1 ⟨N, rfl⟩
-  -- Step C: both parts Summable → whole absConverges
+    intro hneg; show Summable (a ∘ Subtype.val)
+    rw [summable_subtype_iff_indicator, ← compl_eq']
+    exact summable_compl (summable_subtype_iff_indicator.mp hneg) (Or.inl fun n ↦ by
+      simp only [compl_eq', Set.indicator_apply, Set.mem_setOf_eq]
+      split_ifs with h <;> [exact h; exact le_refl _])
+  -- Both parts Summable → whole absConverges
   have both_summable : Summable (fun n : {n | a n ≥ 0} ↦ a n) →
       Summable (fun n : {n | a n < 0} ↦ a n) → (a:Series).absConverges := by
     intro hpos hneg
-    -- Summable on subtypes → Summable indicators → Summable a → Summable |a| → absConverges
     have h1 := summable_subtype_iff_indicator.mp hpos
     have h2 := summable_subtype_iff_indicator.mp hneg
     have ha_summable : Summable a := by
-      have : a = {n | a n ≥ 0}.indicator a + {n | a n < 0}.indicator a := by
+      have a_decomp : a = {n | a n ≥ 0}.indicator a + {n | a n < 0}.indicator a := by
         ext n; simp only [Set.indicator, Pi.add_apply, Set.mem_setOf_eq]
         by_cases h : a n ≥ 0 <;> simp [h, not_lt.mpr, lt_of_not_ge]
-      rw [this]; exact h1.add h2
-    -- Summable a → AbsConvergent' a → (a:Series).absConverges
+      rw [a_decomp]; exact h1.add h2
     have ⟨L, hL⟩ := (AbsConvergent'.iff_Summable a).mpr ha_summable
     have hL' : ∀ A : Finset ℕ, ∑ x ∈ A, |a x| ≤ L := fun A ↦ hL ⟨A, ⟨trivial, rfl⟩⟩
     rw [absConverges, converges_of_nonneg_iff (fun n ↦ by simp; split_ifs <;> simp)]

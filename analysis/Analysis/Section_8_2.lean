@@ -725,22 +725,12 @@ theorem Sum'.of_univ {X:Type} {f:X → ℝ} (hf: AbsConvergent' f) :
   Sum' (fun x: (.univ : Set X) ↦ f x) = Sum' f :=
   (of_comp hf ⟨Subtype.val_injective, fun x ↦ ⟨⟨x, Set.mem_univ _⟩, rfl⟩⟩).2.symm
 
-/-- Lemma 8.2.7 / Exercise 8.2.4 -/
-theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
-  (ha': ¬ (a:Series).absConverges) :
-  ¬ AbsConvergent (fun n : {n | a n ≥ 0} ↦ a n) ∧ ¬ AbsConvergent (fun n : {n | a n < 0} ↦ a n)
-  := by
-  -- Strategy: AbsConvergent → AbsConvergent' (index-agnostic) → Summable (for Mathlib API:
-  -- summable_of_sum_range_le, tendsto_sum_tsum_nat) → indicator arithmetic → absConverges.
-  -- The Summable detour is needed because AbsConvergent' lacks range-sum convergence lemmas.
-  -- The ℤ↔ℕ bridge (partial_eq / ha_tendsto) is the main boilerplate cost.
-  have hCI_of_abs {S : Set ℕ} : AbsConvergent (fun n : S ↦ a n) → CountablyInfinite S := by
-    intro ⟨g, hg, _⟩
-    have : Infinite S := Infinite.of_injective g hg.1
-    exact (CountablyInfinite.iff' _).mpr ⟨inferInstance, this⟩
-  have abs_to_summable : ∀ {S : Set ℕ},
-      AbsConvergent (fun n : S ↦ a n) → Summable (fun n : S ↦ a n) :=
-    fun h ↦ (AbsConvergent'.iff_Summable _).mp ((AbsConvergent'.of_countable (hCI_of_abs h)).mpr h)
+/-- If ∑ a converges and one sign-part is summable, then a absolutely converges.
+Factored out from Lemma 8.2.7 for reuse in the Riemann rearrangement theorem. -/
+private theorem absConverges_of_summable_sign_part {a : ℕ → ℝ}
+    (ha : (a:Series).converges)
+    (h : Summable (fun n : {n | a n ≥ 0} ↦ a n) ∨ Summable (fun n : {n | a n < 0} ↦ a n)) :
+    (a:Series).absConverges := by
   have partial_eq : ∀ K : ℕ, (a:Series).partial (K : ℤ) = ∑ n ∈ Finset.range (K + 1), a n := by
     intro K
     show ∑ n ∈ Finset.Icc (0:ℤ) K, (if n ≥ 0 then a n.toNat else 0) =
@@ -795,53 +785,59 @@ theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
         simp only [Finset.sum_neg_distrib]; linarith
   have compl_eq : {n | a n ≥ 0}ᶜ = {n | a n < 0} := by ext; simp [not_le]
   have compl_eq' : {n | a n < 0}ᶜ = {n | a n ≥ 0} := by ext; simp [not_lt]
-  have other_summable_pos : Summable (fun n : {n | a n ≥ 0} ↦ a n) →
+  -- Get both parts summable from one
+  have other_summable : Summable (fun n : {n | a n ≥ 0} ↦ a n) ∧
       Summable (fun n : {n | a n < 0} ↦ a n) := by
-    intro hpos; show Summable (a ∘ Subtype.val)
-    rw [summable_subtype_iff_indicator, ← compl_eq]
-    exact summable_compl (summable_subtype_iff_indicator.mp hpos) (Or.inr fun n ↦ by
-      simp only [compl_eq, Set.indicator_apply, Set.mem_setOf_eq]
-      split_ifs with h <;> [exact le_of_lt h; exact le_refl _])
-  have other_summable_neg : Summable (fun n : {n | a n < 0} ↦ a n) →
-      Summable (fun n : {n | a n ≥ 0} ↦ a n) := by
-    intro hneg; show Summable (a ∘ Subtype.val)
-    rw [summable_subtype_iff_indicator, ← compl_eq']
-    exact summable_compl (summable_subtype_iff_indicator.mp hneg) (Or.inl fun n ↦ by
-      simp only [compl_eq', Set.indicator_apply, Set.mem_setOf_eq]
-      split_ifs with h <;> [exact h; exact le_refl _])
+    rcases h with hpos | hneg
+    · exact ⟨hpos, by
+        show Summable (a ∘ Subtype.val)
+        rw [summable_subtype_iff_indicator, ← compl_eq]
+        exact summable_compl (summable_subtype_iff_indicator.mp hpos) (Or.inr fun n ↦ by
+          simp only [compl_eq, Set.indicator_apply, Set.mem_setOf_eq]
+          split_ifs with h <;> [exact le_of_lt h; exact le_refl _])⟩
+    · exact ⟨by
+        show Summable (a ∘ Subtype.val)
+        rw [summable_subtype_iff_indicator, ← compl_eq']
+        exact summable_compl (summable_subtype_iff_indicator.mp hneg) (Or.inl fun n ↦ by
+          simp only [compl_eq', Set.indicator_apply, Set.mem_setOf_eq]
+          split_ifs with h <;> [exact h; exact le_refl _]), hneg⟩
   -- Both parts Summable → whole absConverges
-  have both_summable : Summable (fun n : {n | a n ≥ 0} ↦ a n) →
-      Summable (fun n : {n | a n < 0} ↦ a n) → (a:Series).absConverges := by
-    intro hpos hneg
-    have h1 := summable_subtype_iff_indicator.mp hpos
-    have h2 := summable_subtype_iff_indicator.mp hneg
-    have ha_summable : Summable a := by
-      have a_decomp : a = {n | a n ≥ 0}.indicator a + {n | a n < 0}.indicator a := by
-        ext n; simp only [Set.indicator, Pi.add_apply, Set.mem_setOf_eq]
-        by_cases h : a n ≥ 0 <;> simp [h, not_lt.mpr, lt_of_not_ge]
-      rw [a_decomp]; exact h1.add h2
-    have ⟨L, hL⟩ := (AbsConvergent'.iff_Summable a).mpr ha_summable
-    have hL' : ∀ A : Finset ℕ, ∑ x ∈ A, |a x| ≤ L := fun A ↦ hL ⟨A, ⟨trivial, rfl⟩⟩
-    rw [absConverges, converges_of_nonneg_iff (fun n ↦ by simp; split_ifs <;> simp)]
-    use L; intro N
-    by_cases hN : N ≥ 0
-    · lift N to ℕ using hN
-      simp only [Series.partial, Finset.Icc_eq_cast]; rw [Finset.sum_map]
-      calc ∑ x ∈ Finset.Icc 0 N, (if (x:ℤ) ≥ 0 then |a (x:ℤ).toNat| else 0)
-          = ∑ x ∈ Finset.Icc 0 N, |a x| := by
-            apply Finset.sum_congr rfl; intro n hn; simp [show (n:ℤ) ≥ 0 from by omega]
-        _ ≤ L := hL' _
-    · rw [partial_of_lt (show N < (a:Series).abs.m from by simp; omega)]
-      exact le_trans (le_refl 0) (hL' ∅)
-  constructor
-  · intro hpos
-    have h1 := abs_to_summable hpos
-    have h2 := other_summable_pos h1
-    exact ha' (both_summable h1 h2)
-  · intro hneg
-    have h1 := abs_to_summable hneg
-    have h2 := other_summable_neg h1
-    exact ha' (both_summable h2 h1)
+  obtain ⟨hpos, hneg⟩ := other_summable
+  have h1 := summable_subtype_iff_indicator.mp hpos
+  have h2 := summable_subtype_iff_indicator.mp hneg
+  have ha_summable : Summable a := by
+    have a_decomp : a = {n | a n ≥ 0}.indicator a + {n | a n < 0}.indicator a := by
+      ext n; simp only [Set.indicator, Pi.add_apply, Set.mem_setOf_eq]
+      by_cases h : a n ≥ 0 <;> simp [h, not_lt.mpr, lt_of_not_ge]
+    rw [a_decomp]; exact h1.add h2
+  have ⟨L, hL⟩ := (AbsConvergent'.iff_Summable a).mpr ha_summable
+  have hL' : ∀ A : Finset ℕ, ∑ x ∈ A, |a x| ≤ L := fun A ↦ hL ⟨A, ⟨trivial, rfl⟩⟩
+  rw [absConverges, converges_of_nonneg_iff (fun n ↦ by simp; split_ifs <;> simp)]
+  use L; intro N
+  by_cases hN : N ≥ 0
+  · lift N to ℕ using hN
+    simp only [Series.partial, Finset.Icc_eq_cast]; rw [Finset.sum_map]
+    calc ∑ x ∈ Finset.Icc 0 N, (if (x:ℤ) ≥ 0 then |a (x:ℤ).toNat| else 0)
+        = ∑ x ∈ Finset.Icc 0 N, |a x| := by
+          apply Finset.sum_congr rfl; intro n hn; simp [show (n:ℤ) ≥ 0 from by omega]
+      _ ≤ L := hL' _
+  · rw [partial_of_lt (show N < (a:Series).abs.m from by simp; omega)]
+    exact le_trans (le_refl 0) (hL' ∅)
+
+/-- Lemma 8.2.7 / Exercise 8.2.4 -/
+theorem divergent_parts_of_divergent {a: ℕ → ℝ} (ha: (a:Series).converges)
+  (ha': ¬ (a:Series).absConverges) :
+  ¬ AbsConvergent (fun n : {n | a n ≥ 0} ↦ a n) ∧ ¬ AbsConvergent (fun n : {n | a n < 0} ↦ a n)
+  := by
+  have abs_to_summable : ∀ {S : Set ℕ},
+      AbsConvergent (fun n : S ↦ a n) → Summable (fun n : S ↦ a n) := by
+    intro S h
+    have hCI : CountablyInfinite S := by
+      obtain ⟨g, hg, _⟩ := h
+      exact (CountablyInfinite.iff' _).mpr ⟨inferInstance, Infinite.of_injective g hg.1⟩
+    exact (AbsConvergent'.iff_Summable _).mp ((AbsConvergent'.of_countable hCI).mpr h)
+  exact ⟨fun h ↦ ha' (absConverges_of_summable_sign_part ha (Or.inl (abs_to_summable h))),
+         fun h ↦ ha' (absConverges_of_summable_sign_part ha (Or.inr (abs_to_summable h)))⟩
 
 private theorem absConverges_of_eventually_constant_sign {a: ℕ → ℝ}
     (ha: (a:Series).converges) (N₁ : ℕ)
@@ -903,6 +899,31 @@ private theorem cover_of_min_injective {S : Set ℕ} {n' : ℕ → ℕ} {J : ℕ
     (fun j : (Set.Ici J : Set ℕ) ↦ (⟨n' j, this j j.2⟩ : Set.Iic m))
     (fun ⟨j₁, _⟩ ⟨j₂, _⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
 
+/-- Bridge between ℤ-indexed `Series.convergesTo` and ℕ-indexed `Fin` partial sums. -/
+private theorem Series.convergesTo_iff_tendsto_fin (b : ℕ → ℝ) (L : ℝ) :
+    (b : Series).convergesTo L ↔ atTop.Tendsto (fun j ↦ ∑ i : Fin j, b i) (nhds L) := by
+  have heq : (b : Series).partial ∘ (Nat.cast : ℕ → ℤ) =
+      (fun j ↦ ∑ i : Fin j, b i) ∘ (· + 1) := by
+    ext N; simp only [Function.comp, Series.partial]
+    have : ∀ x ∈ Finset.Icc (0 : ℤ) (↑N : ℤ),
+        (if x ≥ 0 then b x.toNat else 0) = b x.toNat := by
+      intro x hx; simp [(Finset.mem_Icc.mp hx).1]
+    rw [Finset.sum_congr rfl this,
+      show Finset.Icc (0 : ℤ) (↑N : ℤ) = (Finset.range (N + 1)).image Nat.cast from by
+        ext x; simp [Finset.mem_Icc, Finset.mem_image, Finset.mem_range]; constructor
+        · intro ⟨h1, h2⟩; exact ⟨x.toNat, by omega, by omega⟩
+        · intro ⟨y, hy, hyx⟩; exact ⟨y, by omega, by omega⟩,
+      Finset.sum_image (by intro a _ b _ h; omega)]
+    simp only [Int.toNat_natCast]
+    exact (Fin.sum_univ_eq_sum_range _ _).symm
+  change atTop.Tendsto (b : Series).partial (nhds L) ↔ _
+  rw [show (atTop : Filter ℤ) = Filter.map (Nat.cast : ℕ → ℤ) atTop
+    from Nat.map_cast_int_atTop.symm, Filter.tendsto_map'_iff, heq]
+  show Filter.map _ atTop ≤ _ ↔ Filter.map _ atTop ≤ _
+  rw [show Filter.map ((fun j ↦ ∑ i : Fin j, b i) ∘ (· + 1)) atTop =
+    Filter.map (fun j ↦ ∑ i : Fin j, b i) atTop from by
+    rw [← Filter.map_map]; congr 1; exact Filter.map_add_atTop_eq_nat 1]
+
 /-- Oscillation damping: if a rearranged series has terms → 0, and the sign of each term
 is controlled by whether the partial sum is above or below L, and both cases occur infinitely
 often, then the partial sums converge to L. -/
@@ -914,30 +935,16 @@ private theorem convergesTo_of_sign_control {b : ℕ → ℝ} {L : ℝ}
     (h_inf_lt : {j | ∑ i : Fin j, b i < L}.Infinite) :
     (b : Series).convergesTo L := by
   set S := fun j ↦ ∑ i : Fin j, b i with S_def
-  suffices h : atTop.Tendsto S (nhds L) by
-    change atTop.Tendsto (b : Series).partial (nhds L)
-    rw [show (atTop : Filter ℤ) = Filter.map (Nat.cast : ℕ → ℤ) atTop
-      from Nat.map_cast_int_atTop.symm]
-    rw [Filter.tendsto_map'_iff]
-    suffices heq : (b : Series).partial ∘ (Nat.cast : ℕ → ℤ) = S ∘ (· + 1) by
-      rw [heq]; exact h.comp (Filter.tendsto_atTop_atTop.mpr fun n ↦ ⟨n, fun m hm ↦ by omega⟩)
-    ext N; simp only [Function.comp, Series.partial, S_def]
-    have : ∀ x ∈ Finset.Icc (0 : ℤ) (↑N : ℤ), (if x ≥ 0 then b x.toNat else 0) = b x.toNat := by
-      intro x hx; simp [(Finset.mem_Icc.mp hx).1]
-    rw [Finset.sum_congr rfl this]
-    rw [show Finset.Icc (0 : ℤ) (↑N : ℤ) = (Finset.range (N + 1)).image (Nat.cast) from by
-      ext x; simp [Finset.mem_Icc, Finset.mem_image, Finset.mem_range]; constructor
-      · intro ⟨h1, h2⟩; exact ⟨x.toNat, by omega, by omega⟩
-      · intro ⟨y, hy, hyx⟩; exact ⟨y, by omega, by omega⟩]
-    rw [Finset.sum_image (by intro a _ b _ h; omega)]
-    simp only [Int.toNat_natCast]
-    exact (Fin.sum_univ_eq_sum_range _ _).symm
+  rw [Series.convergesTo_iff_tendsto_fin]
   rw [Metric.tendsto_atTop]; intro ε hε
+  -- Pick J so that |b j| < ε for all j ≥ J
   obtain ⟨J, hJ⟩ := (Metric.tendsto_atTop.mp hconv) ε hε
   have hterm : ∀ j ≥ J, |b j| < ε := by
     intro j hj; specialize hJ j hj; rwa [dist_zero_right] at hJ
   have hS_succ : ∀ j, S (j + 1) = S j + b j := by
     intro j; simp [S_def, Fin.sum_univ_castSucc]
+  -- Sign-controlled triangle inequality: since b j opposes (S j - L),
+  -- adding b j can't increase the distance beyond max(old distance, step size)
   have hrec : ∀ j, |S (j + 1) - L| ≤ max (|S j - L|) (|b j|) := by
     intro j; rw [hS_succ]
     by_cases hge : S j ≥ L
@@ -955,8 +962,10 @@ private theorem convergesTo_of_sign_control {b : ℕ → ℝ} {L : ℝ}
       · push_neg at hge'
         rw [abs_of_nonpos (by linarith), abs_of_nonpos (by linarith)]
         exact le_max_of_le_left (by linarith)
+  -- Find j₁ > J with S j₁ < L, then j₂ > j₁ with S j₂ ≥ L
   obtain ⟨j₁, hj₁_lt : S j₁ < L, hj₁_ge⟩ := h_inf_lt.exists_gt J
   obtain ⟨j₂, hj₂_ge : S j₂ ≥ L, hj₂_ge'⟩ := h_inf_ge.exists_gt j₁
+  -- Between j₁ and j₂ there's a crossing point j₀ where S crosses from below L to ≥ L
   have : ∃ k, j₁ ≤ k ∧ k < j₂ ∧ S k < L ∧ S (k + 1) ≥ L := by
     by_contra hall; push_neg at hall
     have : ∀ k, j₁ ≤ k → k ≤ j₂ → S k < L := by
@@ -970,6 +979,7 @@ private theorem convergesTo_of_sign_control {b : ℕ → ℝ} {L : ℝ}
     exact absurd (this j₂ (by omega) le_rfl) (not_lt.mpr hj₂_ge)
   obtain ⟨j₀, hj₀_ge₁, _, hj₀_lt, hj₀_ge'⟩ := this
   have hj₀_ge : j₀ ≥ J := by omega
+  -- At the crossing, S(j₀) < L and b(j₀) ≥ 0, so S(j₀+1) overshoots by at most |b(j₀)| < ε
   have hstart : |S (j₀ + 1) - L| < ε := by
     have heq := hS_succ j₀
     rw [abs_of_nonneg (by linarith [heq])]
@@ -978,6 +988,7 @@ private theorem convergesTo_of_sign_control {b : ℕ → ℝ} {L : ℝ}
       _ ≤ b j₀ := by linarith
       _ = |b j₀| := (abs_of_nonneg hnn).symm
       _ < ε := hterm j₀ hj₀_ge
+  -- By induction using hrec: once |S - L| < ε and |b| < ε, the gap stays < ε
   use j₀ + 1; intro n hn; rw [Real.dist_eq]
   induction n, hn using Nat.le_induction with
   | base => exact hstart
@@ -1052,9 +1063,6 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
       cover_of_min_injective (J := J + 1) hn'_inj
         (fun j hj ↦ by rw [hn' j]; simp [show ¬ (∑ i : Fin j, a (n' i) < L) from not_lt.mpr (hge j hj)])
         (fun j ↦ hn'_nonempty_minus j)
-    apply h2
-    have hCI : CountablyInfinite A_minus := (CountablyInfinite.iff' _).mpr ⟨inferInstance, hA_minus_inf⟩
-    rw [← AbsConvergent'.of_countable hCI, AbsConvergent'.iff_Summable]
     -- Tail is summable (nonpositive, partial sums bounded below by L)
     have htail : Summable (fun k ↦ a (n' (k + (J + 1)))) := by
       have htail_neg : Summable (fun k ↦ -(a (n' (k + (J + 1))))) := by
@@ -1069,19 +1077,22 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
           rw [← Finset.sum_range (n := (J + 1) + N) (f := fun i ↦ a (n' i))]
         rw [Finset.sum_neg_distrib]; linarith
       exact htail_neg.of_neg
-    have hfull : Summable (fun k : ℕ ↦ max (-(a (n' k))) 0) := by
-      apply Summable.comp_nat_add (k := J + 1)
-      exact htail.neg.congr (fun k ↦ (max_eq_left
-        (neg_nonneg.mpr (hminus (k + (J + 1)) (by omega)).le)).symm)
+    -- Transfer summability to A_minus subtype via comp_injective
     choose g hg using fun m (hm : m ∈ A_minus) ↦ hcover m hm
     have hg_inj : Function.Injective (fun x : A_minus ↦ g x.1 x.2) := by
       intro ⟨x, hx⟩ ⟨y, hy⟩ h; ext
       have : n' (g x hx) = n' (g y hy) := congrArg n' h
       rwa [hg x hx, hg y hy] at this
-    exact ((hfull.comp_injective hg_inj).of_nonneg_of_le
-      (fun ⟨_, hx⟩ ↦ neg_nonneg.mpr hx.le)
-      (fun ⟨x, hx⟩ ↦ by
-        show -a x ≤ max (-(a (n' (g x hx)))) 0; rw [hg x hx]; exact le_max_left _ _)).of_neg
+    have hfull : Summable (fun k : ℕ ↦ max (-(a (n' k))) 0) := by
+      apply Summable.comp_nat_add (k := J + 1)
+      exact htail.neg.congr (fun k ↦ (max_eq_left
+        (neg_nonneg.mpr (hminus (k + (J + 1)) (by omega)).le)).symm)
+    have : Summable (fun n : A_minus ↦ a n) :=
+      ((hfull.comp_injective hg_inj).of_nonneg_of_le
+        (fun ⟨_, hx⟩ ↦ neg_nonneg.mpr hx.le)
+        (fun ⟨x, hx⟩ ↦ by
+          show -a x ≤ max (-(a (n' (g x hx)))) 0; rw [hg x hx]; exact le_max_left _ _)).of_neg
+    exact ha' (absConverges_of_summable_sign_part ha (Or.inr this))
   have h_case_II : Infinite { j | ∑ i:Fin j, a (n' i) ≥ L } := by
     -- If finitely many, eventually ∑ < L so we always pick from A_plus (nonneg terms).
     rw [Set.infinite_coe_iff]; intro hfin
@@ -1096,11 +1107,7 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
       cover_of_min_injective (J := J + 1) hn'_inj
         (fun j hj ↦ by rw [hn' j]; simp [hlt j hj])
         (fun j ↦ hn'_nonempty_plus j)
-    -- The sum of A_plus terms in the partial sums is bounded → contradicts h1
-    apply h1
-    have hCI : CountablyInfinite A_plus := (CountablyInfinite.iff' _).mpr ⟨inferInstance, hA_plus_inf⟩
-    rw [← AbsConvergent'.of_countable hCI, AbsConvergent'.iff_Summable]
-    -- Step 1: The tail fun k ↦ a(n'(k + (J+1))) is summable (nonneg, bounded partial sums)
+    -- Tail is summable (nonneg, partial sums bounded above by L)
     have htail : Summable (fun k ↦ a (n' (k + (J + 1)))) := by
       apply summable_of_sum_range_le (c := L - ∑ i ∈ Finset.range (J + 1), a (n' i))
         (fun k ↦ hplus (k + (J + 1)) (by omega))
@@ -1113,18 +1120,20 @@ theorem permute_convergesTo_of_divergent {a: ℕ → ℝ} (ha: (a:Series).conver
         convert hlt ((J + 1) + N) (by omega) using 1
         rw [← Finset.sum_range (n := (J + 1) + N) (f := fun i ↦ a (n' i))]
       linarith
-    -- Step 2: max(a(n' k), 0) is summable, transfer to A_plus via comp_injective
-    have hfull : Summable (fun k : ℕ ↦ max (a (n' k)) 0) := by
-      apply Summable.comp_nat_add (k := J + 1)
-      exact htail.congr (fun k ↦ (max_eq_left (hplus (k + (J + 1)) (by omega))).symm)
+    -- Transfer summability to A_plus subtype via comp_injective
     choose g hg using fun m (hm : m ∈ A_plus) ↦ hcover m hm
     have hg_inj : Function.Injective (fun x : A_plus ↦ g x.1 x.2) := by
       intro ⟨x, hx⟩ ⟨y, hy⟩ h; ext
       have : n' (g x hx) = n' (g y hy) := congrArg n' h
       rwa [hg x hx, hg y hy] at this
-    exact (hfull.comp_injective hg_inj).of_nonneg_of_le
-      (fun ⟨_, hx⟩ ↦ hx)
-      (fun ⟨x, hx⟩ ↦ by show a x ≤ max (a (n' (g x hx))) 0; rw [hg x hx]; exact le_max_left _ _)
+    have hfull : Summable (fun k : ℕ ↦ max (a (n' k)) 0) := by
+      apply Summable.comp_nat_add (k := J + 1)
+      exact htail.congr (fun k ↦ (max_eq_left (hplus (k + (J + 1)) (by omega))).symm)
+    have : Summable (fun n : A_plus ↦ a n) :=
+      (hfull.comp_injective hg_inj).of_nonneg_of_le
+        (fun ⟨_, hx⟩ ↦ hx)
+        (fun ⟨x, hx⟩ ↦ by show a x ≤ max (a (n' (g x hx))) 0; rw [hg x hx]; exact le_max_left _ _)
+    exact ha' (absConverges_of_summable_sign_part ha (Or.inl this))
   have hn'_surj : Surjective n' := by
     intro m; by_contra h; push_neg at h
     have hmem : m ∈ A_plus ∨ m ∈ A_minus := by

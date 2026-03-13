@@ -453,25 +453,86 @@ theorem Schroder_Bernstein {X Y:Type} (hXY : LeCard X Y) (hYX : LeCard Y X) : Eq
 abbrev LtCard (X Y: Type) : Prop := LeCard X Y ∧ ¬ EqualCard X Y
 
 /-- Exercise 8.3.4 -/
-example {X:Type} : LtCard X (Set X) := by sorry
+example {X:Type} : LtCard X (Set X) := by
+  let f : X → Set X := fun x ↦ {x}
+  have hf : Function.Injective f := by
+    intro x y h
+    simp [f] at h
+    exact h
+  have : ¬ EqualCard X (Set X) := EqualCard.power_set_false X
+  exact ⟨⟨f, hf⟩, this⟩
 
 example {A B C: Type} (hAB: LtCard A B) (hBC: LtCard B C) :
-  LtCard A C := by
-  sorry
+    LtCard A C := by
+  obtain ⟨⟨f, hf⟩, hAB_lt⟩ := hAB
+  obtain ⟨⟨g, hg⟩, hBC_lt⟩ := hBC
+  constructor
+  . use g ∘ f
+    exact Function.Injective.comp hg hf
+  . intro h
+    have : EqualCard B C := by
+      apply Schroder_Bernstein
+      . exact ⟨g, hg⟩
+      . obtain ⟨r, hr⟩ := h
+        exact ⟨f ∘ (Equiv.ofBijective r hr).symm, hf.comp (Equiv.ofBijective r hr).symm.injective⟩
+    contradiction
 
 abbrev CardOrder : Preorder Type := {
   le := LeCard
   lt := LtCard
   le_refl := by
-    sorry
+    intro x
+    use id
+    intro x y h
+    simp at h
+    exact h
   le_trans := by
-    sorry
+    intro x y z hxy hyz
+    obtain ⟨f, hf⟩ := hxy
+    obtain ⟨g, hg⟩ := hyz
+    use g ∘ f
+    exact Function.Injective.comp hg hf
   lt_iff_le_not_ge := by
-    sorry
+    intro x y
+    constructor
+    . rintro ⟨hxy, h⟩
+      constructor
+      . exact hxy
+      . intro h'
+        have := Schroder_Bernstein hxy h'
+        contradiction
+    . rintro ⟨hxy, h⟩
+      constructor
+      . exact hxy
+      . intro h'
+        have : EqualCard y x := by exact EqualCard.symm h'
+        obtain ⟨r, hr⟩ := this
+        rw [LeCard] at h
+        push_neg at h
+        specialize h r
+        exact h hr.injective
 }
 
 /-- Exercise 8.3.5 -/
 example (X:Type) : ¬ CountablyInfinite (Set X) := by
-  sorry
+  intro hci
+  have hXc : AtMostCountable X := by
+    rw [AtMostCountable.iff]
+    obtain ⟨f, hf⟩ := hci
+    exact (hf.injective.comp Set.singleton_injective).countable
+  rcases hXc with hX | hX
+  · -- X countably infinite: transfer to Set ℕ
+    obtain ⟨e, he⟩ := hX
+    have : EqualCard (Set X) (Set ℕ) := by
+      set eq := Equiv.ofBijective e he
+      exact ⟨fun S ↦ eq '' S,
+        fun S T h ↦ eq.injective.image_injective h,
+        fun S ↦ ⟨eq.symm '' S, by ext n; simp⟩⟩
+    exact absurd (Or.inl ((CountablyInfinite.equiv this).mp hci) : AtMostCountable (Set ℕ))
+      ((Uncountable.iff (Set ℕ)).mp Uncountable.power_set_nat)
+  · -- X finite: Set X finite, can't be countably infinite
+    haveI := Fintype.ofFinite X
+    exact absurd hci.toInfinite (not_infinite_iff_finite.mpr inferInstance)
+
 
 end Chapter8

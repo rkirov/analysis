@@ -205,13 +205,34 @@ theorem axiom_of_choice_from_exists_set_singleton_intersect {I: Type} {X: I → 
 /-- Exercise 8.4.3 -/
 theorem Function.Injective.inv_surjective {A B:Type} {g: B → A} (hg: Function.Surjective g) :
   ∃ f : A → B, Function.Injective f ∧ Function.RightInverse f g := by
-  sorry
+  -- the preimages of a given a
+  let X : A → Set B := fun a ↦ { b | g b = a }
+  have hX : ∀ a, Nonempty (X a) := fun a ↦ by
+    have : ∃ b, g b = a := hg a
+    choose b hb using this
+    use b
+    simp [X, hb]
+  obtain ⟨f⟩ := axiom_of_choice hX
+  use fun a ↦ (f a).val
+  constructor
+  · intro a b h
+    simp only [] at h
+    have ha : g (f a).val = a := (f a).property
+    have hb : g (f b).val = b := (f b).property
+    rw [h] at ha
+    exact ha.symm.trans hb
+  · exact fun a ↦ (f a).property
 
 /-- Exercise 8.4.3.  The spirit of the question here is to establish this result directly
 from `Function.Injective.inv_surjective`, avoiding previous results that relied more explicitly
 on the axiom of choice. -/
 theorem axiom_of_choice_from_function_injective_inv_surjective {I: Type} {X: I → Type} (h : ∀ i, Nonempty (X i)) :
   Nonempty (∀ i, X i) := by
-  sorry
+  let A := I
+  let B := (i : I) × X i
+  let g : B → A := fun s ↦ s.1
+  have hg : Function.Surjective g := fun i ↦ ⟨⟨i, (h i).some⟩, rfl⟩
+  have ⟨f, hf_inj, hf_right_inv⟩ := Function.Injective.inv_surjective hg
+  exact ⟨fun i ↦ (hf_right_inv i) ▸ (f i).2⟩
 
 end Chapter8

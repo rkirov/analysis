@@ -63,8 +63,10 @@ noncomputable def LinearOrder.mk {X:Type} [PartialOrder X]
 
 noncomputable def LinearOrder.subtype {X:Type} [LinearOrder X] (A: Set X) : LinearOrder A :=
 LinearOrder.mk (by
-  sorry
-  )
+  intro ⟨ x, hx ⟩ ⟨ y, hy ⟩
+  have : x ≤ y ∨ y ≤ x := le_total x y
+  exact this
+ )
 
 theorem IsTotal.subtype {X:Type} [PartialOrder X] {A: Set X} (hA: IsTotal X) : IsTotal A := by
   intro ⟨ x, hx ⟩ ⟨ y, hy ⟩
@@ -75,7 +77,14 @@ theorem IsTotal.subset {X:Type} [PartialOrder X] {A B: Set X} (hA: IsTotal A) (h
   specialize hA ⟨ x, hAB hx ⟩ ⟨ y, hAB hy ⟩; simp_all
 
 abbrev X_8_5_4 : Set (Set ℕ) := { {1,2}, {2}, {2,3}, {2,3,4}, {5} }
-example : ¬ IsTotal X_8_5_4 := by sorry
+example : ¬ IsTotal X_8_5_4 := by
+  rw [IsTotal]
+  push_neg
+  use ⟨({2} : Set ℕ), by simp⟩
+  use ⟨({5} : Set ℕ), by simp⟩
+  constructor
+  . simp
+  . simp
 
 /-- Definition 8.5.5 (Maximal and minimal elements).  Here we use Mathlib's `IsMax` and `IsMin`. -/
 theorem IsMax.iff {X:Type} [PartialOrder X] (x:X) :
@@ -85,16 +94,37 @@ theorem IsMin.iff {X:Type} [PartialOrder X] (x:X) :
   IsMin x ↔ ¬ ∃ y, x > y := by rw [isMin_iff_forall_not_lt]; grind
 
 /-- Examples 8.5.6 -/
-example : IsMin (⟨ {2}, by aesop ⟩ : X_8_5_4) := by sorry
-example : IsMax (⟨ {1,2}, by aesop ⟩ : X_8_5_4) := by sorry
-example : IsMax (⟨ {2,3,4}, by aesop ⟩ : X_8_5_4) := by sorry
-example : IsMin (⟨ {5}, by aesop ⟩ : X_8_5_4) ∧ IsMax (⟨ {5}, by aesop ⟩ : X_8_5_4) := by sorry
-example : ¬ IsMin (⟨ {2,3}, by aesop ⟩ : X_8_5_4) ∧ ¬ IsMax (⟨ {2,3}, by aesop ⟩ : X_8_5_4) := by sorry
+example : IsMin (⟨ {2}, by aesop ⟩ : X_8_5_4) := by
+  rw [IsMin.iff]; push_neg; intro ⟨x, hx⟩ hlt
+  simp [X_8_5_4] at hx; obtain rfl | rfl | rfl | rfl | rfl := hx <;> simp_all <;> grind
+example : IsMax (⟨ {1,2}, by aesop ⟩ : X_8_5_4) := by
+  rw [IsMax.iff]; push_neg; intro ⟨x, hx⟩ hlt
+  simp [X_8_5_4] at hx
+  obtain rfl | rfl | rfl | rfl | rfl := hx <;> simp_all [Set.ssubset_def]
+  all_goals (obtain ⟨h, _⟩ := hlt; have := h (show (1:ℕ) ∈ {1, 2} by simp); simp_all)
+example : IsMax (⟨ {2,3,4}, by aesop ⟩ : X_8_5_4) := by
+  rw [IsMax.iff]; push_neg; intro ⟨x, hx⟩ hlt
+  simp [X_8_5_4] at hx
+  obtain rfl | rfl | rfl | rfl | rfl := hx <;> simp_all [Set.ssubset_def]
+  obtain ⟨h, _⟩ := hlt; have := h (show (3:ℕ) ∈ {2, 3, 4} by simp); simp_all
+example : IsMin (⟨ {5}, by aesop ⟩ : X_8_5_4) ∧ IsMax (⟨ {5}, by aesop ⟩ : X_8_5_4) := by
+  refine ⟨?_, ?_⟩
+  · rw [IsMin.iff]; push_neg; intro ⟨x, hx⟩ hlt
+    simp [X_8_5_4] at hx; obtain rfl | rfl | rfl | rfl | rfl := hx <;> simp_all <;> grind
+  · rw [IsMax.iff]; push_neg; intro ⟨x, hx⟩ hlt
+    simp [X_8_5_4] at hx; obtain rfl | rfl | rfl | rfl | rfl := hx <;> simp_all <;> grind
+example : ¬ IsMin (⟨ {2,3}, by aesop ⟩ : X_8_5_4) ∧ ¬ IsMax (⟨ {2,3}, by aesop ⟩ : X_8_5_4) := by
+  simp only [IsMin.iff, IsMax.iff, not_not]
+  exact ⟨⟨⟨{2}, by simp⟩, by constructor <;> simp⟩, ⟨⟨{2,3,4}, by simp⟩, by constructor <;> simp⟩⟩
 
 /-- Example 8.5.7 -/
-example : IsMin (0:ℕ) := by sorry
-example (n:ℕ) : ¬ IsMax n := by sorry
-example (n:ℤ): ¬ IsMin n ∧ ¬ IsMax n := by sorry
+example : IsMin (0:ℕ) := by
+  rw [IsMin.iff]; push_neg; omega
+example (n:ℕ) : ¬ IsMax n := by
+  simp only [IsMax.iff, not_not]; exact ⟨n + 1, by omega⟩
+example (n:ℤ): ¬ IsMin n ∧ ¬ IsMax n := by
+  simp only [IsMin.iff, IsMax.iff, not_not]
+  exact ⟨⟨n - 1, by omega⟩, ⟨n + 1, by omega⟩⟩
 
 /-- Definition 8.5.8.  We use `[LinearOrder X] [WellFoundedLT X]` to describe well-ordered sets. -/
 theorem WellFoundedLT.iff (X:Type) [LinearOrder X] :
@@ -117,19 +147,91 @@ example : WellFoundedLT ℕ := by
   simp [IsMin]; grind [Nat.min_spec]
 
 /-- Exercise 8.1.2 -/
-example : ¬ WellFoundedLT ℤ := by sorry
-example : ¬ WellFoundedLT ℚ := by sorry
-example : ¬ WellFoundedLT ℝ := by sorry
+example : ¬ WellFoundedLT ℤ := by
+  rw [WellFoundedLT.iff]
+  push_neg
+  use .univ
+  simp
+  intro n
+  use n - 1
+  omega
+example : ¬ WellFoundedLT ℚ := by
+  rw [WellFoundedLT.iff]
+  push_neg
+  use .univ
+  simp
+  intro q
+  use q - 1
+  linarith
+example : ¬ WellFoundedLT ℝ := by
+  rw [WellFoundedLT.iff]
+  push_neg
+  use .univ
+  simp
+  intro r
+  use r - 1
+  linarith
 
 /-- Exercise 8.5.8 -/
-theorem IsMax.ofFinite {X:Type} [LinearOrder X] [Finite X] [Nonempty X] : ∃ x:X, IsMax x := by sorry
+theorem IsMax.ofFinite {X:Type} [LinearOrder X] [Finite X] [Nonempty X] : ∃ x:X, IsMax x := by
+  obtain ⟨a⟩ := ‹Nonempty X›
+  by_cases ha : IsMax a
+  · exact ⟨a, ha⟩
+  · rw [IsMax.iff] at ha; push_neg at ha; obtain ⟨b, hb⟩ := ha
+    have hne : Nonempty ({a}ᶜ : Set X) := ⟨⟨b, by simp [ne_of_gt hb]⟩⟩
+    obtain ⟨⟨m, hm⟩, hmax⟩ := IsMax.ofFinite (X := ({a}ᶜ : Set X))
+    use m
+    have key : ∀ x : X, x ≠ a → x ≤ m := by
+      intro x hx
+      have h := le_total (α := ({a}ᶜ : Set X)) ⟨x, by simp [hx]⟩ ⟨m, hm⟩
+      rcases h with h | h
+      · exact h
+      · exact hmax h
+    intro y hy
+    by_cases hay : y = a
+    · exact hay ▸ le_trans (le_of_lt hb) (key b (ne_of_gt hb))
+    · exact key y hay
+  termination_by Nat.card X
+  decreasing_by
+    simp only [Nat.card_coe_set_eq, gt_iff_lt]
+    rw [← Set.ncard_univ]; exact Set.ncard_lt_ncard (by constructor <;> simp) (Set.toFinite _)
 
-theorem IsMin.ofFinite {X:Type} [LinearOrder X] [Finite X] [Nonempty X] : ∃ x:X, IsMin x := by sorry
+theorem IsMin.ofFinite {X:Type} [LinearOrder X] [Finite X] [Nonempty X] : ∃ x:X, IsMin x := by
+  obtain ⟨a⟩ := ‹Nonempty X›
+  by_cases ha : IsMin a
+  · exact ⟨a, ha⟩
+  · rw [IsMin.iff] at ha; push_neg at ha; obtain ⟨b, hb⟩ := ha
+    have hne : Nonempty ({a}ᶜ : Set X) := ⟨⟨b, by simp [ne_of_lt hb]⟩⟩
+    obtain ⟨⟨m, hm⟩, hmin⟩ := IsMin.ofFinite (X := ({a}ᶜ : Set X))
+    use m
+    have key : ∀ x : X, x ≠ a → m ≤ x := by
+      intro x hx
+      have h := le_total (α := ({a}ᶜ : Set X)) ⟨m, hm⟩ ⟨x, by simp [hx]⟩
+      rcases h with h | h
+      · exact h
+      · exact hmin h
+    intro y hy
+    by_cases hay : y = a
+    · exact hay ▸ le_trans (key b (ne_of_lt hb)) (le_of_lt hb)
+    · exact key y hay
+  termination_by Nat.card X
+  decreasing_by
+    simp
+    rw [← Set.ncard_univ]; exact Set.ncard_lt_ncard (by constructor <;> simp) (Set.toFinite _)
 
-/-- Exercise 8.5.8 -/
-theorem WellFoundedLT.ofFinite {X:Type} [LinearOrder X] [Finite X] : WellFoundedLT X := by sorry
+/-- Exercise 8.5.8 --/
+theorem WellFoundedLT.ofFinite {X:Type} [LinearOrder X] [Finite X] : WellFoundedLT X := by
+  rw [WellFoundedLT.iff]
+  intro A hA
+  haveI : Nonempty A := hA.coe_sort
+  exact IsMin.ofFinite
 
-example {X:Type} [LinearOrder X] [WellFoundedLT X] (A: Set X) : WellFoundedLT A := by sorry
+example {X:Type} [LinearOrder X] [WellFoundedLT X] (A: Set X) : WellFoundedLT A := by
+  rw [WellFoundedLT.iff]; intro B hB
+  obtain ⟨⟨x, hxB⟩, hmin⟩ := (WellFoundedLT.iff X).mp ‹_› (Subtype.val '' B) (by aesop)
+  simp at hxB; obtain ⟨hxA, hxB'⟩ := hxB
+  exact ⟨⟨⟨x, hxA⟩, hxB'⟩, fun ⟨⟨y, hy⟩, hyB⟩ hle =>
+    hmin (b := ⟨y, by simp; exact ⟨hy, hyB⟩⟩) hle⟩
 
 theorem WellFoundedLT.subset {X:Type} [PartialOrder X] {A B: Set X} (hA: IsTotal A) [hwell: WellFoundedLT A] (hAB: B ⊆ A) : WellFoundedLT B := by
   set hAlin : LinearOrder A := LinearOrder.mk hA

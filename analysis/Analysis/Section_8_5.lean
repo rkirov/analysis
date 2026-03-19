@@ -281,17 +281,38 @@ abbrev IsStrictUpperBound {X:Type} [PartialOrder X] (A:Set X) (x:X) : Prop :=
   IsUpperBound A x ∧ x ∉ A
 
 theorem IsStrictUpperBound.iff {X:Type} [PartialOrder X] (A:Set X) (x:X) :
-  IsStrictUpperBound A x ↔ ∀ y ∈ A, y < x := by sorry
+  IsStrictUpperBound A x ↔ ∀ y ∈ A, y < x := by
+  simp [IsStrictUpperBound, IsUpperBound]
+  constructor
+  · intro ⟨h1, h2⟩ y hy
+    exact lt_of_le_of_ne (h1 y hy) (fun h => h2 (h ▸ hy))
+  · intro h
+    constructor
+    · intro y hy
+      exact (h y hy).le
+    · intro hx
+      exact absurd (h x hx) (lt_irrefl x)
 
 theorem IsStrictUpperBound.iff' {X:Type} [PartialOrder X] (A:Set X) (x:X) :
   IsStrictUpperBound A x ↔ x ∈ upperBounds A \ A := by
   simp [IsStrictUpperBound, IsUpperBound.iff]
 
-example : IsUpperBound (.Icc 1 2: Set ℝ) 2 := by sorry
+example : IsUpperBound (.Icc 1 2: Set ℝ) 2 := by
+  intro y hy
+  simp at hy
+  exact hy.2
 
-example : ¬ IsStrictUpperBound (.Icc 1 2: Set ℝ) 2 := by sorry
+example : ¬ IsStrictUpperBound (.Icc 1 2: Set ℝ) 2 := by
+  rw [IsStrictUpperBound.iff]
+  push_neg
+  use 2
+  simp
 
-example : IsStrictUpperBound (.Icc 1 2: Set ℝ) 3 := by sorry
+example : IsStrictUpperBound (.Icc 1 2: Set ℝ) 3 := by
+  rw [IsStrictUpperBound.iff]
+  intro y hy
+  simp at hy
+  exact lt_of_le_of_lt hy.2 (by norm_num)
 
 /-- A convenient way to simplify the notion of having `x₀` as a minimal element.-/
 theorem IsMin.iff_lowerbound {X:Type} [PartialOrder X] {Y: Set X} (hY: IsTotal Y) (x₀ : X) : (∃ hx₀ : x₀ ∈ Y, IsMin (⟨ x₀, hx₀ ⟩:Y)) ↔ x₀ ∈ Y ∧ ∀ x ∈ Y, x₀ ≤ x := by

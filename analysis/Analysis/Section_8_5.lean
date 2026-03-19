@@ -244,7 +244,30 @@ theorem WellFoundedLT.subset {X:Type} [PartialOrder X] {A B: Set X} (hA: IsTotal
 /-- Proposition 8.5.10 / Exercise 8.5.10 -/
 theorem WellFoundedLT.strong_induction {X:Type} [LinearOrder X] [WellFoundedLT X] {P:X → Prop}
   (h: ∀ n, (∀ m < n, P m) → P n) : ∀ n, P n := by
-  sorry
+  let Y := { n : X | ∃ m ≤ n , ¬ P m }
+  have := (WellFoundedLT.iff X).mp inferInstance
+  specialize this Y
+  by_cases hY : Y.Nonempty
+  . exfalso
+    specialize this hY
+    obtain ⟨m, hm⟩ := this
+    specialize h m
+    have hk : ∀ k < m.val, P k := by
+      intro k hk
+      by_contra hP
+      have hkY : k ∈ Y := ⟨k, le_refl k, hP⟩
+      have hkm : (⟨k, hkY⟩ : Y) ≤ m := hk.le
+      have hmk : m ≤ ⟨k, hkY⟩ := hm hkm
+      exact absurd hk (not_lt.mpr hmk)
+    have hmn : ¬ P m := by
+      obtain ⟨k, hkm, hkP⟩ := m.prop
+      rcases hkm.eq_or_lt with rfl | hlt
+      · exact hkP
+      · exact absurd (hk k hlt) hkP
+    exact hmn (h hk)
+  . intro n
+    by_contra hn
+    exact hY ⟨n, n, le_refl n, hn⟩
 
 /-- Definition 8.5.12 (Upper bounds and strict upper bounds) -/
 abbrev IsUpperBound {X:Type} [PartialOrder X] (A:Set X) (x:X) : Prop :=

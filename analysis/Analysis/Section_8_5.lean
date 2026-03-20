@@ -329,7 +329,77 @@ theorem IsMin.iff_lowerbound' {X:Type} [PartialOrder X] {Y: Set X} (hY: IsTotal 
   intro ⟨ x₀, hx₀, hmin ⟩; choose hx₀ _ using (iff_lowerbound hY x₀).mpr ⟨ hx₀, hmin ⟩; use ⟨ _, hx₀ ⟩
 
 /-- Exercise 8.5.11 -/
-example {X:Type} [PartialOrder X] {Y Y':Set X} (hY: IsTotal Y) (hY': IsTotal Y') (hY_well: WellFoundedLT Y) (hY'_well: WellFoundedLT Y') (hYY': IsTotal (Y ∪ Y': Set X)) : WellFoundedLT (Y ∪ Y': Set X) := by sorry
+example {X:Type} [PartialOrder X] {Y Y':Set X} (hY: IsTotal Y) (hY': IsTotal Y') (hY_well: WellFoundedLT Y)
+    (hY'_well: WellFoundedLT Y') (hYY': IsTotal (Y ∪ Y': Set X)) : WellFoundedLT (Y ∪ Y': Set X) := by
+  rw [WellFoundedLT.iff' hYY']
+  intro A ⟨a₀, ha₀⟩
+  have hY_wf := (WellFoundedLT.iff' hY).mp hY_well
+  have hY'_wf := (WellFoundedLT.iff' hY').mp hY'_well
+  let pY : Set Y := { y | ∃ a ∈ A, (a : X) = (y : X) }
+  let pY' : Set Y' := { y' | ∃ a ∈ A, (a : X) = (y' : X) }
+  -- min of pY is ≤ all A-elements in Y; similarly for pY'
+  have minY (y₀ : pY) (hy₀ : IsMin y₀) (b : ↑(Y ∪ Y')) (hbA : b ∈ A) (hbY : (b : X) ∈ Y) :
+      (y₀.val : X) ≤ (b : X) := by
+    have : (⟨_, hbY⟩ : Y) ∈ pY := ⟨b, hbA, rfl⟩
+    rcases hY (⟨_, hbY⟩ : Y) y₀.val with h | h
+    · exact hy₀ (b := ⟨_, ‹_›⟩) h
+    · exact h
+  have minY' (y₀' : pY') (hy₀' : IsMin y₀') (b : ↑(Y ∪ Y')) (hbA : b ∈ A) (hbY' : (b : X) ∈ Y') :
+      (y₀'.val : X) ≤ (b : X) := by
+    have : (⟨_, hbY'⟩ : Y') ∈ pY' := ⟨b, hbA, rfl⟩
+    rcases hY' (⟨_, hbY'⟩ : Y') y₀'.val with h | h
+    · exact hy₀' (b := ⟨_, ‹_›⟩) h
+    · exact h
+  -- Main argument: find min of each nonempty projection, compare, return the smaller
+  -- Helper to produce min of A from mins of both projections
+  have both (y₀ : pY) (hy₀ : IsMin y₀) (y₀' : pY') (hy₀' : IsMin y₀') : ∃ x : A, IsMin x := by
+    obtain ⟨a, haA, ha_eq⟩ := y₀.property
+    obtain ⟨a', ha'A, ha'_eq⟩ := y₀'.property
+    rcases hYY' ⟨_, Set.mem_union_left _ y₀.val.property⟩ ⟨_, Set.mem_union_right _ y₀'.val.property⟩ with hle | hle
+    · -- y₀ ≤ y₀': use the A-element corresponding to y₀
+      refine ⟨⟨a, haA⟩, fun ⟨b, hbA⟩ hba => ?_⟩
+      show (a : X) ≤ (b : X)
+      rcases b.property with hbY | hbY'
+      · calc (a : X) = (y₀.val : X) := ha_eq
+          _ ≤ (b : X) := minY y₀ hy₀ b hbA hbY
+      · calc (a : X) = (y₀.val : X) := ha_eq
+          _ ≤ (y₀'.val : X) := hle
+          _ ≤ (b : X) := minY' y₀' hy₀' b hbA hbY'
+    · -- y₀' ≤ y₀: use the A-element corresponding to y₀'
+      refine ⟨⟨a', ha'A⟩, fun ⟨b, hbA⟩ hba => ?_⟩
+      show (a' : X) ≤ (b : X)
+      rcases b.property with hbY | hbY'
+      · calc (a' : X) = (y₀'.val : X) := ha'_eq
+          _ ≤ (y₀.val : X) := hle
+          _ ≤ (b : X) := minY y₀ hy₀ b hbA hbY
+      · calc (a' : X) = (y₀'.val : X) := ha'_eq
+          _ ≤ (b : X) := minY' y₀' hy₀' b hbA hbY'
+  -- Case split: which projections are nonempty
+  rcases a₀.property with ha₀Y | ha₀Y'
+  · have hpY : pY.Nonempty := ⟨⟨_, ha₀Y⟩, a₀, ha₀, rfl⟩
+    obtain ⟨y₀, hy₀⟩ := hY_wf pY hpY
+    by_cases hpY' : pY'.Nonempty
+    · obtain ⟨y₀', hy₀'⟩ := hY'_wf pY' hpY'
+      exact both y₀ hy₀ y₀' hy₀'
+    · obtain ⟨a, haA, ha_eq⟩ := y₀.property
+      refine ⟨⟨a, haA⟩, fun ⟨b, hbA⟩ _ => ?_⟩
+      show (a : X) ≤ (b : X)
+      rcases b.property with hbY | hbY'
+      · calc (a : X) = (y₀.val : X) := ha_eq
+          _ ≤ (b : X) := minY y₀ hy₀ b hbA hbY
+      · exact absurd ⟨⟨_, hbY'⟩, ⟨_, hbA, rfl⟩⟩ hpY'
+  · have hpY' : pY'.Nonempty := ⟨⟨_, ha₀Y'⟩, a₀, ha₀, rfl⟩
+    obtain ⟨y₀', hy₀'⟩ := hY'_wf pY' hpY'
+    by_cases hpY : pY.Nonempty
+    · obtain ⟨y₀, hy₀⟩ := hY_wf pY hpY
+      exact both y₀ hy₀ y₀' hy₀'
+    · obtain ⟨a', ha'A, ha'_eq⟩ := y₀'.property
+      refine ⟨⟨a', ha'A⟩, fun ⟨b, hbA⟩ _ => ?_⟩
+      show (a' : X) ≤ (b : X)
+      rcases b.property with hbY | hbY'
+      · exact absurd ⟨⟨_, hbY⟩, ⟨_, hbA, rfl⟩⟩ hpY
+      · calc (a' : X) = (y₀'.val : X) := ha'_eq
+          _ ≤ (b : X) := minY' y₀' hy₀' b hbA hbY'
 
 /-- Lemma 8.5.14-/
 theorem WellFoundedLT.partialOrder {X:Type} [PartialOrder X] (x₀ : X) : ∃ Y : Set X, IsTotal Y ∧ WellFoundedLT Y ∧ (∃ hx₀ : x₀ ∈ Y, IsMin (⟨ x₀, hx₀ ⟩: Y)) ∧ ¬ ∃ x, IsStrictUpperBound Y x := by

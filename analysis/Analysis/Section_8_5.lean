@@ -785,7 +785,28 @@ theorem WellFoundedLT.partialOrder {X:Type} [PartialOrder X] (x₀ : X) : ∃ Y 
 /-- Lemma 8.5.15 (Zorn's lemma) / Exercise 8.5.14 -/
 theorem Zorns_lemma {X:Type} [PartialOrder X] [Nonempty X]
   (hchain: ∀ Y:Set X, IsTotal Y ∧ Y.Nonempty → ∃ x, IsUpperBound Y x) : ∃ x:X, IsMax x := by
-  sorry
+  by_contra hmax
+  push_neg at hmax
+  have h : ∀ S : Set X, (∃ x: X, IsUpperBound S x) → ∃ y, IsStrictUpperBound S y := by
+    intro S hB
+    obtain ⟨x, hx⟩ := hB
+    have := hmax x
+    simp at this
+    obtain ⟨y, hy⟩ := this
+    use y
+    rw [IsStrictUpperBound.iff]
+    rw [IsUpperBound.iff] at hx
+    intro z hzS
+    have : z ≤ x := hx hzS
+    exact lt_of_le_of_lt (hx hzS) hy
+  have hnon : Nonempty X := inferInstance
+  obtain ⟨x⟩ := hnon
+  obtain ⟨Y, hTotal, hWellFounded, hxMin, hNonStrictUpper⟩ := WellFoundedLT.partialOrder x
+  have hxY : x ∈ Y := hxMin.choose
+  have hNonempty : Y.Nonempty := by exact Set.nonempty_of_mem hxY
+  specialize hchain Y ⟨hTotal, hNonempty⟩
+  specialize h Y hchain
+  contradiction
 
 /-- Exercise 8.5.1 -/
 def empty_set_partial_order [h₀: LE Empty] : Decidable (∃ h : PartialOrder Empty, h.le = h₀.le) := by

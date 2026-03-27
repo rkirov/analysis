@@ -401,6 +401,7 @@ example {X:Type} [PartialOrder X] {Y Y':Set X} (hY: IsTotal Y) (hY': IsTotal Y')
       · calc (a' : X) = (y₀'.val : X) := ha'_eq
           _ ≤ (b : X) := minY' y₀' hy₀' b hbA hbY'
 
+set_option maxHeartbeats 1000000 in
 /-- Lemma 8.5.14-/
 theorem WellFoundedLT.partialOrder {X:Type} [PartialOrder X] (x₀ : X) : ∃ Y : Set X, IsTotal Y ∧ WellFoundedLT Y ∧ (∃ hx₀ : x₀ ∈ Y, IsMin (⟨ x₀, hx₀ ⟩: Y)) ∧ ¬ ∃ x, IsStrictUpperBound Y x := by
   -- This proof is based on the original text with some technical simplifications.
@@ -440,11 +441,229 @@ theorem WellFoundedLT.partialOrder {X:Type} [PartialOrder X] (x₀ : X) : ∃ Y 
   -- The set `Ω` captures the notion of a `good set`.
   set Ω := { Y : Ω₀ | ∀ x ∈ (Y:Set X) \ {x₀}, x = s (F Y x) }
   have hΩ : pt ∈ Ω := by
-    sorry
+    unfold pt Ω
+    simp [Ω₀, F]
 
   -- Exercise 8.5.13
   have ex_8_5_13 {Y Y':Ω} (x:X) (h: x ∈ (Y':Set X) \ Y) : IsStrictUpperBound Y x := by
-    sorry
+    have hYΩ₀ := Y.val.property; have hY'Ω₀ := Y'.val.property
+    have hYΩ := Y.property; have hY'Ω := Y'.property
+    change IsTotal _ ∧ _ ∧ _ ∧ _ at hYΩ₀ hY'Ω₀
+    obtain ⟨ hYtot, hYwell, hYx₀, hYmin ⟩ := hYΩ₀
+    obtain ⟨ hY'tot, hY'well, hY'x₀, hY'min ⟩ := hY'Ω₀
+    let I : Set X := (Y : Set X) ∩ Y'
+    have no_first_difference : ∀ (A B : Ω), ∀ d, d ∈ (A:Set X) → d ∉ (B:Set X) → d ≠ x₀ →
+        (∀ c, c < d → (c ∈ (A:Set X) ↔ c ∈ (B:Set X))) →
+        ∀ a ∈ (B:Set X), d ≤ a → False := by
+      intro A B d hdA hdB hdx₀ hagree a haB hda
+      have hAΩ₀ := A.val.property; have hBΩ₀ := B.val.property
+      have hAΩ := A.property; have hBΩ := B.property
+      change IsTotal _ ∧ _ ∧ _ ∧ _ at hAΩ₀ hBΩ₀
+      obtain ⟨ hAtot, hAwell, hAx₀, hAmin ⟩ := hAΩ₀
+      obtain ⟨ hBtot, hBwell, hBx₀, hBmin ⟩ := hBΩ₀
+      have hdAx₀ : d ∈ (A:Set X) \ {x₀} := ⟨hdA, by simp [hdx₀]⟩
+      have hdsA : d = s (F A.val d) := hAΩ d hdAx₀
+      have hFAd : (F A.val d : Set X) = {c ∈ (A:Set X) | c < d} := by rw [hF hdAx₀]
+      have hseg : {c ∈ (A:Set X) | c < d} = {c ∈ (B:Set X) | c < d} := by
+        ext c; simp only [Set.mem_sep_iff]
+        exact ⟨fun ⟨h1, h2⟩ ↦ ⟨(hagree c h2).mp h1, h2⟩,
+               fun ⟨h1, h2⟩ ↦ ⟨(hagree c h2).mpr h1, h2⟩⟩
+      set Blin := LinearOrder.mk hBtot
+      set T : Set (B:Set X) := { y | d ≤ y.val }
+      have hTne : T.Nonempty := ⟨⟨a, haB⟩, hda⟩
+      obtain ⟨⟨⟨m, hmB⟩, hmdT⟩, hminm⟩ := ((WellFoundedLT.iff _).mp hBwell) T hTne
+      change d ≤ m at hmdT
+      replace hminm : ∀ c ∈ (B:Set X), d ≤ c → m ≤ c := by
+        intro c hcB hdc
+        have h := hminm (b := ⟨⟨c, hcB⟩, hdc⟩)
+        exact (hBtot ⟨c, hcB⟩ ⟨m, hmB⟩).elim (fun hle ↦ h hle) id
+      have hno_between : ∀ c ∈ (B:Set X), c < m → c < d := by
+        suffices ∀ (c : ↥(B:Set X)), (c:X) < m → (c:X) < d from
+          fun c hcB hcm ↦ this ⟨c, hcB⟩ hcm
+        intro c₀; apply hBwell.wf.induction c₀; intro ⟨c, hcB⟩ ih hcm
+        by_contra hcd
+        have hdc : ¬(d ≤ c) := fun hdc ↦ absurd (hminm c hcB hdc) (not_le_of_gt hcm)
+        have hcne : c ≠ d := fun h ↦ hdB (h ▸ hcB)
+        have hcx₀ : c ≠ x₀ := fun h ↦ hcd (lt_of_le_not_ge (h ▸ hAmin d hdA) (h ▸ hdc))
+        have hcBx₀ : c ∈ (B:Set X) \ {x₀} := ⟨hcB, by simp [hcx₀]⟩
+        have ih_sub : {c' ∈ (B:Set X) | c' < c} ⊆ {c' ∈ (B:Set X) | c' < d} :=
+          fun c' ⟨hc'B, hc'c⟩ ↦ ⟨hc'B, ih ⟨c', hc'B⟩ hc'c (lt_trans hc'c hcm)⟩
+        have dsub : {c' ∈ (B:Set X) | c' < d} ⊆ {c' ∈ (B:Set X) | c' < c} := by
+          intro c' ⟨hc'B, hc'd⟩; refine ⟨hc'B, ?_⟩
+          rcases hBtot ⟨c', hc'B⟩ ⟨c, hcB⟩ with h | h
+          · refine lt_of_le_of_ne (show c' ≤ c from h) ?_; rintro rfl; exact hcd hc'd
+          · exfalso; exact hcd (lt_of_le_not_ge (le_trans (show c ≤ c' from h) (le_of_lt hc'd)) hdc)
+        have heq : {c' ∈ (B:Set X) | c' < c} = {c' ∈ (B:Set X) | c' < d} :=
+          Set.Subset.antisymm ih_sub dsub
+        have hFeq : F B.val c = F A.val d :=
+          Subtype.val_injective (by rw [hF hcBx₀, hFAd, heq, hseg])
+        exact hcne ((hBΩ c hcBx₀).trans (hFeq ▸ hdsA.symm))
+      have hmBx₀ : m ∈ (B:Set X) \ {x₀} := by
+        refine ⟨hmB, by simp [show m ≠ x₀ from fun h ↦ hdx₀ (le_antisymm (h ▸ hmdT) (hAmin d hdA))]⟩
+      have hFeq : F B.val m = F A.val d := by
+        apply Subtype.val_injective; rw [hF hmBx₀, hFAd]
+        ext c; simp only [Set.mem_sep_iff]
+        exact ⟨fun ⟨h1, h2⟩ ↦ ⟨(hagree c (hno_between c h1 h2)).mpr h1, hno_between c h1 h2⟩,
+               fun ⟨h1, h2⟩ ↦ ⟨(hagree c h2).mp h1, lt_of_lt_of_le h2 hmdT⟩⟩
+      have : m = d := by rw [hBΩ m hmBx₀, hFeq, ← hdsA]
+      exact hdB (this ▸ hmB)
+    have step1_mem {A B : Ω} {a b : X}
+        (haA : a ∈ (A : Set X)) (haB : a ∈ (B : Set X)) (hba : b < a) :
+        b ∈ (A : Set X) → b ∈ (B : Set X) := by
+      intro hbA; by_contra hbB
+      have hAΩ₀ := A.val.property; have hBΩ₀ := B.val.property
+      change IsTotal _ ∧ _ ∧ _ ∧ _ at hAΩ₀ hBΩ₀
+      obtain ⟨hAtot, hAwell, hAx₀, hAmin⟩ := hAΩ₀
+      obtain ⟨hBtot, hBwell, hBx₀, hBmin⟩ := hBΩ₀
+      set Alin := LinearOrder.mk hAtot
+      set S : Set (A : Set X) := { c | c.val < a ∧ c.val ∉ (B : Set X) }
+      obtain ⟨⟨⟨d, hdA⟩, ⟨hda, hdB⟩⟩, hminS⟩ := ((WellFoundedLT.iff _).mp hAwell) S
+        ⟨⟨b, hbA⟩, hba, hbB⟩
+      replace hminS : ∀ c ∈ (A : Set X), c < a → c ∉ (B : Set X) → d ≤ c := by
+        intro c hcA hca hcB
+        exact (hAtot ⟨c, hcA⟩ ⟨d, hdA⟩).elim
+          (fun hle ↦ hminS (b := ⟨⟨c, hcA⟩, hca, hcB⟩) hle) id
+      have hdx₀ : d ≠ x₀ := fun h ↦ hdB (h ▸ hBx₀)
+      have hcB_of_A : ∀ c, c ∈ (A : Set X) → c < d → c ∈ (B : Set X) := by
+        intro c hcA hcd; by_contra hcB
+        exact absurd (hminS c hcA (lt_trans hcd hda) hcB) (not_le_of_gt hcd)
+      have hcA_of_B : ∀ c, c ∈ (B : Set X) → c < d → c ∈ (A : Set X) := by
+        by_contra h_neg; push_neg at h_neg
+        obtain ⟨c₀, hc₀B, hc₀d, hc₀A⟩ := h_neg
+        set Blin := LinearOrder.mk hBtot
+        obtain ⟨⟨⟨e, heB⟩, ⟨hed, heA⟩⟩, hminS'⟩ := ((WellFoundedLT.iff _).mp hBwell)
+          (show Set (B : Set X) from { c | c.val < d ∧ c.val ∉ (A : Set X) })
+          ⟨⟨c₀, hc₀B⟩, hc₀d, hc₀A⟩
+        replace hminS' : ∀ c ∈ (B : Set X), c < d → c ∉ (A : Set X) → e ≤ c := by
+          intro c hcB hcd hcA
+          exact (hBtot ⟨c, hcB⟩ ⟨e, heB⟩).elim
+            (fun hle ↦ hminS' (b := ⟨⟨c, hcB⟩, hcd, hcA⟩) hle) id
+        have hagree : ∀ c, c < e → (c ∈ (B : Set X) ↔ c ∈ (A : Set X)) := by
+          intro c hce; exact ⟨
+            fun hcB ↦ by by_contra hcA
+                         exact absurd (hminS' c hcB (lt_trans hce hed) hcA) (not_le_of_gt hce),
+            fun hcA ↦ hcB_of_A c hcA (lt_trans hce hed)⟩
+        exact no_first_difference B A e heB heA (fun h ↦ heA (h ▸ hAx₀)) hagree d hdA hed.le
+      exact no_first_difference A B d hdA hdB hdx₀
+        (fun c hcd ↦ ⟨fun h ↦ hcB_of_A c h hcd, fun h ↦ hcA_of_B c h hcd⟩) a haB hda.le
+
+    -- Step 1: initial segments agree for elements of Y ∩ Y'.
+    have step1 : ∀ a ∈ I, {b ∈ (Y:Set X) | b < a} = {b ∈ (Y':Set X) | b < a} := by
+      -- Suffices to show ∀ b < a, b ∈ Y ↔ b ∈ Y'.
+      suffices ∀ a ∈ I, ∀ b, b < a → (b ∈ (Y:Set X) ↔ b ∈ (Y':Set X)) by
+        intro a ha; ext b; simp only [Set.mem_sep_iff]
+        exact ⟨fun ⟨h1, h2⟩ ↦ ⟨(this a ha b h2).mp h1, h2⟩,
+               fun ⟨h1, h2⟩ ↦ ⟨(this a ha b h2).mpr h1, h2⟩⟩
+      intro a haI b hba
+      have haY : a ∈ (Y : Set X) := haI.1
+      have haY' : a ∈ (Y' : Set X) := haI.2
+      constructor
+      · exact step1_mem (A := Y) (B := Y') haY haY' hba
+      · exact step1_mem (A := Y') (B := Y) haY' haY hba
+
+    -- Step 2: Y ∩ Y' is good.
+    have hIΩ₀ : I ∈ Ω₀ := by
+      have hItot : IsTotal I := by
+        intro ⟨a, ha⟩ ⟨b, hb⟩
+        exact hYtot ⟨a, ha.1⟩ ⟨b, hb.1⟩
+      have hIwell : WellFoundedLT I := by
+        haveI : WellFoundedLT (Y : Set X) := hYwell
+        exact WellFoundedLT.subset (A := (Y : Set X)) (B := I) hYtot (by intro x hx; exact hx.1)
+      refine ⟨hItot, hIwell, ?_, ?_⟩
+      · exact ⟨hYx₀, hY'x₀⟩
+      · intro z hzI
+        exact hYmin z hzI.1
+    let I0 : Ω₀ := ⟨I, hIΩ₀⟩
+    have step2 : I0 ∈ Ω := by
+      change ∀ z ∈ (I0 : Set X) \ {x₀}, z = s (F I0 z)
+      intro z hzI
+      have hzY : z ∈ (Y : Set X) \ {x₀} := ⟨hzI.1.1, hzI.2⟩
+      have hzI' : z ∈ I \ {x₀} := hzI
+      have hseg : {b ∈ (Y : Set X) | b < z} = {b ∈ I | b < z} := by
+        ext b
+        constructor
+        · rintro ⟨hbY, hbz⟩
+          have hbY' : b ∈ (Y' : Set X) := by
+            have : b ∈ {b ∈ (Y' : Set X) | b < z} := by
+              rw [← step1 z hzI.1]
+              exact ⟨hbY, hbz⟩
+            exact this.1
+          exact ⟨⟨hbY, hbY'⟩, hbz⟩
+        · rintro ⟨hbI, hbz⟩
+          exact ⟨hbI.1, hbz⟩
+      have hFeq : F Y.val z = F I0 z := by
+        apply Subtype.val_injective
+        rw [hF hzY, hF hzI', hseg]
+      have hzgood : z = s (F Y.val z) := hYΩ z hzY
+      rwa [hFeq] at hzgood
+
+    -- Steps 3+4: Y ⊆ Y' (otherwise s(I0) lands in both Y\Y' and Y'\Y — contradiction).
+    have step4 : (Y : Set X) ⊆ Y' := by
+      by_contra hsub; rw [Set.not_subset] at hsub
+      -- Take the min d of Y \ Y'. Show {c ∈ Y | c < d} = I, hence d = s(I0).
+      obtain ⟨d₁, hd₁Y, hd₁Y'⟩ := hsub
+      set Ylin := LinearOrder.mk hYtot
+      set S₁ : Set (Y:Set X) := {c | (c:X) ∉ (Y':Set X)}
+      obtain ⟨⟨⟨d, hdY⟩, hdY'⟩, hminS⟩ := ((WellFoundedLT.iff _).mp hYwell) S₁
+        ⟨⟨d₁, hd₁Y⟩, hd₁Y'⟩
+      replace hminS : ∀ c ∈ (Y:Set X), c ∉ (Y':Set X) → d ≤ c := by
+        intro c hcY hcY'
+        exact (hYtot ⟨c, hcY⟩ ⟨d, hdY⟩).elim (fun h ↦ hminS (b := ⟨⟨c, hcY⟩, hcY'⟩) h) id
+      have hdx₀ : d ≠ x₀ := fun hd ↦ hdY' (hd ▸ hY'x₀)
+      have hsegL : {c ∈ (Y:Set X) | c < d} = I := by
+        ext c; constructor
+        · rintro ⟨hcY, hcd⟩
+          exact ⟨hcY, by by_contra hcY'; exact absurd (hminS c hcY hcY') (not_le_of_gt hcd)⟩
+        · intro ⟨hcY, hcY'⟩
+          refine ⟨hcY, ?_⟩
+          rcases hYtot ⟨c, hcY⟩ ⟨d, hdY⟩ with hcd | hdc
+          · exact lt_of_le_of_ne hcd fun h ↦ hdY' (h ▸ hcY')
+          · exact absurd ((step1 c ⟨hcY, hcY'⟩).subset ⟨hdY, lt_of_le_of_ne hdc
+              fun h ↦ hdY' (h ▸ hcY')⟩).1 hdY'
+      have hdYx₀ : d ∈ (Y:Set X) \ {x₀} := ⟨hdY, by simp [hdx₀]⟩
+      have hFeqL : F Y.val d = I0 := Subtype.val_injective (by rw [hF hdYx₀, hsegL])
+      have hd_eq : d = s I0 := by have := hYΩ d hdYx₀; rwa [hFeqL] at this
+      -- Same for the min d' of Y' \ Y: {c ∈ Y' | c < d'} = I, hence d' = s(I0) = d.
+      set Y'lin := LinearOrder.mk hY'tot
+      set S₂ : Set (Y':Set X) := {c | (c:X) ∉ (Y:Set X)}
+      obtain ⟨⟨⟨d', hd'Y'⟩, hd'Y⟩, hminS'⟩ := ((WellFoundedLT.iff _).mp hY'well) S₂
+        ⟨⟨x, h.1⟩, h.2⟩
+      replace hminS' : ∀ c ∈ (Y':Set X), c ∉ (Y:Set X) → d' ≤ c := by
+        intro c hcY' hcY
+        exact (hY'tot ⟨c, hcY'⟩ ⟨d', hd'Y'⟩).elim (fun h ↦ hminS' (b := ⟨⟨c, hcY'⟩, hcY⟩) h) id
+      have hd'x₀ : d' ≠ x₀ := fun hd ↦ hd'Y (hd ▸ hYx₀)
+      have hsegR : {c ∈ (Y':Set X) | c < d'} = I := by
+        ext c; constructor
+        · rintro ⟨hcY', hcd⟩
+          exact ⟨by by_contra hcY; exact absurd (hminS' c hcY' hcY) (not_le_of_gt hcd), hcY'⟩
+        · intro ⟨hcY, hcY'⟩
+          refine ⟨hcY', ?_⟩
+          rcases hY'tot ⟨c, hcY'⟩ ⟨d', hd'Y'⟩ with hcd | hdc
+          · exact lt_of_le_of_ne hcd fun h ↦ hd'Y (h ▸ hcY)
+          · exact absurd ((step1 c ⟨hcY, hcY'⟩).symm.subset ⟨hd'Y', lt_of_le_of_ne hdc
+              fun h ↦ hd'Y (h ▸ hcY)⟩).1 hd'Y
+      have hd'Y'x₀ : d' ∈ (Y':Set X) \ {x₀} := ⟨hd'Y', by simp [hd'x₀]⟩
+      have hFeqR : F Y'.val d' = I0 := Subtype.val_injective (by rw [hF hd'Y'x₀, hsegR])
+      have hd'_eq : d' = s I0 := by have := hY'Ω d' hd'Y'x₀; rwa [hFeqR] at this
+      -- d = d' = s(I0), but d ∉ Y' and d' ∈ Y'.
+      exact hdY' (hd_eq ▸ hd'_eq ▸ hd'Y')
+
+    -- Step 5: every `y ∈ Y` is below `x`.
+    have step5 : IsStrictUpperBound Y x := by
+      rw [IsStrictUpperBound.iff]
+      intro y hyY
+      have hyY' : y ∈ (Y' : Set X) := step4 hyY
+      rcases hY'tot ⟨y, hyY'⟩ ⟨x, h.1⟩ with hyx | hxy
+      · exact lt_of_le_of_ne hyx (by intro hxy'; exact h.2 (hxy' ▸ hyY))
+      · have hxy' : x < y := by
+          exact lt_of_le_of_ne hxy (by intro hxy'; exact h.2 (hxy'.symm ▸ hyY))
+        have hxY : x ∈ (Y : Set X) := by
+          have : x ∈ {b ∈ (Y : Set X) | b < y} := by
+            rw [step1 y ⟨hyY, hyY'⟩]
+            exact ⟨h.1, hxy'⟩
+          exact this.1
+        exact (h.2 hxY).elim
+    exact step5
 
   have : IsTotal Ω := by
     unfold IsTotal; by_contra!; obtain ⟨ ⟨ ⟨ Y, hY1 ⟩, hY2 ⟩, ⟨ ⟨ Y', hY'1⟩, hY'2 ⟩, h1, h2 ⟩ := this
@@ -457,7 +676,14 @@ theorem WellFoundedLT.partialOrder {X:Type} [PartialOrder X] (x₀ : X) : ∃ Y 
   set Y_infty : Set X := ⋃ Y:Ω, Y
   have hmem : x₀ ∈ Y_infty := by simp [Y_infty]; use pt; grind
   have hmin {x:X} (hx: x ∈ Y_infty) : x₀ ≤ x := by
-    sorry
+    unfold Y_infty at hx
+    obtain ⟨ Y, hY, hxY ⟩ := hx
+    simp at hY
+    have hYΩ₀ := hY.1
+    have hYΩ := hY.2
+    unfold Ω₀ at hYΩ₀
+    obtain ⟨ _, _, _, hYmin ⟩ := hYΩ₀
+    exact hYmin x hxY
   have htotal : IsTotal Y_infty := by
     intro ⟨ x, hx ⟩ ⟨ x', hx'⟩; simp [Y_infty] at hx hx'
     obtain ⟨ Y, ⟨ hYΩ₀, hYΩ ⟩, hxY ⟩ := hx; obtain ⟨ Y', ⟨ hY'Ω₀, hY'Ω ⟩, hxY' ⟩ := hx'
@@ -474,16 +700,55 @@ theorem WellFoundedLT.partialOrder {X:Type} [PartialOrder X] (x₀ : X) : ∃ Y 
     rw [IsMin.iff_lowerbound' (IsTotal.subtype htotal)]
     use ⟨ _, hbY_infty ⟩, hbA; intro ⟨ x, hx ⟩ hxA
     simp [Y_infty] at hx ⊢; obtain ⟨ Y', ⟨ hY'Ω₀, hY'Ω ⟩, hxY' ⟩ := hx
-    sorry
-  have hY_inftyΩ₀ : Y_infty ∈ Ω₀ := by
-    sorry
+    by_cases hxY : x ∈ Y
+    · have hxmem : ⟨x, hxY⟩ ∈ {x : ↑Y | ∃ x' : A, (x : X) = ↑↑x'} :=
+        ⟨⟨⟨x, hx⟩, hxA⟩, rfl⟩
+      rcases hYΩ₀.1 ⟨b, hb⟩ ⟨x, hxY⟩ with h | h
+      · exact h
+      · have := hbmin (b := ⟨⟨x, hxY⟩, hxmem⟩) h; simpa using this
+    · have := ex_8_5_13 (Y := ⟨_, hYΩ⟩) (Y' := ⟨_, hY'Ω⟩) x ⟨hxY', hxY⟩
+      rw [IsStrictUpperBound.iff] at this
+      exact le_of_lt (this _ hb)
+  have hY_inftyΩ₀ : Y_infty ∈ Ω₀ := ⟨htotal, hwell, hmem, fun _ h ↦ hmin h⟩
   set sY_infty : X := s ⟨ _, hY_inftyΩ₀ ⟩
+  have hsub : IsStrictUpperBound Y_infty sY_infty := hs ⟨_, hY_inftyΩ₀⟩
   have hYs_total : IsTotal (Y_infty ∪ {sY_infty} : Set X) := by
-    sorry
+    intro ⟨x, hx⟩ ⟨y, hy⟩
+    simp only [Set.mem_union, Set.mem_singleton_iff] at hx hy
+    rcases hx with hx | rfl <;> rcases hy with hy | rfl
+    · exact htotal ⟨x, hx⟩ ⟨y, hy⟩
+    · left; exact le_of_lt ((IsStrictUpperBound.iff ..).mp hsub x hx)
+    · right; exact le_of_lt ((IsStrictUpperBound.iff ..).mp hsub y hy)
+    · left; exact le_refl _
   have hYs_well : WellFoundedLT (Y_infty ∪ {sY_infty} : Set X) := by
-    sorry
-  have hYs_mem : x₀ ∈ Y_infty ∪ {sY_infty} := by sorry
-  have hYs_min : ∀ x ∈ Y_infty ∪ {sY_infty}, x₀ ≤ x := by sorry
+    rw [iff' hYs_total]; intro A ⟨⟨a, ha⟩, haA⟩
+    by_cases hA : ∃ y ∈ A, (y : X) ∈ Y_infty
+    · obtain ⟨⟨y, hy⟩, hyA, hyY⟩ := hA
+      set B : Set ↑Y_infty := {z | ⟨z, Set.mem_union_left _ z.property⟩ ∈ A}
+      have hBne : B.Nonempty := ⟨⟨y, hyY⟩, by simp [B]; convert hyA using 1⟩
+      obtain ⟨⟨⟨m, hm⟩, hmB⟩, hmmin⟩ := ((iff' htotal).mp hwell) B hBne
+      simp [B] at hmB
+      use ⟨⟨m, Set.mem_union_left _ hm⟩, hmB⟩
+      intro ⟨⟨z, hz⟩, hzA⟩ hzm
+      simp only [Set.mem_union, Set.mem_singleton_iff] at hz
+      rcases hz with hzY | rfl
+      · have hzB : ⟨z, hzY⟩ ∈ B := by simp [B]; convert hzA using 1
+        exact hmmin (b := ⟨⟨z, hzY⟩, hzB⟩) hzm
+      · exact absurd (lt_of_le_of_lt hzm ((IsStrictUpperBound.iff ..).mp hsub m hm)) (lt_irrefl _)
+    · push_neg at hA
+      have haS : a = sY_infty := by
+        simp only [Set.mem_union, Set.mem_singleton_iff] at ha
+        exact ha.elim (fun h ↦ absurd h (hA _ haA)) id
+      use ⟨⟨a, ha⟩, haA⟩; intro ⟨⟨z, hz⟩, hzA⟩ hzm
+      simp only [Set.mem_union, Set.mem_singleton_iff] at hz
+      rcases hz with hzY | rfl
+      · exact absurd hzY (hA _ hzA)
+      · subst haS; exact hzm
+  have hYs_mem : x₀ ∈ Y_infty ∪ {sY_infty} := .inl hmem
+  have hYs_min : ∀ x ∈ Y_infty ∪ {sY_infty}, x₀ ≤ x := by
+    rintro x (hx | rfl)
+    · exact hmin hx
+    · exact le_of_lt ((IsStrictUpperBound.iff ..).mp hsub _ hmem)
   have hYs_Ω₀ : (Y_infty ∪ {sY_infty}) ∈ Ω₀ := by
     simpa [-Set.union_singleton, Ω₀, hYs_total, hYs_well, hYs_mem]
   specialize hs ⟨ _, hY_inftyΩ₀ ⟩

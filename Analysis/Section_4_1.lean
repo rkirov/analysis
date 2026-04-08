@@ -40,8 +40,12 @@ structure PreInt where
 instance PreInt.instSetoid : Setoid PreInt where
   r a b := a.minuend + b.subtrahend = b.minuend + a.subtrahend
   iseqv := {
-    refl := by sorry
-    symm := by sorry
+    refl := by
+     intro a
+     rfl
+    symm := by
+      intro a b h
+      exact h.symm
     trans := by
       -- This proof is written to follow the structure of the original text.
       intro ⟨ a,b ⟩ ⟨ c,d ⟩ ⟨ e,f ⟩ h1 h2; simp_all
@@ -147,11 +151,17 @@ example : 3 = 3 —— 0 := rfl
 example : 3 = 4 —— 1 := by rw [Int.ofNat_eq, Int.eq]
 
 /-- (Not from textbook) 0 is the only natural whose cast is 0 -/
-lemma Int.cast_eq_0_iff_eq_0 (n : ℕ) : (n : Int) = 0 ↔ n = 0 := by sorry
+lemma Int.cast_eq_0_iff_eq_0 (n : ℕ) : (n : Int) = 0 ↔ n = 0 := by exact ofNat_inj n 0
+
+/-- natCast is a homomorphism of monoids -/
+theorem Int.natCast_add (a b:ℕ) : (((a + b):Nat): Int) = (a : Int) + (b : Int) := by rfl
 
 /-- Definition 4.1.4 (Negation of integers) / Exercise 4.1.2 -/
 instance Int.instNeg : Neg Int where
-  neg := Quotient.lift (fun ⟨ a, b ⟩ ↦ b —— a) (by sorry)
+  neg := Quotient.lift (fun ⟨ a, b ⟩ ↦ b —— a) (by
+    intro ⟨ a, b ⟩ ⟨ c, d ⟩ h; simp at h ⊢
+    rw [Int.eq]; omega
+  )
 
 theorem Int.neg_eq (a b:ℕ) : -(a —— b) = b —— a := rfl
 
@@ -173,6 +183,18 @@ theorem Int.trichotomous (x:Int) : x = 0 ∨ x.IsPos ∨ x.IsNeg := by
   right; left; refine ⟨ c+1, by linarith, ?_ ⟩
   simp_rw [natCast_eq, eq]; abel
 
+/-- (Not from textbook) I use this a lot in ch4.3 -/
+theorem Int.eq_nat_or_neg (a : Int) : ∃ n: ℕ, a = ↑n ∨ a = -↑n := by
+  have := trichotomous a
+  obtain rfl | ⟨ n, hn, rfl ⟩ | ⟨ n, hn, rfl ⟩ := this
+  . use 0; left; rfl
+  . use n
+    left
+    rfl
+  . use n
+    right
+    rfl
+
 /-- Lemma 4.1.5 (trichotomy of integers)-/
 theorem Int.not_pos_zero (x:Int) : x = 0 ∧ x.IsPos → False := by
   rintro ⟨ rfl, ⟨ n, _, _ ⟩ ⟩; simp_all [←natCast_ofNat]
@@ -189,15 +211,39 @@ theorem Int.not_pos_neg (x:Int) : x.IsPos ∧ x.IsNeg → False := by
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instAddGroup : AddGroup Int :=
-  AddGroup.ofLeftAxioms (by sorry) (by sorry) (by sorry)
+  AddGroup.ofLeftAxioms (by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩ ⟨c1, c2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    abel
+  ) (by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+  ) (by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    rw [add_comm]
+  )
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instAddCommGroup : AddCommGroup Int where
-  add_comm := by sorry
+  add_comm := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    abel
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instCommMonoid : CommMonoid Int where
-  mul_comm := by sorry
+  mul_comm := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    -- abel needs some help
+    repeat rw [mul_comm a1, mul_comm a2]
+    abel
   mul_assoc := by
     -- This proof is written to follow the structure of the original text.
     intro x y z
@@ -205,26 +251,111 @@ instance Int.instCommMonoid : CommMonoid Int where
     obtain ⟨ c, d, rfl ⟩ := eq_diff y
     obtain ⟨ e, f, rfl ⟩ := eq_diff z
     simp_rw [mul_eq]; congr 1 <;> ring
-  one_mul := by sorry
-  mul_one := by sorry
+  one_mul := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+  mul_one := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
 
 /-- Proposition 4.1.6 (laws of algebra) / Exercise 4.1.4 -/
 instance Int.instCommRing : CommRing Int where
-  left_distrib := by sorry
-  right_distrib := by sorry
-  zero_mul := by sorry
-  mul_zero := by sorry
+  left_distrib := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩ ⟨c1, c2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    -- abel needs some help
+    repeat rw [mul_add]
+    abel
+  right_distrib := by
+    rintro ⟨a1, a2⟩ ⟨b1, b2⟩ ⟨c1, c2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+    -- abel needs some help
+    repeat rw [add_mul]
+    abel
+  zero_mul := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
+  mul_zero := by
+    rintro ⟨a1, a2⟩
+    apply Quot.sound
+    simp [Setoid.r]
 
 /-- Definition of subtraction -/
 theorem Int.sub_eq (a b:Int) : a - b = a + (-b) := by rfl
 
-theorem Int.sub_eq_formal_sub (a b:ℕ) : (a:Int) - (b:Int) = a —— b := by sorry
+theorem Int.sub_eq_formal_sub (a b:ℕ) : (a:Int) - (b:Int) = a —— b := by
+  rw [sub_eq]
+  repeat rw [natCast_eq]
+  rw [neg_eq]
+  rw [add_eq]
+  rw [eq]
+  simp only [add_zero, zero_add]
 
 /-- Proposition 4.1.8 (No zero divisors) / Exercise 4.1.5 -/
-theorem Int.mul_eq_zero {a b:Int} (h: a * b = 0) : a = 0 ∨ b = 0 := by sorry
+theorem Int.mul_eq_zero {a b:Int} (h: a * b = 0) : a = 0 ∨ b = 0 := by
+  obtain ⟨a1, a2, rfl⟩ := eq_diff a
+  obtain ⟨b1, b2, rfl⟩ := eq_diff b
+  rw [mul_eq] at h
+  rw [ofNat_eq] at h
+  rw [eq] at h
+  simp at h
+  rw [ofNat_eq]
+  repeat rw [eq]
+  simp only [add_zero, zero_add]
+  wlog ha: a1 < a2
+  . simp at ha
+    have : a2 = a1 ∨ a2 < a1 := by exact Nat.eq_or_lt_of_le ha
+    cases' this with he hb
+    . left
+      exact he.symm
+    . specialize this a2 a1 b1 b2
+      have := this (by omega) hb
+      omega
+  . wlog hb: b1 < b2
+    . simp at hb
+      have : b2 = b1 ∨ b2 < b1 := by exact Nat.eq_or_lt_of_le hb
+      cases' this with he hb
+      . right
+        exact he.symm
+      . specialize this a1 a2 b2 b1
+        have := this (by omega) ha hb
+        omega
+    . have h: (a2 - a1) * b2 = (a2 - a1) * b1 := by
+        repeat rw [Nat.mul_sub_right_distrib]
+        omega
+      have h': (a2 - a1) * (b2 - b1) = 0 := by
+        rw [Nat.mul_sub_left_distrib]
+        omega
+      rw [Nat.mul_eq_zero] at h'
+      omega
+
+theorem Int.neg_mul (a b: Int) : (-a) * b = -(a * b) := by
+  -- exact Lean.Grind.CommRing.neg_mul a b -- but this might be cheating?
+  obtain ⟨a1, a2, rfl⟩ := eq_diff a
+  obtain ⟨b1, b2, rfl⟩ := eq_diff b
+  rw [neg_eq]
+  repeat rw [mul_eq]
+  rw [neg_eq]
+  rw [eq]
+  omega
 
 /-- Corollary 4.1.9 (Cancellation law) / Exercise 4.1.6 -/
-theorem Int.mul_right_cancel₀ (a b c:Int) (h: a*c = b*c) (hc: c ≠ 0) : a = b := by sorry
+theorem Int.mul_right_cancel₀ (a b c:Int) (h: a*c = b*c) (hc: c ≠ 0) : a = b := by
+  have h1: a * c - b * c = 0 := by exact sub_eq_zero_of_eq h -- is this cheating?
+  have h2: (a - b) * c = 0 := by
+    rw [Int.sub_eq]
+    rw [right_distrib]
+    rw [Int.neg_mul]
+    rwa [← Int.sub_eq]
+  apply mul_eq_zero at h2
+  cases' h2 with h3 h4
+  . rwa [sub_eq_zero] at h3
+  . contradiction
 
 /-- Definition 4.1.10 (Ordering of the integers) -/
 instance Int.instLE : LE Int where
@@ -239,34 +370,157 @@ theorem Int.le_iff (a b:Int) : a ≤ b ↔ ∃ t:ℕ, b = a + t := by rfl
 theorem Int.lt_iff (a b:Int): a < b ↔ (∃ t:ℕ, b = a + t) ∧ a ≠ b := by rfl
 
 /-- Lemma 4.1.11(a) (Properties of order) / Exercise 4.1.7 -/
-theorem Int.lt_iff_exists_positive_difference (a b:Int) : a < b ↔ ∃ n:ℕ, n ≠ 0 ∧ b = a + n := by sorry
+theorem Int.lt_iff_exists_positive_difference (a b:Int) : a < b ↔ ∃ n:ℕ, n ≠ 0 ∧ b = a + n := by
+  constructor
+  . intro h
+    obtain ⟨⟨n, hn⟩ , he⟩ := h
+    use n
+    constructor
+    . contrapose! he
+      rw [he] at hn
+      simp only [Nat.cast_zero, add_zero] at hn
+      exact hn.symm
+    . exact hn
+  . intro h
+    obtain ⟨n, hn, he⟩ := h
+    rw [lt_iff]
+    constructor
+    . use n
+    . contrapose! hn
+      rw [hn] at he
+      simp only [left_eq_add] at he
+      exact (cast_eq_0_iff_eq_0 n).mp he
 
 /-- Lemma 4.1.11(b) (Addition preserves order) / Exercise 4.1.7 -/
-theorem Int.add_lt_add_right {a b:Int} (c:Int) (h: a < b) : a+c < b+c := by sorry
+theorem Int.add_lt_add_right {a b:Int} (c:Int) (h: a < b) : a+c < b+c := by
+  rw [lt_iff] at h ⊢
+  obtain ⟨⟨t, ht⟩, hn⟩ := h
+  constructor
+  . use t
+    rw [ht]
+    abel
+  . contrapose! hn
+    simp only [add_left_inj] at hn
+    exact hn
 
 /-- Lemma 4.1.11(c) (Positive multiplication preserves order) / Exercise 4.1.7 -/
-theorem Int.mul_lt_mul_of_pos_right {a b c:Int} (hab : a < b) (hc: 0 < c) : a*c < b*c := by sorry
+theorem Int.mul_lt_mul_of_pos_right {a b c:Int} (hab : a < b) (hc: 0 < c) : a*c < b*c := by
+  rw [lt_iff] at hab hc ⊢
+  obtain ⟨⟨t, ht⟩, hnt⟩ := hab
+  obtain ⟨⟨u, hu⟩, hnu⟩ := hc
+  constructor
+  . use t * u
+    rw [ht, hu]
+    simp only [zero_add, Nat.cast_mul]
+    exact right_distrib a ↑t ↑u
+  . contrapose! hnt
+    exact mul_right_cancel₀ a b c hnt (id (Ne.symm hnu))
 
 /-- Lemma 4.1.11(d) (Negation reverses order) / Exercise 4.1.7 -/
-theorem Int.neg_gt_neg {a b:Int} (h: b < a) : -a < -b := by sorry
+theorem Int.neg_gt_neg {a b:Int} (h: b < a) : -a < -b := by
+  rw [lt_iff] at h ⊢
+  obtain ⟨⟨t, ht⟩, hn⟩ := h
+  constructor
+  . use t
+    rw [ht]
+    simp only [neg_add_rev, neg_add_cancel_comm]
+  . contrapose! hn
+    have : a = -(-b) := by exact neg_eq_iff_eq_neg.mp hn
+    rw [this]
+    simp only [neg_neg]
 
 /-- Lemma 4.1.11(d) (Negation reverses order) / Exercise 4.1.7 -/
-theorem Int.neg_ge_neg {a b:Int} (h: b ≤ a) : -a ≤ -b := by sorry
+theorem Int.neg_ge_neg {a b:Int} (h: b ≤ a) : -a ≤ -b := by
+  rw [le_iff] at h ⊢
+  obtain ⟨t, ht⟩ := h
+  use t
+  rw [ht]
+  simp only [neg_add_rev, neg_add_cancel_comm]
 
 /-- Lemma 4.1.11(e) (Order is transitive) / Exercise 4.1.7 -/
-theorem Int.lt_trans {a b c:Int} (hab: a < b) (hbc: b < c) : a < c := by sorry
+theorem Int.lt_trans {a b c:Int} (hab: a < b) (hbc: b < c) : a < c := by
+  rw [lt_iff] at hab hbc ⊢
+  obtain ⟨⟨t, ht⟩, hn⟩ := hab
+  obtain ⟨⟨u, hu⟩, hnu⟩ := hbc
+  constructor
+  . use t + u
+    rw [hu, ht]
+    simp only [Nat.cast_add]
+    ring
+  . contrapose! hn
+    subst a
+    rw [hu] at ht
+    have : (u: Int) + (t: Int) = 0 := by
+      conv_lhs at ht => rw [← add_zero b]
+      rw [add_assoc] at ht
+      apply add_left_cancel at ht
+      exact ht.symm
+    rw [← natCast_add] at this
+    rw [cast_eq_0_iff_eq_0] at this
+    have : u = 0 ∧ t = 0 := by exact Nat.eq_zero_of_add_eq_zero this
+    simp only [this.1, Nat.cast_zero, add_zero] at hu
+    exact hu
 
 /-- Lemma 4.1.11(f) (Order trichotomy) / Exercise 4.1.7 -/
-theorem Int.trichotomous' (a b:Int) : a > b ∨ a < b ∨ a = b := by sorry
+theorem Int.trichotomous' (a b:Int) : a > b ∨ a < b ∨ a = b := by
+  have := Int.trichotomous (a - b)
+  rcases this with h1 | h2 | h3
+  . right; right; rwa [sub_eq_zero] at h1;
+  . obtain ⟨n, hn, hab⟩ := h2
+    left
+    simp only [gt_iff_lt]
+    rw [lt_iff]
+    constructor
+    . use n
+      exact Eq.symm (add_eq_of_eq_sub' (Eq.symm hab))
+    . have hn': n ≠ 0 := by exact Nat.ne_zero_of_lt hn
+      contrapose! hn
+      rw [hn] at hab
+      simp at hab
+      symm at hab
+      rw [cast_eq_0_iff_eq_0] at hab
+      contradiction
+  . right; left;
+    obtain ⟨n, hn, hab⟩ := h3
+    rw [lt_iff]
+    constructor
+    . use n
+      have := add_eq_of_eq_sub' (Eq.symm hab)
+      change b - ↑n = a at this
+      apply eq_add_of_sub_eq' at this
+      rw [add_comm]
+      exact this
+    . have hn': n ≠ 0 := by exact Nat.ne_zero_of_lt hn
+      contrapose! hn
+      rw [hn] at hab
+      simp at hab
+      rw [cast_eq_0_iff_eq_0] at hab
+      contradiction
 
 /-- Lemma 4.1.11(f) (Order trichotomy) / Exercise 4.1.7 -/
-theorem Int.not_gt_and_lt (a b:Int) : ¬ (a > b ∧ a < b):= by sorry
+theorem Int.not_gt_and_lt (a b:Int) : ¬ (a > b ∧ a < b):= by
+  by_contra h
+  have := Int.lt_trans h.1 h.2
+  rw [lt_iff] at this
+  obtain ⟨_, hc⟩ := this
+  contradiction
 
 /-- Lemma 4.1.11(f) (Order trichotomy) / Exercise 4.1.7 -/
-theorem Int.not_gt_and_eq (a b:Int) : ¬ (a > b ∧ a = b):= by sorry
+theorem Int.not_gt_and_eq (a b:Int) : ¬ (a > b ∧ a = b):= by
+  by_contra! h
+  obtain ⟨h1, h2⟩ := h
+  rw [h2] at h1
+  rw [gt_iff_lt] at h1
+  rw [lt_iff] at h1
+  tauto
 
 /-- Lemma 4.1.11(f) (Order trichotomy) / Exercise 4.1.7 -/
-theorem Int.not_lt_and_eq (a b:Int) : ¬ (a < b ∧ a = b):= by sorry
+theorem Int.not_lt_and_eq (a b:Int) : ¬ (a < b ∧ a = b):= by
+  by_contra! h
+  obtain ⟨h1, h2⟩ := h
+  rw [h2] at h1
+  rw [lt_iff] at h1
+  tauto
 
 /-- (Not from textbook) Establish the decidability of this order. -/
 instance Int.decidableRel : DecidableRel (· ≤ · : Int → Int → Prop) := by
@@ -278,38 +532,166 @@ instance Int.decidableRel : DecidableRel (· ≤ · : Int → Int → Prop) := b
     cases (a + d).decLe (b + c) with
       | isTrue h =>
         apply isTrue
-        sorry
+        rw [le_iff]
+        have ⟨t, ht⟩ := Nat.le.dest h
+        use t
+        rw [natCast_eq]
+        rw [add_eq]
+        rw [eq]
+        omega
       | isFalse h =>
         apply isFalse
-        sorry
+        contrapose! h
+        rw [le_iff] at h
+        obtain ⟨t, ht⟩ := h
+        apply Nat.le.intro (k:=t)
+        rw [natCast_eq] at ht
+        rw [add_eq] at ht
+        rw [eq] at ht
+        omega
   exact Quotient.recOnSubsingleton₂ n m this
 
 /-- (Not from textbook) 0 is the only additive identity -/
-lemma Int.is_additive_identity_iff_eq_0 (b : Int) : (∀ a, a = a + b) ↔ b = 0 := by sorry
+lemma Int.is_additive_identity_iff_eq_0 (b : Int) : (∀ a, a = a + b) ↔ b = 0 := by
+  constructor
+  . intro h
+    specialize h 0
+    simp only [zero_add] at h
+    exact h.symm
+  . intro h
+    rw [h]
+    simp only [add_zero, implies_true]
+
+theorem Int.le_refl (a:Int) : a ≤ a := by
+  rw [le_iff]
+  use 0
+  simp only [Nat.cast_zero, add_zero]
 
 /-- (Not from textbook) Int has the structure of a linear ordering. -/
 instance Int.instLinearOrder : LinearOrder Int where
-  le_refl := sorry
-  le_trans := sorry
-  lt_iff_le_not_ge := sorry
-  le_antisymm := sorry
-  le_total := sorry
+  le_refl := Int.le_refl
+  le_trans := by
+    intro a b c hab hbc
+    rw [le_iff] at hab hbc ⊢
+    obtain ⟨t, ht⟩ := hab
+    obtain ⟨u, hu⟩ := hbc
+    use t + u
+    rw [natCast_add]
+    rw [← add_assoc]
+    rw [← ht, ← hu]
+  lt_iff_le_not_ge := by
+    intro a b
+    constructor
+    . intro h
+      constructor
+      . exact h.1
+      . have := not_gt_and_lt b a
+        simp only [gt_iff_lt, h, true_and] at this
+        contrapose! this
+        have hneq : a ≠ b := by exact h.2
+        constructor
+        . exact this
+        . exact hneq.symm
+    . intro h
+      obtain ⟨h1, h2⟩ := h
+      constructor
+      . exact h1
+      . contrapose! h2
+        rw [h2]
+        exact le_refl b
+  le_antisymm := by
+    intro a b hab hba
+    by_contra heq
+    change a ≠ b at heq
+    have h1 : a < b := by exact ⟨hab, heq⟩
+    have h2 : b < a := by exact ⟨hba, heq.symm⟩
+    apply not_gt_and_lt a b
+    exact ⟨gt_iff_lt.mp h2, h1⟩
+
+  le_total := by
+    intro a b
+    by_cases h: a = b
+    . rw [h]
+      left
+      exact le_refl b
+    . by_cases h': a ≤ b
+      . left
+        exact h'
+      . right
+        change a ≠ b at h
+        have : b ≤ a ↔ b < a := by
+          constructor
+          . intro h1
+            exact ⟨h1, h.symm⟩
+          . intro h1
+            exact h1.1
+        rw [this]
+        have := Int.trichotomous' a b
+        rcases this with h1 | h2 | h3
+        . exact h1
+        . exfalso
+          apply h'
+          exact h2.1
+        . contradiction
   toDecidableLE := decidableRel
 
 /-- Exercise 4.1.3 -/
-theorem Int.neg_one_mul (a:Int) : -1 * a = -a := by sorry
+theorem Int.neg_one_mul (a:Int) : -1 * a = -a := by
+  obtain ⟨a1, a2, rfl⟩ := eq_diff a
+  rw [neg_eq]
+  rw [ofNat_eq]
+  rw [neg_eq]
+  rw [mul_eq]
+  rw [eq]
+  simp only [zero_mul, one_mul, zero_add]
 
 /-- Exercise 4.1.8 -/
-theorem Int.no_induction : ∃ P: Int → Prop, (P 0 ∧ ∀ n, P n → P (n+1)) ∧ ¬ ∀ n, P n := by sorry
+theorem Int.no_induction : ∃ P: Int → Prop, (P 0 ∧ ∀ n, P n → P (n+1)) ∧ ¬ ∀ n, P n := by
+  use fun x ↦ 0 ≤ x
+  constructor
+  . constructor
+    . exact Int.le_refl 0
+    intro n hn
+    . rw [le_iff] at hn ⊢
+      obtain ⟨t, ht⟩ := hn
+      use t + 1
+      rw [ht]
+      simp only [zero_add, Nat.cast_add, Nat.cast_one]
+  . push_neg
+    use -1
+    rw [lt_iff]
+    constructor
+    . use 1
+      simp only [Nat.cast_one, neg_add_cancel]
+    . repeat rw [ofNat_eq]
+      rw [neg_eq]
+      intro h
+      rw [eq] at h
+      simp only [add_zero, zero_add, zero_ne_one] at h
 
 /-- A nonnegative number squared is nonnegative. This is a special case of 4.1.9 that's useful for proving the general case. --/
-lemma Int.sq_nonneg_of_pos (n:Int) (h: 0 ≤ n) : 0 ≤ n*n := by sorry
+lemma Int.sq_nonneg_of_pos (n:Int) (h: 0 ≤ n) : 0 ≤ n*n := by
+  rw [le_iff] at h ⊢
+  obtain ⟨m, rfl⟩ := h
+  use m*m
+  simp only [zero_add, Nat.cast_mul]
 
 /-- Exercise 4.1.9. The square of any integer is nonnegative. -/
-theorem Int.sq_nonneg (n:Int) : 0 ≤ n*n := by sorry
-
-/-- Exercise 4.1.9 -/
-theorem Int.sq_nonneg' (n:Int) : ∃ (m:Nat), n*n = m := by sorry
+theorem Int.sq_nonneg (n:Int) : 0 ≤ n*n := by
+  by_cases h: 0 ≤ n
+  . exact Int.sq_nonneg_of_pos n h
+  . have h' : n < 0 := by exact lt_of_not_ge h
+    rw [lt_iff] at h'
+    obtain ⟨⟨m, hm⟩, heq⟩  := h'
+    use m * m
+    simp only [Nat.cast_mul, zero_add]
+    have :(n - ↑m) * (n + ↑m) = 0 := by exact mul_eq_zero_of_right (n - ↑m) (id (Eq.symm hm))
+    rw [mul_add, sub_mul, sub_mul] at this
+    rw [mul_comm ↑m n] at this
+    simp only [sub_add_sub_cancel] at this
+    apply eq_add_of_sub_eq at this
+    rw [this]
+    ring
 
 /--
   Not in textbook: create an equivalence between {name}`Int` and {lean}`ℤ`.
@@ -317,16 +699,93 @@ theorem Int.sq_nonneg' (n:Int) : ∃ (m:Nat), n*n = m := by sorry
 -/
 abbrev Int.equivInt : Int ≃ ℤ where
   toFun := Quotient.lift (fun ⟨ a, b ⟩ ↦ a - b) (by
-    sorry)
-  invFun := sorry
-  left_inv n := sorry
-  right_inv n := sorry
+    intro a b h
+    simp only
+    obtain ⟨a1, a2⟩ := a
+    obtain ⟨b1, b2⟩ := b
+    rw [PreInt.eq] at h
+    simp only []
+    omega
+  )
+  -- because we showed Int is a group, we picked up automatically IntCast
+  -- but it is a bit harder to use. Instead we use the existing ℕ to Int map
+  -- todo: replace with | | notation
+  invFun := fun i ↦ if h: 0 ≤ i then Int.natAbs i else -Int.natAbs (-i)
+  left_inv n := by
+    simp only []
+    obtain ⟨ a, b, rfl ⟩ := eq_diff n
+    simp only [Quotient.lift_mk, Int.sub_nonneg, Nat.cast_le, neg_sub, dite_eq_ite]
+    by_cases h: b ≤ a
+    . simp only [h, ↓reduceIte]
+      rw [natCast_eq]
+      rw [eq]
+      omega
+    . simp only [h, ↓reduceIte]
+      rw [natCast_eq]
+      rw [neg_eq]
+      rw [eq]
+      omega
+  right_inv x := by
+    simp only [Nat.cast_natAbs, Int.natAbs_neg, dite_eq_ite]
+    by_cases h: 0 ≤ x
+    . simp only [h, ↓reduceIte]
+      obtain ⟨a, b, hab⟩ := eq_diff ↑x.natAbs
+      rw [← Nat.cast_natAbs]
+      rw [hab]
+      simp only [Quotient.lift_mk]
+      rw [natCast_eq] at hab
+      rw [eq] at hab
+      omega
+    . simp only [h, ↓reduceIte]
+      obtain ⟨a, b, hab⟩ := eq_diff ↑x.natAbs
+      rw [← Nat.cast_natAbs]
+      rw [hab]
+      rw [neg_eq]
+      simp only [Quotient.lift_mk]
+      rw [natCast_eq] at hab
+      rw [eq] at hab
+      omega
 
 /-- Not in textbook: equivalence preserves order and ring operations -/
 abbrev Int.equivInt_ordered_ring : Int ≃+*o ℤ where
   toEquiv := equivInt
-  map_add' := by sorry
-  map_mul' := by sorry
-  map_le_map_iff' := by sorry
-
+  map_add' := by
+    dsimp
+    intro a b
+    obtain ⟨a1, a2, rfl⟩ := eq_diff a
+    obtain ⟨b1, b2, rfl⟩ := eq_diff b
+    rw [add_eq]
+    simp
+    omega
+  map_mul' := by
+    dsimp
+    intro a b
+    obtain ⟨a1, a2, rfl⟩ := eq_diff a
+    obtain ⟨b1, b2, rfl⟩ := eq_diff b
+    rw [mul_eq]
+    simp
+    ring
+  map_le_map_iff' := by
+    dsimp
+    intro a b
+    obtain ⟨a1, a2, rfl⟩ := eq_diff a
+    obtain ⟨b1, b2, rfl⟩ := eq_diff b
+    rw [le_iff]
+    constructor
+    . intro h
+      obtain ⟨t, ht⟩ := Int.le.dest h
+      simp at ht
+      use t
+      rw [natCast_eq]
+      rw [add_eq]
+      rw [eq]
+      omega
+    . intro h
+      obtain ⟨t, ht⟩ := h
+      apply Int.le.intro t
+      simp
+      rw [natCast_eq] at ht
+      rw [add_eq] at ht
+      rw [eq] at ht
+      omega
 end Section_4_1

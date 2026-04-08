@@ -102,7 +102,7 @@ example (x:ℝ) : x = 2 ↔ 2*x = 4 := by
   intro h
   linarith
 
-example {X Y :Prop} : (X ↔ Y) = (X = Y) := by simp
+example {X Y :Prop} : (X ↔ Y) = (X = Y) := by simp only [eq_iff_iff]
 
 example : (3 = 2) → (6 = 4) := by simp
 

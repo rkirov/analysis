@@ -57,17 +57,46 @@ abbrev Chapter2.Nat.map_add : ∀ (n m : Nat), (n + m).toNat = n.toNat + m.toNat
   intro n m
   induction' n with n hn
   · rw [show zero = 0 from rfl, zero_add, _root_.Nat.zero_add]
-  sorry
+  . rw [Chapter2.Nat.succ_add]
+    repeat rw [Chapter2.Nat.succ_toNat]
+    rw [hn]
+    rw [_root_.add_assoc, _root_.add_assoc, _root_.add_comm 1 _]
 
 /-- The conversion preserves multiplication. -/
 abbrev Chapter2.Nat.map_mul : ∀ (n m : Nat), (n * m).toNat = n.toNat * m.toNat := by
   intro n m
-  sorry
+  induction n with
+  | zero => simp
+  | succ n' ih =>
+    rw [succ_mul]
+    rw [succ_toNat]
+    rw [right_distrib]
+    rw [← ih]
+    simp
+    apply map_add
 
 /-- The conversion preserves order. -/
 abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n ≤ m := by
-  intro n m
-  sorry
+    intro n m
+    constructor
+    . intro h
+      obtain ⟨k, hk⟩ := Nat.le.dest h
+      use k
+      apply_fun equivNat
+      simp
+      rw [← hk]
+      rw [map_add]
+      -- need to create a hypothesis to simplify before rw.
+      have inv := equivNat.right_inv k
+      simp at inv
+      rw [inv]
+    . rintro ⟨k, hk⟩
+      apply_fun equivNat at hk
+      simp at hk
+      rw [hk]
+      rw [map_add]
+      rw [le_add_iff_nonneg_right]
+      simp only [_root_.zero_le]
 
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
@@ -78,8 +107,15 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
 /-- The conversion preserves exponentiation. -/
 lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
     n.toNat ^ m.toNat = (n^m).toNat := by
-  sorry
-
+  induction m with
+  | zero =>
+    simp
+  | succ m ih =>
+    simp [pow_succ]
+    rw [pow_add]
+    simp only [_root_.pow_one]
+    rw [ih]
+    rw [map_mul]
 
 /-- The Peano axioms for an abstract type {name}`Nat` -/
 @[ext]
@@ -95,8 +131,8 @@ structure PeanoAxioms where
 namespace PeanoAxioms
 
 /-- The Chapter 2 natural numbers obey the Peano axioms. -/
-def Chapter2_Nat : PeanoAxioms where
-  Nat := Chapter2.Nat
+def Chapter2.Nat : PeanoAxioms where
+  Nat := _root_.Chapter2.Nat
   zero := Chapter2.Nat.zero
   succ := Chapter2.Nat.succ
   succ_ne := Chapter2.Nat.succ_ne
@@ -119,11 +155,40 @@ abbrev natCast (P : PeanoAxioms) : ℕ → P.Nat := fun n ↦ match n with
 
 /-- One can start the proof here with {syntax tactic}`unfold Function.Injective`, although it is not strictly necessary. -/
 theorem natCast_injective (P : PeanoAxioms) : Function.Injective P.natCast := by
-  sorry
+  intro a b h
+  induction a generalizing b with
+  | zero =>
+    induction b with
+    | zero => rfl
+    | succ b ih =>
+      simp [natCast] at h
+      symm at h
+      exfalso
+      exact P.succ_ne _ h
+  | succ a ih =>
+    induction b with
+    | zero =>
+      simp [natCast] at h
+      exfalso
+      exact P.succ_ne _ h
+    | succ b ih2 =>
+      repeat rw [natCast] at h
+      apply P.succ_cancel at h
+      have a_eq_b := ih h
+      rw [a_eq_b]
 
 /-- One can start the proof here with {syntax tactic}`unfold Function.Surjective`, although it is not strictly necessary. -/
 theorem natCast_surjective (P : PeanoAxioms) : Function.Surjective P.natCast := by
-  sorry
+  apply P.induction
+  . use 0
+  . intro n ih
+    obtain ⟨m, hm⟩ := ih
+    use Nat.succ m
+    simp [natCast]
+    rw [hm]
+
+theorem natCast_bijective (P: PeanoAxioms) : Function.Bijective P.natCast :=
+ ⟨natCast_injective P, natCast_surjective P⟩
 
 /-- The notion of an equivalence between two structures obeying the Peano axioms.
     The symbol {kw (of := «term_≃_»)}`≃` is an alias for Mathlib's {name}`Equiv` class; for instance {lean}`P.Nat ≃ Q.Nat` is
@@ -137,29 +202,42 @@ class Equiv (P Q : PeanoAxioms) where
     Some of this API can be invoked automatically via the {tactic}`simp` tactic. -/
 abbrev Equiv.symm {P Q: PeanoAxioms} (equiv : Equiv P Q) : Equiv Q P where
   equiv := equiv.equiv.symm
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by
+    apply_fun equiv.equiv
+    simp
+    rw [equiv.equiv_zero]
+  equiv_succ n := by
+    apply_fun equiv.equiv
+    simp
+    rw [equiv.equiv_succ]
+    simp
 
 /-- This exercise will require application of Mathlib's API for the {name}`Equiv` class.
     Some of this API can be invoked automatically via the {tactic}`simp` tactic. -/
 abbrev Equiv.trans {P Q R: PeanoAxioms} (equiv1 : Equiv P Q) (equiv2 : Equiv Q R) : Equiv P R where
   equiv := equiv1.equiv.trans equiv2.equiv
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by simp [equiv1.equiv_zero, equiv2.equiv_zero]
+  equiv_succ n := by simp [equiv1.equiv_succ, equiv2.equiv_succ]
+
+theorem zero_or_succ (P : PeanoAxioms) (x : P.Nat): x = P.zero ∨ ∃ n, x = P.succ n := by
+  revert x
+  apply P.induction
+  . left
+    rfl
+  . intro n ih
+    right
+    use n
 
 /-- Useful Mathlib tools for inverting bijections include {name}`Function.surjInv` and {name}`Function.invFun`. -/
 noncomputable abbrev Equiv.fromNat (P : PeanoAxioms) : Equiv Mathlib_Nat P where
-  equiv := {
-    toFun := P.natCast
-    invFun := by sorry
-    left_inv := by sorry
-    right_inv := by sorry
-  }
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv := Equiv.ofBijective P.natCast (natCast_bijective P)
+  equiv_zero := by rfl;
+  equiv_succ n := by rfl;
 
 /-- The task here is to establish that any two structures obeying the Peano axioms are equivalent. -/
-noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by sorry
+noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by
+  exact Equiv.trans (Equiv.symm (Equiv.fromNat P)) (Equiv.fromNat Q)
+
 
 /-- There is only one equivalence between any two structures obeying the Peano axioms. -/
 theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
@@ -168,11 +246,62 @@ theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
   obtain ⟨equiv2, equiv_zero2, equiv_succ2⟩ := equiv2
   congr
   ext n
-  sorry
+  revert n
+  apply P.induction
+  . rw [equiv_zero1, equiv_zero2]
+  . intro n ih
+    rw [equiv_succ1, equiv_succ2]
+    apply congrArg
+    exact ih
+
+noncomputable abbrev Equiv.fromCh2Nat (P : PeanoAxioms) := Equiv.mk' Chapter2.Nat P
 
 /-- A sample result: recursion is well-defined on any structure obeying the Peano axioms-/
 theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.Nat) :
     ∃! (a: P.Nat → P.Nat), a P.zero = c ∧ ∀ n, a (P.succ n) = f n (a n) := by
-  sorry
-
-end PeanoAxioms
+  -- basic idea, we already proved this in chapter 2 for Chapter2.Nat
+  -- so we just need to use the equivalence between Chapter2.Nat and P.Nat
+  -- to transfer the result.
+  apply existsUnique_of_exists_of_unique
+  let e := Equiv.fromCh2Nat P
+  let f_lift := fun a b ↦ e.equiv.symm (f (e.equiv a) (e.equiv b))
+  let c_lift := e.equiv.symm c
+  let r := Chapter2.Nat.recurse f_lift c_lift
+  use fun n ↦ e.equiv (r (e.equiv.symm n))
+  constructor
+  . simp [r]
+    -- some tricky things to note, there are inverse versions of
+    -- equiv_zero and equiv_succ that need extra proofs.
+    have hz : e.equiv.symm P.zero = _root_.Chapter2.Nat.zero := by
+      apply_fun e.equiv
+      simp
+      -- equiv_zero needs an extra simp before it can be applied
+      -- to fully expand Equiv.Nat to the underlying Chapter2.Nat
+      have h2 := e.equiv_zero
+      simp at h2
+      exact h2.symm
+    rw [hz]
+    simp [Chapter2.Nat.recurse, c_lift]
+  . intro a
+    simp [r]
+    have hz : ∀ n, e.equiv.symm (P.succ n) = Chapter2.Nat.succ (e.equiv.symm n) := by
+      intro n
+      apply_fun e.equiv
+      simp
+      have h2 := e.equiv_succ
+      simp at h2
+      have h3 := h2 (e.equiv.symm n)
+      simp at h3
+      exact h3.symm
+    rw [hz]
+    simp [Chapter2.Nat.recurse, f_lift]
+  -- uniqueness easy enough to prove from scratch, instead of lifting
+  intro a b h1 h2
+  ext n
+  revert n
+  apply P.induction
+  . rw [h1.1, h2.1]
+  . intro n ih
+    rw [h1.2 n, h2.2 n]
+    apply congrArg
+    exact ih

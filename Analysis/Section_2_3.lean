@@ -60,17 +60,45 @@ theorem Nat.two_mul (m: Nat) : 2 * m = 0 + m + m := by
 /-- This lemma will be useful to prove Lemma 2.3.2.
 Compare with Mathlib's {name}`Nat.mul_zero` -/
 lemma Nat.mul_zero (n: Nat) : n * 0 = 0 := by
-  sorry
+  induction n with
+  | zero =>
+    change 0 * 0 = 0
+    rw [zero_mul]
+  | succ n ih =>
+    rw [Nat.succ_mul]
+    rw [ih]
+    rw [add_zero]
 
 /-- This lemma will be useful to prove Lemma 2.3.2.
 Compare with Mathlib's {name}`Nat.mul_succ` -/
 lemma Nat.mul_succ (n m:Nat) : n * m++ = n * m + n := by
-  sorry
+  induction n with
+  | zero =>
+    change 0 = 0 + 0
+    rw [add_zero]
+  | succ n ih =>
+    rw [Nat.succ_mul]
+    rw [ih]
+    rw [add_assoc]
+    rw [succ_mul]
+    rw [succ_eq_add_one]
+    rw [succ_eq_add_one]
+    rw [add_assoc]
+    rw [← add_assoc n _]
+    rw [← add_assoc m _]
+    rw [add_comm m n]
 
 /-- Lemma 2.3.2 (Multiplication is commutative) / Exercise 2.3.1
 Compare with Mathlib's {name}`Nat.mul_comm` -/
 lemma Nat.mul_comm (n m: Nat) : n * m = m * n := by
-  sorry
+  induction n with
+  | zero =>
+    change 0 = m * 0
+    rw [mul_zero]
+  | succ n ih =>
+    rw [Nat.succ_mul]
+    rw [Nat.mul_succ]
+    rw [ih]
 
 /-- Compare with Mathlib's {name}`Nat.mul_one` -/
 theorem Nat.mul_one (m: Nat) : m * 1 = m := by
@@ -79,12 +107,39 @@ theorem Nat.mul_one (m: Nat) : m * 1 = m := by
 /-- This lemma will be useful to prove Lemma 2.3.3.
 Compare with Mathlib's {name}`Nat.mul_pos` -/
 lemma Nat.pos_mul_pos {n m: Nat} (h₁: n.IsPos) (h₂: m.IsPos) : (n * m).IsPos := by
-  sorry
+  induction n with
+  | zero =>
+    change (0 * m).IsPos
+    contradiction
+  | succ n ih =>
+    rw [Nat.succ_mul]
+    apply Nat.add_pos_right
+    . exact h₂
 
 /-- Lemma 2.3.3 (Positive natural numbers have no zero divisors) / Exercise 2.3.2.
     Compare with Mathlib's {name}`Nat.mul_eq_zero`.  -/
 lemma Nat.mul_eq_zero (n m: Nat) : n * m = 0 ↔ n = 0 ∨ m = 0 := by
-  sorry
+  constructor
+  . intro h
+    induction n with
+    | zero =>
+      left
+      rfl
+    | succ n ih =>
+      rw [Nat.succ_mul] at h
+      apply add_eq_zero at h
+      obtain ⟨ h₁, h₂ ⟩ := h
+      right
+      exact h₂
+  . intro h
+    cases h with
+    | inl h =>
+      rw [h]
+      rw [zero_mul]
+    | inr h =>
+      rw [h]
+      rw [mul_zero]
+
 
 /-- Proposition 2.3.4 (Distributive law)
 Compare with Mathlib's {name}`Nat.mul_add` -/
@@ -105,7 +160,15 @@ theorem Nat.add_mul (a b c: Nat) : (a + b)*c = a*c + b*c := by
 /-- Proposition 2.3.5 (Multiplication is associative) / Exercise 2.3.3
 Compare with Mathlib's {name}`Nat.mul_assoc` -/
 theorem Nat.mul_assoc (a b c: Nat) : (a * b) * c = a * (b * c) := by
-  sorry
+  induction c with
+  | zero =>
+    change (a * b) * 0 = a * (b * 0)
+    rw [mul_zero, mul_zero, mul_zero]
+  | succ c ih =>
+    rw [Nat.mul_succ]
+    rw [Nat.mul_succ]
+    rw [mul_add]
+    rw [ih]
 
 /-- (Not from textbook)  {name}`Nat` is a commutative semiring.
     This allows tactics such as {tactic}`ring` to apply to the Chapter 2 natural numbers. -/
@@ -167,9 +230,24 @@ lemma Nat.mul_cancel_right {a b c: Nat} (h: a * c = b * c) (hc: c.IsPos) : a = b
 /-- (Not from textbook) {name}`Nat` is an ordered semiring.
 This allows tactics such as {tactic}`gcongr` to apply to the Chapter 2 natural numbers. -/
 instance Nat.isOrderedRing : IsOrderedRing Nat where
-  zero_le_one := by sorry
-  mul_le_mul_of_nonneg_left := by sorry
-  mul_le_mul_of_nonneg_right := by sorry
+  zero_le_one := by use 1; rw [zero_add]
+  mul_le_mul_of_nonneg_left := by
+    -- field: (a : Nat) → 0 ≤ a → (c d : Nat) → c ≤ d → a * c ≤ a * d
+    intro a _ c d hcd
+    rcases eq_or_ne a 0 with rfl | ha
+    · simp
+    rcases eq_or_ne c d with rfl | hne
+    · exact le_refl _
+    · exact le_of_lt (Nat.mul_lt_mul_of_pos_left ⟨hcd, hne⟩ ha)
+  mul_le_mul_of_nonneg_right := by
+    -- field: (a : Nat) → 0 ≤ a → (c d : Nat) → c ≤ d → c * a ≤ d * a
+    intro a _ c d hcd
+    rcases eq_or_ne a 0 with rfl | ha
+    · simp
+    rcases eq_or_ne c d with rfl | hne
+    · exact le_refl _
+    · exact le_of_lt (Nat.mul_lt_mul_of_pos_right ⟨hcd, hne⟩ ha)
+
 
 /-- This illustration of the {tactic}`gcongr` tactic is not from the
     textbook. -/
@@ -182,7 +260,53 @@ example (a b c d:Nat) (hab: a ≤ b) : c*a*d ≤ c*b*d := by
 Compare with Mathlib's {name}`Nat.mod_eq_iff` -/
 theorem Nat.exists_div_mod (n:Nat) {q: Nat} (hq: q.IsPos) :
     ∃ m r: Nat, 0 ≤ r ∧ r < q ∧ n = m * q + r := by
-  sorry
+  induction n with
+  | zero =>
+    use 0, 0
+    constructor
+    . exact Nat.ge_refl 0
+    . constructor
+      . constructor
+        . use q
+          rw [zero_add]
+        dsimp [IsPos] at hq
+        symm
+        exact hq
+      . rw [zero_mul]
+        rw [zero_add]
+        rfl
+  | succ n ih =>
+    obtain ⟨ m, r, hr₁, hr₂, hmn ⟩ := ih
+    by_cases hr : r++ = q
+    . use m + 1, 0
+      constructor
+      . use 0
+        rw [zero_add]
+      . constructor
+        . constructor
+          . use q
+            rw [zero_add]
+          symm
+          exact hq
+        . rw [succ_eq_add_one]
+          rw [hmn]
+          rw [add_zero]
+          rw [add_mul]
+          rw [one_mul]
+          rw [add_assoc]
+          rw [<- succ_eq_add_one]
+          rw [hr]
+    . use m, (r++)
+      constructor
+      . use (r++)
+        rw [zero_add]
+      . constructor
+        . rw [lt_iff_succ_le] at hr₂
+          exact ⟨ hr₂, hr⟩
+        . rw [hmn]
+          rw [succ_eq_add_one]
+          rw [succ_eq_add_one]
+          rw [add_assoc]
 
 /-- Definition 2.3.11 (Exponentiation for natural numbers) -/
 abbrev Nat.pow (m n: Nat) : Nat := Nat.recurse (fun _ prod ↦ prod * m) 1 n
@@ -212,6 +336,19 @@ theorem Nat.pow_one (m: Nat) : m ^ (1:Nat) = m := by
 /-- Exercise 2.3.4-/
 theorem Nat.sq_add_eq (a b: Nat) :
     (a + b) ^ (2 : Nat) = a ^ (2 : Nat) + 2 * a * b + b ^ (2 : Nat) := by
-  sorry
+  rw [← one_succ]
+  rw [pow_succ]
+  rw [←  zero_succ]
+  repeat rw [pow_succ]
+  repeat rw [pow_zero]
+  repeat rw [one_mul]
+  rw [add_mul, mul_add]
+  rw [mul_add]
+  repeat rw [succ_mul]
+  rw [zero_mul]
+  rw [zero_add]
+  rw [add_mul]
+  repeat rw [add_assoc]
+  rw [mul_comm b a]
 
 end Chapter2

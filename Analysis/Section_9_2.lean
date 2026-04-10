@@ -54,19 +54,37 @@ example : g_9_2_2 ∘ f_9_2_2 = fun x ↦ 2*x^2 := by grind
 /- Exercise 9.2.1.  -/
 
 def Exercise_9_2_1a : Decidable (∀ (f g h : ℝ → ℝ), (f+g) ∘ h = f ∘ h + g ∘ h) := by
-  -- The first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intro f g h
+  rfl
+
 
 def Exercise_9_2_1b : Decidable (∀ (f g h : ℝ → ℝ), f ∘ (g + h) = f ∘ g + f ∘ h) := by
   -- The first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use fun x ↦ x^2
+  use fun x ↦ x
+  use fun x ↦ x
+  intro h
+  rw [funext_iff] at h
+  specialize h 1
+  norm_num at h
 
 def Exercise_9_2_1c : Decidable (∀ (f g h : ℝ → ℝ), (f+g) * h = f * h + g * h) := by
   -- The first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intro f g h
+  ext x
+  simp
+  ring
 
 def Exercise_9_2_1d : Decidable (∀ (f g h : ℝ → ℝ), f * (g+h) = f * g + f * h) := by
   -- The first line of this construction should be `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intro f g h
+  ext x
+  simp
+  ring
 
 end Chapter9

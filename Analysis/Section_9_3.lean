@@ -1,5 +1,6 @@
 import Mathlib.Tactic
 import Mathlib.Data.Real.Sign
+import Mathlib.Topology.Instances.EReal.Lemmas
 import Analysis.Section_9_1
 
 set_option doc.verso.suggestions false
@@ -394,29 +395,427 @@ theorem Convergesto.local {E:Set ℝ} {f: ℝ → ℝ} {L:ℝ} {x₀:ℝ} {δ:�
         linarith
 
 /-- Example 9.3.19.  The point of this example is somewhat blunted by the ability to remove the hypothesis that {lit}`g` is non-zero from the relevant part of Proposition 9.3.14 -/
-example : Convergesto .univ (fun x ↦ (x+2)/(x+1)) (4/3:ℝ) 2 := by sorry
+example : Convergesto .univ (fun x ↦ (x+2)/(x+1)) (4/3:ℝ) 2 := by
+  apply Convergesto.div (by norm_num)
+  . rw [show (4:ℝ) = 2 + 2 by norm_num]
+    apply Convergesto.add
+    . exact Convergesto.id .univ 2
+    . exact Convergesto.const .univ 2 2
+  . rw [show (3:ℝ) = 2 + 1 by norm_num]
+    apply Convergesto.add
+    . exact Convergesto.id .univ 2
+    . exact Convergesto.const .univ 2 1
 
 /-- Example 9.3.20 -/
-example : Convergesto (.univ \ {1}) (fun x ↦ (x^2-1)/(x-1)) 2 1 := by sorry
+example : Convergesto (.univ \ {1}) (fun x ↦ (x^2-1)/(x-1)) 2 1 := by
+  rw [show (2:ℝ) = 2 / 1 by norm_num]
+  suffices h : Convergesto (.univ \ {1}) (fun x ↦ x + 1) (2 / 1) 1 by
+    intro ε hε
+    obtain ⟨δ, hδ, hδ'⟩ := h ε hε
+    exact ⟨δ, hδ, fun x hx ↦ by
+      have hx1 : x ≠ 1 := by
+        obtain ⟨_, hx1⟩ := hx.1
+        simpa using hx1
+      have key : (x ^ 2 - 1) / (x - 1) = x + 1 := by
+        have : x - 1 ≠ 0 := sub_ne_zero.mpr hx1
+        field_simp
+        ring
+      simp only [key]
+      exact hδ' x hx⟩
+  rw [show (2:ℝ) / 1 = 1 + 1 by norm_num]
+  apply Convergesto.add
+  · exact Convergesto.id _ 1
+  · exact Convergesto.const _ 1 1
 
 open Classical in
 /-- Example 9.3.21 -/
 noncomputable abbrev f_9_3_21 : ℝ → ℝ := fun x ↦ if x ∈ (fun q:ℚ ↦ (q:ℝ)) '' .univ then 1 else 0
 
-example : Filter.atTop.Tendsto (fun n ↦ f_9_3_21 (1/n:ℝ)) (nhds 1) := by sorry
+theorem f_9_3_21_seq_conv_1 : Filter.atTop.Tendsto (fun (n:ℕ) ↦ f_9_3_21 (1/n:ℝ)) (nhds 1) := by
+  rw [Metric.tendsto_nhds]
+  intro ε hε
+  rw [Filter.Eventually, Filter.mem_atTop_sets]
+  use 2; intro n hn
+  simp only [Set.mem_setOf_eq] at hn ⊢
+  have : (1/n:ℝ) ∈ (fun q:ℚ ↦ (q:ℝ)) '' .univ := by
+    simp
+    use 1 / n
+    simp
+  rw [f_9_3_21]
+  simp only [this, if_true]
+  rw [Real.dist_eq]
+  simp
+  exact hε
 
-example : Filter.atTop.Tendsto (fun n ↦ f_9_3_21 ((Real.sqrt 2)/n:ℝ)) (nhds 0) := by sorry
+theorem f_9_3_21_seq_conv_0 : Filter.atTop.Tendsto (fun (n:ℕ) ↦ f_9_3_21 ((Real.sqrt 2)/n:ℝ)) (nhds 0) := by
+  rw [Metric.tendsto_nhds]
+  intro ε hε
+  rw [Filter.Eventually, Filter.mem_atTop_sets]
+  use 2; intro n hn
+  simp only [Set.mem_setOf_eq] at hn ⊢
+  have : ((Real.sqrt 2)/n:ℝ) ∉ (fun q:ℚ ↦ (q:ℝ)) '' .univ := by
+    simp
+    intro h
+    obtain ⟨q, _, hq⟩ := h
+    have hn0 : n ≠ 0 := by omega
+    exact Ne.symm ((irrational_sqrt_two.div_natCast hn0).ne_rat _)
+  rw [f_9_3_21]
+  simp only [this, if_false]
+  rw [Real.dist_eq]
+  simp
+  exact hε
 
-example : ¬ ∃ L, Convergesto .univ f_9_3_21 L 0 := by sorry
+example : ¬ ∃ L, Convergesto .univ f_9_3_21 L 0 := by
+  by_contra h
+  obtain ⟨L, h⟩ := h
+  rw [Convergesto.iff_conv] at h
+  have seq1_tendsto : Filter.Tendsto (fun (n:ℕ) => (1:ℝ)/n) Filter.atTop (nhds 0) := by
+    simp only [one_div]
+    exact tendsto_inv_atTop_zero.comp tendsto_natCast_atTop_atTop
+  have seq2_tendsto : Filter.Tendsto (fun (n:ℕ) => (Real.sqrt 2)/(n:ℝ)) Filter.atTop (nhds 0) := by
+    rw [show (0:ℝ) = Real.sqrt 2 * 0 by ring]
+    exact tendsto_const_nhds.mul (tendsto_inv_atTop_zero.comp tendsto_natCast_atTop_atTop)
+  have hL1 := h _ (fun _ => Set.mem_univ _) seq1_tendsto
+  have hL0 := h _ (fun _ => Set.mem_univ _) seq2_tendsto
+  have h1 := tendsto_nhds_unique hL1 f_9_3_21_seq_conv_1
+  have h0 := tendsto_nhds_unique hL0 f_9_3_21_seq_conv_0
+  linarith
 
 /- Exercise 9.3.4: State a definition of limit superior and limit inferior for functions, and prove an analogue of Proposition 9.3.9 for those definitions. -/
+abbrev puncturedNear (X:Set ℝ) (x₀ ε:ℝ) : Set ℝ :=
+  (X ∩ Set.Ioo (x₀-ε) (x₀+ε)) \ {x₀}
+
+abbrev valuesNear (X:Set ℝ) (f: ℝ → ℝ) (x₀ ε:ℝ) : Set EReal :=
+  (fun x:ℝ ↦ (f x:EReal)) '' puncturedNear X x₀ ε
+
+noncomputable abbrev upperEnvelope (X:Set ℝ) (f: ℝ → ℝ) (x₀ ε:ℝ) : EReal :=
+  sSup (valuesNear X f x₀ ε)
+
+noncomputable abbrev lowerEnvelope (X:Set ℝ) (f: ℝ → ℝ) (x₀ ε:ℝ) : EReal :=
+  sInf (valuesNear X f x₀ ε)
+
+abbrev FiniteNearZero (g: ℝ → EReal) : Prop :=
+  ∃ δ > (0:ℝ), ∀ ε ∈ Set.Ioo 0 δ, g ε ≠ ⊤ ∧ g ε ≠ ⊥
+
+abbrev DivergesToTop (g: ℝ → EReal) : Prop :=
+  ∀ A:ℝ, ∃ δ > (0:ℝ), ∀ ε ∈ Set.Ioo 0 δ, (A:EReal) < g ε
+
+abbrev DivergesToBot (g: ℝ → EReal) : Prop :=
+  ∀ A:ℝ, ∃ δ > (0:ℝ), ∀ ε ∈ Set.Ioo 0 δ, g ε < (A:EReal)
+
+noncomputable abbrev limSup (X:Set ℝ) (f: ℝ → ℝ) (L:EReal) (x₀:ℝ) : Prop :=
+  match L with
+  | ⊤ => DivergesToTop (upperEnvelope X f x₀)
+  | ⊥ => DivergesToBot (upperEnvelope X f x₀)
+  | (r:ℝ) => FiniteNearZero (upperEnvelope X f x₀) ∧
+      Convergesto (.Ioi 0) (fun ε ↦ (upperEnvelope X f x₀ ε).toReal) r 0
+
+noncomputable abbrev limInf (X:Set ℝ) (f: ℝ → ℝ) (L:EReal) (x₀:ℝ) : Prop :=
+  match L with
+  | ⊤ => DivergesToTop (lowerEnvelope X f x₀)
+  | ⊥ => DivergesToBot (lowerEnvelope X f x₀)
+  | (r:ℝ) => FiniteNearZero (lowerEnvelope X f x₀) ∧
+      Convergesto (.Ioi 0) (fun ε ↦ (lowerEnvelope X f x₀ ε).toReal) r 0
+
+private lemma eventually_nhdsWithin_Ioi_zero_iff {P : ℝ → Prop} :
+    (∀ᶠ ε in nhdsWithin (0:ℝ) (Set.Ioi 0), P ε) ↔ ∃ δ > 0, ∀ ε ∈ Set.Ioo 0 δ, P ε := by
+  rw [nhdsWithin, Filter.eventually_inf_principal, Filter.Eventually,
+    mem_nhds_iff_exists_Ioo_subset]
+  constructor
+  · rintro ⟨l, u, hlu, hP⟩
+    obtain ⟨hl, hu⟩ := Set.mem_Ioo.mp hlu
+    refine ⟨min (-l) u, lt_min (by linarith) hu, ?_⟩
+    rintro ε ⟨hε1, hε2⟩
+    exact hP ⟨by linarith, by linarith [min_le_right (-l) u]⟩ hε1
+  · rintro ⟨δ, hδ, hP⟩
+    refine ⟨-1, δ, Set.mem_Ioo.mpr ⟨by linarith, hδ⟩, ?_⟩
+    intro ε hε hεmem
+    exact hP ε ⟨hεmem, hε.2⟩
+
+private lemma ne_top_bot_of_mem_compl {x : EReal} (h : x ∈ ({⊥, ⊤}ᶜ : Set EReal)) :
+    x ≠ ⊤ ∧ x ≠ ⊥ := by simpa [not_or, and_comm] using h
+
+private theorem limSup_iff_tendsto {E:Set ℝ} {f: ℝ → ℝ} {L:EReal} {x₀:ℝ} :
+    limSup E f L x₀ ↔
+      (nhdsWithin 0 (.Ioi 0)).Tendsto (upperEnvelope E f x₀) (nhds L) := by
+  cases L using EReal.rec with
+  | top =>
+      rw [limSup, EReal.tendsto_nhds_top_iff_real]
+      simp_rw [eventually_nhdsWithin_Ioi_zero_iff]
+  | bot =>
+      show DivergesToBot (upperEnvelope E f x₀) ↔ _
+      rw [EReal.tendsto_nhds_bot_iff_real]
+      simp_rw [eventually_nhdsWithin_Ioi_zero_iff]
+  | coe r =>
+      show (FiniteNearZero (upperEnvelope E f x₀) ∧
+        Convergesto (.Ioi 0) (fun ε ↦ (upperEnvelope E f x₀ ε).toReal) r 0) ↔
+        (nhdsWithin 0 (.Ioi 0)).Tendsto (upperEnvelope E f x₀) (nhds ↑r)
+      constructor
+      · rintro ⟨⟨δ, hδ, hfinδ⟩, hconv⟩
+        rw [Convergesto.iff] at hconv
+        have hfinite : ∀ᶠ ε in nhdsWithin 0 (.Ioi 0),
+            upperEnvelope E f x₀ ε ≠ ⊤ ∧ upperEnvelope E f x₀ ε ≠ ⊥ :=
+          eventually_nhdsWithin_Ioi_zero_iff.mpr ⟨δ, hδ, hfinδ⟩
+        have heq : upperEnvelope E f x₀ =ᶠ[nhdsWithin 0 (.Ioi 0)]
+            (fun ε ↦ (((upperEnvelope E f x₀ ε).toReal : ℝ) : EReal)) := by
+          filter_upwards [hfinite] with ε hε
+          exact (EReal.coe_toReal hε.1 hε.2).symm
+        exact Filter.Tendsto.congr' heq.symm (EReal.tendsto_coe.mpr hconv)
+      · intro h
+        have hfinite : FiniteNearZero (upperEnvelope E f x₀) := by
+          have hmem : ({⊥, ⊤}ᶜ : Set EReal) ∈ nhds ((r:EReal)) :=
+            (Set.Finite.isClosed (Set.toFinite _)).isOpen_compl.mem_nhds (by simp)
+          obtain ⟨δ, hδ, hP⟩ := eventually_nhdsWithin_Ioi_zero_iff.mp (h hmem)
+          exact ⟨δ, hδ, fun ε hε ↦ ne_top_bot_of_mem_compl (hP ε hε)⟩
+        exact ⟨hfinite, (Convergesto.iff _ _ _ _).2
+          ((EReal.tendsto_toReal (by simp) (by simp)).comp h)⟩
+
+private theorem limInf_iff_tendsto {E:Set ℝ} {f: ℝ → ℝ} {L:EReal} {x₀:ℝ} :
+    limInf E f L x₀ ↔
+      (nhdsWithin 0 (.Ioi 0)).Tendsto (lowerEnvelope E f x₀) (nhds L) := by
+  cases L using EReal.rec with
+  | top =>
+      rw [limInf, EReal.tendsto_nhds_top_iff_real]
+      simp_rw [eventually_nhdsWithin_Ioi_zero_iff]
+  | bot =>
+      show DivergesToBot (lowerEnvelope E f x₀) ↔ _
+      rw [EReal.tendsto_nhds_bot_iff_real]
+      simp_rw [eventually_nhdsWithin_Ioi_zero_iff]
+  | coe r =>
+      show (FiniteNearZero (lowerEnvelope E f x₀) ∧
+        Convergesto (.Ioi 0) (fun ε ↦ (lowerEnvelope E f x₀ ε).toReal) r 0) ↔
+        (nhdsWithin 0 (.Ioi 0)).Tendsto (lowerEnvelope E f x₀) (nhds ↑r)
+      constructor
+      · rintro ⟨⟨δ, hδ, hfinδ⟩, hconv⟩
+        rw [Convergesto.iff] at hconv
+        have hfinite : ∀ᶠ ε in nhdsWithin 0 (.Ioi 0),
+            lowerEnvelope E f x₀ ε ≠ ⊤ ∧ lowerEnvelope E f x₀ ε ≠ ⊥ :=
+          eventually_nhdsWithin_Ioi_zero_iff.mpr ⟨δ, hδ, hfinδ⟩
+        have heq : lowerEnvelope E f x₀ =ᶠ[nhdsWithin 0 (.Ioi 0)]
+            (fun ε ↦ (((lowerEnvelope E f x₀ ε).toReal : ℝ) : EReal)) := by
+          filter_upwards [hfinite] with ε hε
+          exact (EReal.coe_toReal hε.1 hε.2).symm
+        exact Filter.Tendsto.congr' heq.symm (EReal.tendsto_coe.mpr hconv)
+      · intro h
+        have hfinite : FiniteNearZero (lowerEnvelope E f x₀) := by
+          have hmem : ({⊥, ⊤}ᶜ : Set EReal) ∈ nhds ((r:EReal)) :=
+            (Set.Finite.isClosed (Set.toFinite _)).isOpen_compl.mem_nhds (by simp)
+          obtain ⟨δ, hδ, hP⟩ := eventually_nhdsWithin_Ioi_zero_iff.mp (h hmem)
+          exact ⟨δ, hδ, fun ε hε ↦ ne_top_bot_of_mem_compl (hP ε hε)⟩
+        exact ⟨hfinite, (Convergesto.iff _ _ _ _).2
+          ((EReal.tendsto_toReal (by simp) (by simp)).comp h)⟩
+
+private lemma tendsto_of_mem_puncturedNear {E:Set ℝ} {x₀:ℝ} {a:ℕ → ℝ}
+    (ha_pn: ∀ n, a n ∈ puncturedNear E x₀ (1 / (↑n + 1))) :
+    Filter.Tendsto a Filter.atTop (nhds x₀) := by
+  rw [Metric.tendsto_atTop]
+  intro ε hε
+  obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
+  use N; intro n hn
+  have hIoo := (ha_pn n).1.2
+  rw [Set.mem_Ioo] at hIoo
+  rw [Real.dist_eq, abs_lt]
+  have : 1 / ((n:ℝ) + 1) ≤ 1 / ((N:ℝ) + 1) :=
+    div_le_div_of_nonneg_left one_pos.le (by positivity)
+      (by exact_mod_cast Nat.add_le_add_right hn 1)
+  have : 1 / ((N:ℝ) + 1) < ε := by
+    have hN1 : 1 / ε < ↑N + 1 := lt_trans hN (by linarith)
+    rwa [div_lt_comm₀ hε (by positivity : (0:ℝ) < ↑N + 1)] at hN1
+  constructor <;> linarith
+
+private lemma upperEnvelope_eventually_ge {E:Set ℝ} {f: ℝ → ℝ} {x₀:ℝ} {a:ℕ → ℝ}
+    (ha_mem: ∀ n, a n ∈ E) (ha_neq: ∀ n, a n ≠ x₀)
+    (ha_conv: Filter.atTop.Tendsto a (nhds x₀)) (ε:ℝ) (hε: ε > 0) :
+    ∀ᶠ n in Filter.atTop, (f (a n) : EReal) ≤ upperEnvelope E f x₀ ε := by
+  rw [Metric.tendsto_atTop] at ha_conv
+  obtain ⟨N, hN⟩ := ha_conv ε hε
+  rw [Filter.eventually_atTop]
+  use N
+  intro n hn
+  apply le_csSup_of_le ⟨⊤, fun x hx ↦ le_top⟩
+  · exact ⟨a n, ⟨⟨ha_mem n, by
+      specialize hN n hn; rw [Real.dist_eq, abs_lt] at hN; constructor <;> linarith⟩,
+      ha_neq n⟩, rfl⟩
+  · exact le_rfl
+
+/-- limsup of f∘a ≤ upperEnvelope(ε) for any sequence converging to x₀ -/
+private lemma limsup_le_upperEnvelope {E:Set ℝ} {f: ℝ → ℝ} {x₀:ℝ} {a:ℕ → ℝ}
+    (ha_mem: ∀ n, a n ∈ E) (ha_neq: ∀ n, a n ≠ x₀)
+    (ha_conv: Filter.atTop.Tendsto a (nhds x₀)) (ε:ℝ) (hε: ε > 0) :
+    Filter.limsup (fun n ↦ (f (a n) : EReal)) Filter.atTop ≤ upperEnvelope E f x₀ ε := by
+  apply Filter.limsup_le_of_le ⟨⊥, by simp⟩
+  exact upperEnvelope_eventually_ge ha_mem ha_neq ha_conv ε hε
+
+/-- The iSup of sequential limsups equals the infimum of upperEnvelope -/
+private lemma iSup_limsup_eq_iInf_upperEnvelope {E:Set ℝ} (f: ℝ → ℝ) {x₀:ℝ} :
+    ⨆ (a:ℕ → ℝ) (_ : ∀ n, a n ∈ E) (_ : ∀ n, a n ≠ x₀)
+      (_ : Filter.atTop.Tendsto a (nhds x₀)),
+      Filter.limsup (fun n ↦ (f (a n) : EReal)) Filter.atTop =
+    ⨅ (ε : ℝ) (_ : ε > 0), upperEnvelope E f x₀ ε := by
+  apply le_antisymm
+  · -- iSup of sequential limsups ≤ iInf of upper envelopes
+    apply iSup_le; intro a
+    apply iSup_le; intro ha_mem
+    apply iSup_le; intro ha_neq
+    apply iSup_le; intro ha_conv
+    apply le_iInf; intro ε
+    apply le_iInf; intro hε
+    exact limsup_le_upperEnvelope ha_mem ha_neq ha_conv ε hε
+  · -- iInf of upper envelopes ≤ iSup of sequential limsups
+    set S := ⨆ (a : ℕ → ℝ) (_ : ∀ n, a n ∈ E) (_ : ∀ n, a n ≠ x₀)
+      (_ : Filter.atTop.Tendsto a (nhds x₀)),
+      Filter.limsup (fun n ↦ (f (a n) : EReal)) Filter.atTop
+    apply le_of_forall_lt_imp_le_of_dense
+    intro v hv
+    -- v < upperEnvelope ε for all ε > 0
+    have hv_lt : ∀ ε > 0, v < upperEnvelope E f x₀ ε := by
+      intro ε hε
+      exact lt_of_lt_of_le hv (iInf_le_of_le ε (iInf_le_of_le hε le_rfl))
+    -- For each n, pick a_n ∈ puncturedNear with f(a_n) > v
+    have hchoose : ∀ n : ℕ, ∃ x, x ∈ puncturedNear E x₀ (1 / (↑n + 1)) ∧
+        v < (f x : EReal) := by
+      intro n
+      have h1 : v < sSup (valuesNear E f x₀ (1 / (↑n + 1))) := hv_lt _ (by positivity)
+      rw [lt_sSup_iff] at h1
+      obtain ⟨w, ⟨x, hx, rfl⟩, hw⟩ := h1
+      exact ⟨x, hx, hw⟩
+    choose a ha_pn ha_fab using hchoose
+    have ha_conv := tendsto_of_mem_puncturedNear ha_pn
+    calc v ≤ Filter.limsup (fun n ↦ (f (a n) : EReal)) Filter.atTop :=
+            Filter.le_limsup_of_frequently_le'
+              (Filter.Frequently.of_forall (fun n => le_of_lt (ha_fab n)))
+      _ ≤ S := le_iSup₂_of_le a (fun n => (ha_pn n).1.1)
+              (le_iSup₂_of_le (fun n => (ha_pn n).2) ha_conv le_rfl)
+
+/-- upperEnvelope is monotone: larger ε gives larger (or equal) sSup -/
+private lemma upperEnvelope_monotone {E:Set ℝ} {f: ℝ → ℝ} {x₀:ℝ} :
+    Monotone (fun ε ↦ upperEnvelope E f x₀ ε) := by
+  intro ε₁ ε₂ h
+  apply sSup_le_sSup
+  intro v ⟨x, hx, hv⟩
+  exact ⟨x, ⟨⟨hx.1.1, by constructor <;> linarith [hx.1.2.1, hx.1.2.2]⟩, hx.2⟩, hv⟩
+
+/-- The limit of a monotone EReal-valued function as ε → 0⁺ equals its infimum -/
+private lemma tendsto_iInf_of_monotone_nhdsWithin {g : ℝ → EReal}
+    (hg : Monotone g) :
+    (nhdsWithin 0 (.Ioi 0)).Tendsto g (nhds (⨅ (ε : ℝ) (_ : ε > 0), g ε)) := by
+  convert hg.tendsto_nhdsGT 0 using 1
+  congr 1
+  simp only [sInf_image, Set.mem_Ioi]
+
+/-- Sequential characterization of limSup -/
+theorem Convergesto.iff_conv_limSup {E:Set ℝ} (f: ℝ → ℝ) (L:EReal) {x₀:ℝ} :
+    limSup E f L x₀ ↔
+    L = ⨆ (a:ℕ → ℝ) (_ : ∀ n, a n ∈ E) (_ : ∀ n, a n ≠ x₀)
+      (_ : Filter.atTop.Tendsto a (nhds x₀)),
+      Filter.limsup (fun n ↦ (f (a n) : EReal)) Filter.atTop := by
+  rw [limSup_iff_tendsto]
+  rw [iSup_limsup_eq_iInf_upperEnvelope f]
+  constructor
+  · intro h
+    exact tendsto_nhds_unique h (tendsto_iInf_of_monotone_nhdsWithin upperEnvelope_monotone)
+  · intro h
+    rw [h]
+    exact tendsto_iInf_of_monotone_nhdsWithin upperEnvelope_monotone
+
+private lemma lowerEnvelope_eventually_le {E:Set ℝ} {f: ℝ → ℝ} {x₀:ℝ} {a:ℕ → ℝ}
+    (ha_mem: ∀ n, a n ∈ E) (ha_neq: ∀ n, a n ≠ x₀)
+    (ha_conv: Filter.atTop.Tendsto a (nhds x₀)) (ε:ℝ) (hε: ε > 0) :
+    ∀ᶠ n in Filter.atTop, lowerEnvelope E f x₀ ε ≤ (f (a n) : EReal) := by
+  rw [Metric.tendsto_atTop] at ha_conv
+  obtain ⟨N, hN⟩ := ha_conv ε hε
+  rw [Filter.eventually_atTop]
+  use N
+  intro n hn
+  apply csInf_le_of_le ⟨⊥, fun x hx ↦ bot_le⟩
+  · exact ⟨a n, ⟨⟨ha_mem n, by
+      specialize hN n hn; rw [Real.dist_eq, abs_lt] at hN; constructor <;> linarith⟩,
+      ha_neq n⟩, rfl⟩
+  · exact le_rfl
+
+private lemma lowerEnvelope_le_liminf {E:Set ℝ} {f: ℝ → ℝ} {x₀:ℝ} {a:ℕ → ℝ}
+    (ha_mem: ∀ n, a n ∈ E) (ha_neq: ∀ n, a n ≠ x₀)
+    (ha_conv: Filter.atTop.Tendsto a (nhds x₀)) (ε:ℝ) (hε: ε > 0) :
+    lowerEnvelope E f x₀ ε ≤ Filter.liminf (fun n ↦ (f (a n) : EReal)) Filter.atTop := by
+  apply Filter.le_liminf_of_le ⟨⊤, by simp⟩
+  exact lowerEnvelope_eventually_le ha_mem ha_neq ha_conv ε hε
+
+private lemma lowerEnvelope_antitone {E:Set ℝ} {f: ℝ → ℝ} {x₀:ℝ} :
+    Antitone (fun ε ↦ lowerEnvelope E f x₀ ε) := by
+  intro ε₁ ε₂ h
+  apply sInf_le_sInf
+  intro v ⟨x, hx, hv⟩
+  exact ⟨x, ⟨⟨hx.1.1, by constructor <;> linarith [hx.1.2.1, hx.1.2.2]⟩, hx.2⟩, hv⟩
+
+private lemma tendsto_iSup_of_antitone_nhdsWithin {g : ℝ → EReal}
+    (hg : Antitone g) :
+    (nhdsWithin 0 (.Ioi 0)).Tendsto g (nhds (⨆ (ε : ℝ) (_ : ε > 0), g ε)) := by
+  convert hg.tendsto_nhdsGT 0 using 1
+  congr 1
+  simp only [sSup_image, Set.mem_Ioi]
+
+private lemma iInf_liminf_eq_iSup_lowerEnvelope {E:Set ℝ} (f: ℝ → ℝ) {x₀:ℝ} :
+    ⨅ (a:ℕ → ℝ) (_ : ∀ n, a n ∈ E) (_ : ∀ n, a n ≠ x₀)
+      (_ : Filter.atTop.Tendsto a (nhds x₀)),
+      Filter.liminf (fun n ↦ (f (a n) : EReal)) Filter.atTop =
+    ⨆ (ε : ℝ) (_ : ε > 0), lowerEnvelope E f x₀ ε := by
+  apply le_antisymm
+  · -- iInf of sequential liminfs ≤ iSup of lower envelopes
+    apply le_of_forall_gt_imp_ge_of_dense
+    intro v hv
+    have hv_lt : ∀ ε > 0, lowerEnvelope E f x₀ ε < v := by
+      intro ε hε
+      exact lt_of_le_of_lt (le_iSup₂_of_le ε hε le_rfl) hv
+    have hchoose : ∀ n : ℕ, ∃ x, x ∈ puncturedNear E x₀ (1 / (↑n + 1)) ∧
+        (f x : EReal) < v := by
+      intro n
+      have h1 : sInf (valuesNear E f x₀ (1 / (↑n + 1))) < v := hv_lt _ (by positivity)
+      rw [sInf_lt_iff] at h1
+      obtain ⟨w, ⟨x, hx, rfl⟩, hw⟩ := h1
+      exact ⟨x, hx, hw⟩
+    choose a ha_pn ha_fab using hchoose
+    have ha_conv := tendsto_of_mem_puncturedNear ha_pn
+    calc
+      _ ≤ Filter.liminf (fun n ↦ (f (a n) : EReal)) Filter.atTop :=
+          iInf₂_le_of_le a (fun n => (ha_pn n).1.1)
+            (iInf₂_le_of_le (fun n => (ha_pn n).2) ha_conv le_rfl)
+      _ ≤ v := Filter.liminf_le_of_frequently_le'
+          (Filter.Frequently.of_forall (fun n => le_of_lt (ha_fab n)))
+  · -- iSup of lower envelopes ≤ iInf of sequential liminfs
+    apply iSup_le; intro ε
+    apply iSup_le; intro hε
+    apply le_iInf; intro a
+    apply le_iInf; intro ha_mem
+    apply le_iInf; intro ha_neq
+    apply le_iInf; intro ha_conv
+    exact lowerEnvelope_le_liminf ha_mem ha_neq ha_conv ε hε
+
+/-- Sequential characterization of limInf -/
+theorem Convergesto.iff_conv_limInf {E:Set ℝ} (f: ℝ → ℝ) (L:EReal) {x₀:ℝ} :
+    limInf E f L x₀ ↔
+    L = ⨅ (a:ℕ → ℝ) (_ : ∀ n, a n ∈ E) (_ : ∀ n, a n ≠ x₀)
+      (_ : Filter.atTop.Tendsto a (nhds x₀)),
+      Filter.liminf (fun n ↦ (f (a n) : EReal)) Filter.atTop := by
+  rw [limInf_iff_tendsto]
+  rw [iInf_liminf_eq_iSup_lowerEnvelope f]
+  constructor
+  · intro h
+    exact tendsto_nhds_unique h (tendsto_iSup_of_antitone_nhdsWithin lowerEnvelope_antitone)
+  · intro h
+    rw [h]
+    exact tendsto_iSup_of_antitone_nhdsWithin lowerEnvelope_antitone
 
 /-- Exercise 9.3.5 (Continuous version of squeeze test) -/
 theorem Convergesto.squeeze {E:Set ℝ} {f g h: ℝ → ℝ} {L:ℝ} {x₀:ℝ}
   (hfg: ∀ x ∈ E, f x ≤ g x) (hgh: ∀ x ∈ E, g x ≤ h x)
   (hf: Convergesto E f L x₀) (hh: Convergesto E h L x₀) :
   Convergesto E g L x₀ := by
-    sorry
-
+    rw [iff_conv _ _] at hf hh ⊢
+    intro a ha hconv
+    specialize hf a ha hconv
+    specialize hh a ha hconv
+    have hl : ∀ n , f (a n) ≤ g (a n) := by intro n; exact hfg _ (ha n)
+    have hr : ∀ n , g (a n) ≤ h (a n) := by intro n; exact hgh _ (ha n)
+    apply hf.squeeze hh hl hr
 
 end Chapter9

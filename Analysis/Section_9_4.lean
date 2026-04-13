@@ -238,10 +238,28 @@ theorem Continuous.abs : Continuous (fun x:ℝ ↦ |x|) := by
 theorem ContinuousWithinAt.comp {X Y: Set ℝ} {f g:ℝ → ℝ} (hf: ∀ x ∈ X, f x ∈ Y) (x₀:ℝ)
   (hf_cont: ContinuousWithinAt f X x₀) (hg_cont: ContinuousWithinAt g Y (f x₀)):
   ContinuousWithinAt (g ∘ f) X x₀ := by
-  rw [ContinuousWithinAt] at hg_cont ⊢
-  have hf_within : Filter.Tendsto f (nhdsWithin x₀ X) (nhdsWithin (f x₀) Y) := by
-    exact ContinuousWithinAt.tendsto_nhdsWithin hf_cont hf
-  exact hg_cont.comp hf_within
+  -- cool filter proof, but probably the book intented the proof below.
+  -- rw [ContinuousWithinAt] at hg_cont ⊢
+  -- have hf_within : Filter.Tendsto f (nhdsWithin x₀ X) (nhdsWithin (f x₀) Y) := by
+  --   exact ContinuousWithinAt.tendsto_nhdsWithin hf_cont hf
+  -- exact hg_cont.comp hf_within
+  rw [ContinuousWithinAt.iff] at hf_cont hg_cont ⊢
+  rw [Convergesto] at hf_cont hg_cont ⊢
+  intro ε hε
+  specialize hg_cont ε hε
+  rw [Real.CloseNear] at hg_cont ⊢
+  obtain ⟨δ', hδ', h'⟩ := hg_cont
+  specialize hf_cont δ' hδ'
+  rw [Real.CloseNear] at hf_cont
+  obtain ⟨δ, hδ, h⟩ := hf_cont
+  use δ, hδ
+  rw [Real.CloseFn] at h h' ⊢
+  simp at h h' ⊢
+  intro x hx h1 h2
+  specialize h' (f x) (hf x hx)
+  specialize h x hx h1 h2
+  rw [abs_lt] at h
+  exact h' (by linarith) (by linarith)
 
 /-- Example 9.4.14 -/
 example : Continuous (fun x:ℝ ↦ 3*x + 1) := by

@@ -3,6 +3,7 @@ import Mathlib.Data.Real.Sign
 import Mathlib.Topology.ContinuousOn
 import Mathlib.Topology.Instances.Irrational
 import Analysis.Section_9_3
+import Analysis.Section_6_epilogue
 /-!
 # Analysis I, Section 9.4: Continuous functions
 
@@ -224,11 +225,169 @@ theorem ContinuousWithinAt.div' {X:Set ℝ} (f g: ℝ → ℝ) {x₀:ℝ}(hM: g 
 
 /-- Proposition 9.4.10 / Exercise 9.4.3  -/
 theorem Continuous.exp {a:ℝ} (ha: a>0) : Continuous (fun x:ℝ ↦ a ^ x) := by
-  sorry
+  rw [continuous_iff_continuousAt]
+  intro x
+  rw [← continuousWithinAt_univ]
+  -- todo: why can't this be inlined
+  have := (ContinuousWithinAt.tfae .univ (fun x ↦ a ^ x) x).out 0 2
+  rw [this]; clear this
+  intro ε hε
+  -- ε-δ continuity of `t ↦ a^t` at 0, proved from Section 6.5's
+  -- `Sequence.lim_of_roots` (a^(1/(n+1)) → 1) applied to both `a` and `a⁻¹`,
+  -- plus monotonicity of rpow. Everything below the bridge to Mathlib's
+  -- `Filter.Tendsto` uses only basic rpow arithmetic.
+  have ratPow_continuous_at_zero :
+      ∀ η > 0, ∃ δ > 0, ∀ t : ℝ, |t| < δ → |a ^ t - 1| < η := by
+    intro η hη
+    -- Transport `lim_of_roots` for `a` and `a⁻¹` into Mathlib's filter form.
+    have get_N : ∀ b > (0:ℝ), ∃ N : ℕ, ∀ n ≥ N, |b ^ (1/(n+1:ℝ)) - 1| < η := by
+      intro b hb
+      have h := (Chapter6.Sequence.tendsto_iff_Tendsto _ _).mp
+        (Chapter6.Sequence.lim_of_roots hb)
+      obtain ⟨N, hN⟩ := Metric.tendsto_atTop.mp h η hη
+      refine ⟨N, fun n hn => ?_⟩
+      have := hN n hn; rwa [Real.dist_eq] at this
+    obtain ⟨N₁, hN₁⟩ := get_N a ha
+    obtain ⟨N₂, hN₂⟩ := get_N a⁻¹ (inv_pos.mpr ha)
+    set N := max N₁ N₂
+    refine ⟨1/(N+1:ℝ), by positivity, ?_⟩
+    intro t ht
+    -- `a^δ` and `a^(-δ)` are both within η of 1.
+    have hup : |a ^ (1/(N+1:ℝ)) - 1| < η := hN₁ N (le_max_left _ _)
+    have hdn : |a ^ (-(1/(N+1:ℝ))) - 1| < η := by
+      have := hN₂ N (le_max_right _ _)
+      rwa [Real.inv_rpow ha.le, ← Real.rpow_neg ha.le] at this
+    -- Sandwich `a^t` between `a^(-δ)` and `a^δ` (order depending on `a ≥ 1` or `a ≤ 1`).
+    obtain ⟨htl, htr⟩ := abs_le.mp ht.le
+    rw [abs_lt] at hup hdn ⊢
+    rcases le_total 1 a with h1 | h1
+    · have h_le := Real.rpow_le_rpow_of_exponent_le h1 htr
+      have h_ge := Real.rpow_le_rpow_of_exponent_le h1 htl
+      exact ⟨by linarith, by linarith⟩
+    · have h_le := Real.rpow_le_rpow_of_exponent_ge ha h1 htl
+      have h_ge := Real.rpow_le_rpow_of_exponent_ge ha h1 htr
+      exact ⟨by linarith, by linarith⟩
+  have hax : a ^ x > 0 := Real.rpow_pos_of_pos ha x
+  obtain ⟨δ, hδ, hδbound⟩ := ratPow_continuous_at_zero (ε / a ^ x) (by positivity)
+  refine ⟨δ, hδ, ?_⟩
+  intro y _ h1
+  -- Key identity: a^y - a^x = a^x * (a^(y-x) - 1).
+  have hfactor : a ^ y - a ^ x = a ^ x * (a ^ (y - x) - 1) := by
+    rw [Real.rpow_sub ha, mul_sub, mul_one, mul_div_cancel₀ _ hax.ne']
+  have hclose : |a ^ (y - x) - 1| < ε / a ^ x :=
+    hδbound (y - x) (by simpa [abs_sub_comm] using h1)
+  calc |a ^ y - a ^ x|
+      = a ^ x * |a ^ (y - x) - 1| := by
+        rw [hfactor, abs_mul, abs_of_pos hax]
+    _ < a ^ x * (ε / a ^ x) := by gcongr
+    _ = ε := mul_div_cancel₀ _ hax.ne'
+
 
 /-- Proposition 9.4.11 / Exercise 9.4.4 -/
 theorem Continuous.exp' (p:ℝ) : ContinuousOn (fun x:ℝ ↦ x ^ p) (.Ioi 0) := by
-  sorry
+  -- Base varies, exponent fixed: `u^n → 1` as `u → 1`, by induction using 9.3.14 (mul).
+  have hlim_at_1_nat (n : ℕ) : Filter.Tendsto (fun u:ℝ ↦ u ^ n) (nhds 1) (nhds 1) := by
+    have key : Convergesto .univ (fun u:ℝ ↦ u ^ n) 1 1 := by
+      induction n with
+      | zero => simpa using Convergesto.const Set.univ 1 1
+      | succ k ih =>
+          have := (Convergesto.id Set.univ 1).mul ih
+          simpa [pow_succ, mul_comm] using this
+    have := (Convergesto.iff _ _ _ _).mp key
+    simpa [nhdsWithin_univ] using this
+  have hlim_at_1_int (n : ℤ) :
+      Filter.Tendsto (fun u:ℝ ↦ u ^ n) (nhdsWithin 1 (Set.Ioi 0)) (nhds 1) := by
+    rcases Int.eq_nat_or_neg n with ⟨m, hm | hm⟩
+    · subst hm; simpa [zpow_natCast] using (hlim_at_1_nat m).mono_left
+        (nhdsWithin_le_nhds (s := Set.Ioi (0:ℝ)))
+    · subst hm
+      have hnat := (hlim_at_1_nat m).mono_left (nhdsWithin_le_nhds (s := Set.Ioi (0:ℝ)))
+      have hinv : Filter.Tendsto (fun u:ℝ ↦ (u ^ m)⁻¹) (nhdsWithin 1 (Set.Ioi 0)) (nhds 1) := by
+        simpa using hnat.inv₀ (by norm_num)
+      refine hinv.congr' ?_
+      filter_upwards [self_mem_nhdsWithin] with u _
+      rw [zpow_neg, zpow_natCast]
+  -- b-th root at 1: sandwich gives `|u^(1/b) - 1| ≤ |u - 1|` for `u > 0`, `b ≥ 1`.
+  have hlim_at_1_root (b : ℕ) (hb : b ≥ 1) :
+      Filter.Tendsto (fun u:ℝ ↦ u ^ ((1:ℝ)/b)) (nhdsWithin 1 (Set.Ioi 0)) (nhds 1) := by
+    rw [Metric.tendsto_nhdsWithin_nhds]
+    intro ε hε
+    refine ⟨ε, hε, fun u hu hdist => ?_⟩
+    rw [Real.dist_eq] at hdist ⊢
+    have hb' : (0:ℝ) < 1/b := by positivity
+    have hble : (1:ℝ)/b ≤ 1 := by rw [div_le_one (by exact_mod_cast hb)]; exact_mod_cast hb
+    -- In both branches, `u^(1/b)` lies between `u` and `1`, so `|u^(1/b) - 1| ≤ |u - 1|`.
+    rcases le_total 1 u with h1 | h1
+    · have hlow : (1:ℝ) ≤ u ^ ((1:ℝ)/b) := Real.one_le_rpow h1 hb'.le
+      have hup : u ^ ((1:ℝ)/b) ≤ u := by
+        simpa using Real.rpow_le_rpow_of_exponent_le h1 hble
+      rw [abs_of_nonneg (by linarith : (0:ℝ) ≤ u - 1)] at hdist
+      rw [abs_of_nonneg (by linarith : (0:ℝ) ≤ u ^ ((1:ℝ)/b) - 1)]
+      linarith
+    · have hlow : u ^ ((1:ℝ)/b) ≤ 1 := Real.rpow_le_one hu.le h1 hb'.le
+      have hup : u ≤ u ^ ((1:ℝ)/b) := by
+        simpa using Real.rpow_le_rpow_of_exponent_ge hu h1 hble
+      rw [abs_of_nonpos (by linarith : u - 1 ≤ 0)] at hdist
+      rw [abs_of_nonpos (by linarith : u ^ ((1:ℝ)/b) - 1 ≤ 0)]
+      linarith
+  -- Rational exponent: compose `u ↦ u^q.num` (int) with `v ↦ v^(1/q.den)` (root).
+  have hlim_at_1_rat (q : ℚ) :
+      Filter.Tendsto (fun u:ℝ ↦ u ^ (q:ℝ)) (nhdsWithin 1 (Set.Ioi 0)) (nhds 1) := by
+    have hmap : Filter.Tendsto (fun u:ℝ ↦ (u ^ (q.num:ℤ) : ℝ))
+        (nhdsWithin 1 (Set.Ioi 0)) (nhdsWithin 1 (Set.Ioi 0)) :=
+      tendsto_nhdsWithin_of_tendsto_nhds_of_eventually_within _ (hlim_at_1_int q.num)
+        (by filter_upwards [self_mem_nhdsWithin] with u hu using zpow_pos (a := u) hu _)
+    refine ((hlim_at_1_root q.den q.pos).comp hmap).congr' ?_
+    filter_upwards [self_mem_nhdsWithin] with u hu
+    simp only [Function.comp_apply]
+    rw [show (q:ℝ) = (q.num:ℝ) / (q.den:ℝ) by rw [Rat.cast_def],
+        ← Real.rpow_intCast u q.num, ← Real.rpow_mul hu.le]
+    congr 1; field_simp
+  -- Real exponent `p`: squeeze `u^p` between `u^q₁` and `u^q₂` for rationals q₁ < p < q₂.
+  have hlim_at_1 : Filter.Tendsto (fun u:ℝ ↦ u ^ p) (nhdsWithin 1 (Set.Ioi 0)) (nhds 1) := by
+    rw [Metric.tendsto_nhdsWithin_nhds]
+    intro ε hε
+    obtain ⟨q₁, -, hq₁r⟩ := exists_rat_btwn (show p - 1 < p by linarith)
+    obtain ⟨q₂, hq₂l, -⟩ := exists_rat_btwn (show p < p + 1 by linarith)
+    obtain ⟨δ₁, hδ₁, h₁⟩ :=
+      (Metric.tendsto_nhdsWithin_nhds.mp (hlim_at_1_rat q₁)) ε hε
+    obtain ⟨δ₂, hδ₂, h₂⟩ :=
+      (Metric.tendsto_nhdsWithin_nhds.mp (hlim_at_1_rat q₂)) ε hε
+    refine ⟨min δ₁ δ₂, by positivity, fun u hu hdist => ?_⟩
+    have hu' : (0:ℝ) < u := hu
+    have hd₁ := h₁ hu (lt_of_lt_of_le hdist (min_le_left _ _))
+    have hd₂ := h₂ hu (lt_of_lt_of_le hdist (min_le_right _ _))
+    rw [Real.dist_eq] at hd₁ hd₂ ⊢; rw [abs_lt] at hd₁ hd₂ ⊢
+    rcases le_total 1 u with h1 | h1
+    · exact ⟨by linarith [Real.rpow_le_rpow_of_exponent_le h1 hq₁r.le],
+             by linarith [Real.rpow_le_rpow_of_exponent_le h1 hq₂l.le]⟩
+    · exact ⟨by linarith [Real.rpow_le_rpow_of_exponent_ge hu' h1 hq₂l.le],
+             by linarith [Real.rpow_le_rpow_of_exponent_ge hu' h1 hq₁r.le]⟩
+  -- Full continuity: `x^p = (x/y)^p · y^p`, and `x/y → 1` as `x → y`.
+  intro y hy
+  rw [Metric.continuousWithinAt_iff]
+  intro ε hε
+  have hy' : (0:ℝ) < y := hy
+  have hyp : (0:ℝ) < y ^ p := Real.rpow_pos_of_pos hy' _
+  obtain ⟨η, hη, hηbd⟩ :=
+    (Metric.tendsto_nhdsWithin_nhds.mp hlim_at_1) (ε / y ^ p) (by positivity)
+  refine ⟨η * y, by positivity, fun x hx hdist => ?_⟩
+  have hx' : (0:ℝ) < x := hx
+  have hxy : (0:ℝ) < x / y := div_pos hx' hy'
+  have hdist_ratio : dist (x / y) 1 < η := by
+    rw [Real.dist_eq, show (x / y - 1 : ℝ) = (x - y) / y by field_simp,
+        abs_div, abs_of_pos hy', div_lt_iff₀ hy']
+    rw [Real.dist_eq] at hdist; linarith
+  have hclose := hηbd hxy hdist_ratio
+  have hfactor : x ^ p = (x / y) ^ p * y ^ p := by
+    rw [← Real.mul_rpow hxy.le hy'.le]; congr 1; field_simp
+  rw [Real.dist_eq] at hclose ⊢
+  calc |x ^ p - y ^ p|
+      = |(x / y) ^ p - 1| * y ^ p := by
+        rw [hfactor]; rw [show (x / y) ^ p * y ^ p - y ^ p = ((x / y) ^ p - 1) * y ^ p by ring,
+          abs_mul, abs_of_pos hyp]
+    _ < (ε / y ^ p) * y ^ p := by gcongr
+    _ = ε := by field_simp
 
 /-- Proposition 9.4.12 -/
 theorem Continuous.abs : Continuous (fun x:ℝ ↦ |x|) := by

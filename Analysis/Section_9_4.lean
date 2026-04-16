@@ -62,14 +62,14 @@ example : Continuous (fun x:ℝ ↦ x) := by
 example {x₀:ℝ} (h: x₀ ≠ 0) : ContinuousAt Real.sign x₀ := by
   rw [ContinuousAt]
   rcases ne_iff_lt_or_gt.mp h with h | h
-  · have hev : ∀ᶠ x in nhds x₀, Real.sign x = -1 := by
+  · have hev : Real.sign =ᶠ[nhds x₀] (fun x ↦ -1) := by
       filter_upwards [Iio_mem_nhds h] with x hx
       simp only [Real.sign, Set.mem_Iio] at hx ⊢
       rw [if_pos hx]
     have : Real.sign x₀ = -1 := by simp [Real.sign, if_pos h]
     rw [this]
     exact tendsto_const_nhds.congr' (by filter_upwards [hev] with x hx; exact hx.symm)
-  · have hev : ∀ᶠ x in nhds x₀, Real.sign x = 1 := by
+  · have hev : Real.sign =ᶠ[nhds x₀] (fun x ↦ 1) := by
       filter_upwards [Ioi_mem_nhds h] with x hx
       simp only [Real.sign, Set.mem_Ioi] at hx ⊢
       rw [if_neg (not_lt.mpr hx.le), if_pos hx]
@@ -389,9 +389,50 @@ theorem Continuous.exp' (p:ℝ) : ContinuousOn (fun x:ℝ ↦ x ^ p) (.Ioi 0) :=
     _ < (ε / y ^ p) * y ^ p := by gcongr
     _ = ε := by field_simp
 
+/-- Extension of {lean}`Continuous.exp'` from {lean}`Set.Ioi 0` to {lean}`Set.Ici 0` for non-negative
+exponents. -/
+theorem Continuous.exp'_Ici {p:ℝ} (hp: 0 ≤ p) :
+    ContinuousOn (fun x:ℝ ↦ x ^ p) (.Ici 0) := by
+  rcases eq_or_lt_of_le hp with rfl | hp
+  · simpa [Real.rpow_zero] using continuousOn_const
+  · intro y hy
+    rcases lt_or_eq_of_le (show (0:ℝ) ≤ y from hy) with hy' | hy'
+    · have hcon := Continuous.exp' p y hy'
+      exact (hcon.continuousAt (Ioi_mem_nhds hy')).continuousWithinAt
+    · subst hy'
+      rw [Metric.continuousWithinAt_iff]
+      intro ε hε
+      refine ⟨ε ^ (1 / p), Real.rpow_pos_of_pos hε _, fun y hy hdist => ?_⟩
+      have hy' : 0 ≤ y := hy
+      simp only [Real.dist_eq, sub_zero] at hdist
+      rw [Real.zero_rpow hp.ne', Real.dist_eq, sub_zero]
+      rw [abs_of_nonneg (Real.rpow_nonneg hy' _)]
+      rw [abs_of_nonneg hy'] at hdist
+      calc y ^ p < (ε ^ (1 / p)) ^ p := Real.rpow_lt_rpow hy' hdist hp
+        _ = ε := by
+          rw [← Real.rpow_mul hε.le, one_div, inv_mul_cancel₀ hp.ne', Real.rpow_one]
+
 /-- Proposition 9.4.12 -/
 theorem Continuous.abs : Continuous (fun x:ℝ ↦ |x|) := by
-  sorry -- TODO
+  rw [continuous_iff_continuousAt]
+  intro x
+  rcases lt_trichotomy x 0 with h | rfl | h
+  . have : (fun x:ℝ ↦ -x) =ᶠ[nhds x] (fun (x:ℝ) ↦ |x|) := by
+      filter_upwards [Iio_mem_nhds h] with y hy
+      have : y < 0 := by exact gt_iff_lt.mp hy
+      rw [abs_of_neg hy]
+    apply continuousAt_neg.congr this
+  . rw [Metric.continuousAt_iff]
+    intro ε hε
+    simp
+    use ε, hε
+    intro y
+    exact id
+  . have : id =ᶠ[nhds x] (fun (x:ℝ) ↦ |x|) := by
+      filter_upwards [Ioi_mem_nhds h] with y hy
+      rw [abs_of_pos hy]
+      simp
+    exact continuousAt_id.congr this
 
 /-- Proposition 9.4.13 / Exercise 9.4.5 -/
 theorem ContinuousWithinAt.comp {X Y: Set ℝ} {f g:ℝ → ℝ} (hf: ∀ x ∈ X, f x ∈ Y) (x₀:ℝ)
@@ -422,21 +463,106 @@ theorem ContinuousWithinAt.comp {X Y: Set ℝ} {f g:ℝ → ℝ} (hf: ∀ x ∈ 
 
 /-- Example 9.4.14 -/
 example : Continuous (fun x:ℝ ↦ 3*x + 1) := by
-  sorry
+  rw [continuous_iff_continuousAt]
+  intro x
+  rw [← continuousWithinAt_univ]
+  apply ContinuousWithinAt.add
+  . apply ContinuousWithinAt.mul'
+    . exact continuousWithinAt_const
+    . exact continuousWithinAt_id
+  . exact continuousWithinAt_const
 
-example : Continuous (fun x:ℝ ↦ (5:ℝ)^x) := by
-  sorry
+example : Continuous (fun x:ℝ ↦ (5:ℝ)^x) := Continuous.exp (by norm_num)
 
 example : Continuous (fun x:ℝ ↦ (5:ℝ)^(3*x+1)) := by
-  sorry
+  have h1 : Continuous (fun x:ℝ ↦ 3*x+1) := by
+    rw [continuous_iff_continuousAt]
+    intro x
+    rw [← continuousWithinAt_univ]
+    apply ContinuousWithinAt.add
+    · apply ContinuousWithinAt.mul'
+      · exact continuousWithinAt_const
+      · exact continuousWithinAt_id
+    · exact continuousWithinAt_const
+  have h2 : Continuous (fun y:ℝ ↦ (5:ℝ)^y) := Continuous.exp (by norm_num)
+  exact h2.comp h1
 
 example : Continuous (fun x:ℝ ↦ |x^2-8*x+8|^(Real.sqrt 2) / (x^2 + 1)) := by
-  sorry
+  -- x ↦ x^2, via ContinuousWithinAt.mul' applied to id * id.
+  have hsq : Continuous (fun x:ℝ ↦ x^2) := by
+    have heq : (fun x:ℝ ↦ x^2) = (fun x ↦ x * x) := by funext x; ring
+    rw [heq, continuous_iff_continuousAt]; intro x
+    rw [← continuousWithinAt_univ]
+    exact ContinuousWithinAt.mul' _ _ continuousWithinAt_id continuousWithinAt_id
+  -- polynomial p(x) = x^2 - 8*x + 8, via add/sub/mul' and const/id.
+  have hpoly : Continuous (fun x:ℝ ↦ x^2 - 8*x + 8) := by
+    rw [continuous_iff_continuousAt]; intro x
+    rw [← continuousWithinAt_univ]
+    apply ContinuousWithinAt.add
+    · exact ContinuousWithinAt.sub _ _ hsq.continuousAt.continuousWithinAt
+        (ContinuousWithinAt.mul' _ _ continuousWithinAt_const continuousWithinAt_id)
+    · exact continuousWithinAt_const
+  -- |p(x)| by composition with `Continuous.abs`.
+  have habs : Continuous (fun x:ℝ ↦ |x^2-8*x+8|) := Continuous.abs.comp hpoly
+  -- denominator x^2 + 1, a polynomial via add.
+  have hden : Continuous (fun x:ℝ ↦ x^2 + 1) := by
+    rw [continuous_iff_continuousAt]; intro x
+    rw [← continuousWithinAt_univ]
+    exact ContinuousWithinAt.add _ _ hsq.continuousAt.continuousWithinAt continuousWithinAt_const
+  have hden_pos : ∀ x:ℝ, x^2 + 1 > 0 := fun x => by positivity
+  -- `y ↦ y^(√2)` on `Ici 0`: the `Continuous.exp'_Ici` extension above.
+  have hrpow_Ici : ContinuousOn (fun y:ℝ ↦ y ^ Real.sqrt 2) (.Ici 0) :=
+    Continuous.exp'_Ici (Real.sqrt_nonneg _)
+  -- composition: |p(x)| is always in `Ici 0`, so we get global continuity.
+  have hnum : Continuous (fun x:ℝ ↦ |x^2-8*x+8| ^ Real.sqrt 2) :=
+    hrpow_Ici.comp_continuous habs (fun _ => Set.mem_Ici.mpr (abs_nonneg _))
+  exact hnum.div hden (fun x => (hden_pos x).ne')
 
 /-- Exercise 9.4.6 -/
 theorem ContinuousOn.restrict {X Y:Set ℝ} {f: ℝ → ℝ} (hY: Y ⊆ X) (hf: ContinuousOn f X) : ContinuousOn f Y := by
-  sorry
+  rw [ContinuousOn.eq_1] at hf ⊢
+  intro x hx
+  specialize hf x (hY hx)
+  rw [ContinuousWithinAt.iff] at hf ⊢
+  rw [Convergesto] at hf ⊢
+  intro ε hε
+  specialize hf ε hε
+  rw [Real.CloseNear] at hf ⊢
+  obtain ⟨δ, hδ, h⟩ := hf
+  use δ, hδ
+  rw [Real.CloseFn] at h ⊢
+  intro y hy
+  specialize h y
+  apply h
+  exact ⟨hY hy.1, hy.2⟩
 
 /-- Exercise 9.4.7 -/
 theorem Continuous.polynomial {n:ℕ} (c: Fin n → ℝ) : Continuous (fun x:ℝ ↦ ∑ i, c i * x ^ (i:ℕ)) := by
-  sorry
+  -- `x ↦ x^k` by induction on `k`, using `ContinuousWithinAt.mul'` and `continuousWithinAt_id`.
+  have hpow : ∀ k:ℕ, Continuous (fun x:ℝ ↦ x ^ k) := by
+    intro k
+    induction k with
+    | zero =>
+      simpa using (continuous_const : Continuous (fun _:ℝ ↦ (1:ℝ)))
+    | succ k ih =>
+      have heq : (fun x:ℝ ↦ x ^ (k+1)) = (fun x ↦ x ^ k * x) := by funext x; ring
+      rw [heq, continuous_iff_continuousAt]; intro x
+      rw [← continuousWithinAt_univ]
+      exact ContinuousWithinAt.mul' _ _ ih.continuousAt.continuousWithinAt continuousWithinAt_id
+  -- Sum of monomials is continuous, by induction on `n` (with `c` generalized).
+  induction n with
+  | zero => simpa using (continuous_const : Continuous (fun _:ℝ ↦ (0:ℝ)))
+  | succ n ih =>
+    have heq : (fun x:ℝ ↦ ∑ i:Fin (n+1), c i * x ^ (i:ℕ))
+        = (fun x ↦ ∑ i:Fin n, c i.castSucc * x ^ (i:ℕ)) + (fun x ↦ c (Fin.last n) * x ^ n) := by
+      funext x; simp [Fin.sum_univ_castSucc]
+    have htail : Continuous (fun x:ℝ ↦ c (Fin.last n) * x ^ n) := by
+      rw [continuous_iff_continuousAt]; intro x
+      rw [← continuousWithinAt_univ]
+      exact ContinuousWithinAt.mul' _ _ continuousWithinAt_const
+        (hpow n).continuousAt.continuousWithinAt
+    rw [heq, continuous_iff_continuousAt]; intro x
+    rw [← continuousWithinAt_univ]
+    apply ContinuousWithinAt.add
+    · exact (ih (fun i => c i.castSucc)).continuousAt.continuousWithinAt
+    · exact htail.continuousAt.continuousWithinAt

@@ -383,17 +383,71 @@ example : ∃ f: ℝ → ℝ, ¬ BddAboveOn f (.Icc (-1) 1) ∧ ¬ BddBelowOn f 
 
 /-- Exercise 9.6.2 -/
 theorem BddOn.add (f g : ℝ → ℝ) (X : Set ℝ) (hf : BddOn f X) (hg : BddOn g X) :
-    BddOn (f + g) X := by sorry
+    BddOn (f + g) X := by
+  obtain ⟨Mf, hMf⟩ := hf
+  obtain ⟨Mg, hMg⟩ := hg
+  use Mf + Mg
+  intro x hx
+  specialize hMf x hx
+  specialize hMg x hx
+  simp only [Pi.add_apply]
+  calc
+    |f x + g x| ≤ |f x| + |g x| := abs_add_le _ _
+    _ ≤ Mf + Mg := by linarith
 
 theorem BddOn.sub (f g : ℝ → ℝ) (X : Set ℝ) (hf : BddOn f X) (hg : BddOn g X) :
-    BddOn (f - g) X := by sorry
+    BddOn (f - g) X := by
+    have : BddOn (-g) X := by
+      obtain ⟨Mg, hMg⟩ := hg
+      use Mg
+      intro x hx
+      specialize hMg x hx
+      simp only [Pi.neg_apply]
+      rwa [abs_neg]
+    exact BddOn.add f (-g) X hf this
 
 theorem BddOn.mul (f g : ℝ → ℝ) (X : Set ℝ) (hf : BddOn f X) (hg : BddOn g X) :
-    BddOn (f * g) X := by sorry
+    BddOn (f * g) X := by
+  obtain ⟨Mf, hMf⟩ := hf
+  obtain ⟨Mg, hMg⟩ := hg
+  use |Mf| * |Mg|
+  intro x hx
+  specialize hMf x hx
+  specialize hMg x hx
+  simp only [Pi.mul_apply]
+  calc
+    |f x * g x| = |f x| * |g x| := abs_mul _ _
+    _ ≤ |Mf| * |Mg| := by
+      apply mul_le_mul
+        (le_trans hMf (le_abs_self _))
+        (le_trans hMg (le_abs_self _))
+        (abs_nonneg _) (abs_nonneg _)
 
 def BddOn.div : Decidable (∀ (f g : ℝ → ℝ) (X : Set ℝ) (_ : ∀ x ∈ X, g x ≠ 0) (_ : BddOn f X)
     (_: BddOn g X), (BddOn (f / g) X)) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`, depending on whether you believe the given statement to be true or false.
-  sorry
+  apply isFalse
+  push_neg
+  use fun x ↦ 1, fun x ↦ x, Set.Ioo 0 1
+  constructor
+  . intro x hx
+    simp at hx
+    linarith
+  . constructor
+    . exact ⟨1, fun x hx => by simp⟩
+    . constructor
+      . use 1
+        intro x hx
+        simp at hx ⊢
+        rw [abs_le]
+        constructor <;> linarith
+      . intro M
+        simp
+        use 1 / (max M 2 + 1)
+        simp
+        constructor
+        . exact ⟨by positivity, inv_lt_one_of_one_lt₀ (by linarith [le_max_right M 2])⟩
+        . rw [abs_of_pos (by positivity)]
+          linarith [le_max_left M 2]
 
 end Chapter9

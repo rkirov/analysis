@@ -28,24 +28,78 @@ abbrev BddOn (f:ℝ → ℝ) (X:Set ℝ) : Prop := ∃ M, ∀ x ∈ X, |f x| ≤
 
 /-- Remark 9.6.2 -/
 theorem BddOn.iff (f:ℝ → ℝ) (X:Set ℝ) : BddOn f X ↔ BddAboveOn f X ∧ BddBelowOn f X := by
-  sorry
+  constructor
+  . intro h
+    choose M hM using h
+    constructor
+    . use M
+      intro x hx
+      specialize hM x hx
+      rw [abs_le] at hM
+      exact hM.2
+    . use M
+      intro x hx
+      specialize hM x hx
+      rw [abs_le] at hM
+      exact hM.1
+  . rintro ⟨⟨M₁, hM₁⟩, ⟨M₂, hM₂⟩⟩
+    use max M₁ M₂
+    intro x hx
+    specialize hM₁ x hx
+    specialize hM₂ x hx
+    rw [abs_le]
+    grind
 
 theorem BddOn.iff' (f:ℝ → ℝ) (X:Set ℝ) :  BddOn f X ↔ Bornology.IsBounded (f '' X) := by
-  sorry
+  constructor
+  case mp =>
+    rintro ⟨M, hM⟩
+    rw [Metric.isBounded_iff_subset_closedBall 0]
+    refine ⟨M, ?_⟩; rintro _ ⟨x, hx, rfl⟩; simp [Metric.mem_closedBall]; exact hM x hx
+  case mpr =>
+    intro h
+    rw [Metric.isBounded_iff_subset_closedBall 0] at h
+    obtain ⟨r, hr⟩ := h
+    exact ⟨r, fun x hx => by have := hr ⟨x, hx, rfl⟩; simp at this; exact this⟩
+
 
 theorem BddOn.of_bounded {f :ℝ → ℝ} {X: Set ℝ} {M:ℝ} (h: ∀ x ∈ X, |f x| ≤ M) : BddOn f X := by use M
 
-example : Continuous (fun x:ℝ ↦ x) := by sorry
+example : Continuous (fun x:ℝ ↦ x) := continuous_id
 
-example : ¬ BddOn (fun x:ℝ ↦ x) .univ  := by sorry
+example : ¬ BddOn (fun x:ℝ ↦ x) .univ := by
+  rintro ⟨M, hM⟩
+  have := hM (|M| + 1) trivial
+  simp [abs_of_nonneg (by positivity : (0:ℝ) ≤ |M| + 1)] at this
+  linarith [le_abs_self M]
 
-example : BddOn (fun x:ℝ ↦ x) (.Icc 1 2) := by sorry
+example : BddOn (fun x:ℝ ↦ x) (.Icc 1 2) := by
+  use 2
+  intro x ⟨h1, h2⟩
+  simp [abs_of_nonneg (by linarith : (0:ℝ) ≤ x)]
+  linarith
 
-example : ContinuousOn (fun x:ℝ ↦ 1/x) (.Ioo 0 1) := by sorry
+example : ContinuousOn (fun x:ℝ ↦ 1/x) (.Ioo 0 1) := by
+  apply ContinuousOn.div continuousOn_const continuousOn_id
+  intro x hx
+  exact ne_of_gt hx.1
 
-example : ¬ BddOn (fun x:ℝ ↦ 1/x) (.Ioo 0 1) := by sorry
+example : ¬ BddOn (fun x:ℝ ↦ 1/x) (.Ioo 0 1) := by
+  rintro ⟨M, hM⟩
+  have hM' : (1:ℝ) < max M 2 + 1 := by linarith [le_max_right M 2]
+  set x := 1 / (max M 2 + 1)
+  have hx_pos : 0 < x := by positivity
+  have hx_lt : x < 1 := by rw [div_lt_one (by linarith : (0:ℝ) < max M 2 + 1)]; linarith
+  have := hM x ⟨hx_pos, hx_lt⟩
+  simp [x, abs_of_pos (by positivity : (0 : ℝ) < max M 2 + 1)] at this
+  linarith [le_max_left M 2]
 
-theorem why_7_6_3 {n: ℕ → ℕ} (hn: StrictMono n) (j:ℕ) : n j ≥ j := by sorry
+theorem why_7_6_3 {n: ℕ → ℕ} (hn: StrictMono n) (j:ℕ) : n j ≥ j := by
+  induction j with
+  | zero => exact Nat.zero_le _
+  | succ j ih =>
+    have : n (j + 1) > n j := hn (show j < j + 1 by simp)
+    linarith
 
 /-- Lemma 9.6.3 -/
 theorem BddOn.of_continuous_on_compact {a b:ℝ} (_h:a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b) ) :

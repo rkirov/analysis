@@ -381,5 +381,20 @@ example : ∃ f: ℝ → ℝ, ¬ BddAboveOn f (.Icc (-1) 1) ∧ ¬ BddBelowOn f 
     refine ⟨⟨?_, ?_⟩, ?_⟩ <;>
       { field_simp [ne_of_gt hpos]; nlinarith [le_max_left M 2, le_max_right M 2] }
 
+/-- Exercise 9.6.2 -/
+
+theorem BddOn.add (f g : ℝ → ℝ) (X : Set ℝ) (hf : BddOn f X) (hg : BddOn g X) :
+    BddOn (f + g) X := by sorry
+
+theorem BddOn.sub (f g : ℝ → ℝ) (X : Set ℝ) (hf : BddOn f X) (hg : BddOn g X) :
+    BddOn (f - g) X := by sorry
+
+theorem BddOn.mul (f g : ℝ → ℝ) (X : Set ℝ) (hf : BddOn f X) (hg : BddOn g X) :
+    BddOn (f * g) X := by sorry
+
+def BddOn.div (f g : ℝ → ℝ) (X : Set ℝ) (h : ∀ x ∈ X, g x ≠ 0) (hf : BddOn f X)
+    (hg: BddOn g X) : Decidable (BddOn (f / g) X) := by
+  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`, depending on whether you believe the given statement to be true or false.
+  sorry
 
 end Chapter9

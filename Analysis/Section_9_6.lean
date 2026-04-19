@@ -132,9 +132,15 @@ theorem BddOn.of_continuous_on_compact {a b:ℝ} (_h:a < b) {f:ℝ → ℝ} (hf:
 #check isMinOn_iff
 
 /-- Remark 9.6.6 -/
-theorem BddAboveOn.isMaxOn {f:ℝ → ℝ} {X:Set ℝ} {x₀:ℝ} (h: IsMaxOn f X x₀): BddAboveOn f X := by sorry
+theorem BddAboveOn.isMaxOn {f:ℝ → ℝ} {X:Set ℝ} {x₀:ℝ} (h: IsMaxOn f X x₀): BddAboveOn f X := by
+  rw [isMaxOn_iff] at h
+  use f x₀
 
-theorem BddBelowOn.isMinOn {f:ℝ → ℝ} {X:Set ℝ} {x₀:ℝ} (h: IsMinOn f X x₀): BddBelowOn f X := by sorry
+theorem BddBelowOn.isMinOn {f:ℝ → ℝ} {X:Set ℝ} {x₀:ℝ} (h: IsMinOn f X x₀): BddBelowOn f X := by
+  rw [isMinOn_iff] at h
+  use -(f x₀)
+  simp
+  exact h
 
 /-- Proposition 9.6.7 (Maximum principle) -/
 theorem IsMaxOn.of_continuous_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b)) :
@@ -147,7 +153,13 @@ theorem IsMaxOn.of_continuous_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf
   set m := sSup E
   have claim1 {y:ℝ} (hy: y ∈ E) : y ≤ m := le_csSup (BddAbove.mono hE bddAbove_Icc) hy
   suffices h : ∃ xmax, xmax ∈ Set.Icc a b ∧ f xmax = m
-  . sorry
+  . obtain ⟨xmax, hmax, hmax'⟩ := h
+    use xmax, hmax
+    rw [isMaxOn_iff]
+    intro x hx
+    rw [hmax']
+    specialize claim1 (Set.mem_image_of_mem f hx)
+    exact claim1
   have claim2 (n:ℕ) : ∃ x ∈ Set.Icc a b, m - 1/(n+1:ℝ) < f x := by
     have : 1/(n+1:ℝ) > 0 := by positivity
     replace : m - 1/(n+1:ℝ) < sSup E := by linarith
@@ -175,18 +187,24 @@ theorem IsMaxOn.of_continuous_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf
     exact hupper
   exact tendsto_nhds_unique hconv' hconvm
 
-
-
-
-
-
 theorem IsMinOn.of_continuous_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b)) :
   ∃ xmin ∈ Set.Icc a b, IsMinOn f (.Icc a b) xmin := by
-  sorry
+  have ⟨xmin, hmin, hmax_neg⟩ := IsMaxOn.of_continuous_on_compact h (hf.neg)
+  use xmin, hmin
+  intro x hx
+  have := hmax_neg hx
+  simp at this
+  exact this
 
-example : IsMaxOn (fun x ↦ x^2) (.Icc (-2) 2) 2 := by sorry
+example : IsMaxOn (fun x ↦ x^2) (.Icc (-2) 2) 2 := by
+  intro x hx
+  simp at hx ⊢
+  nlinarith [sq_nonneg (2 - x), sq_nonneg (2 + x)]
 
-example : IsMaxOn (fun x ↦ x^2) (.Icc (-2) 2) (-2) := by sorry
+example : IsMaxOn (fun x ↦ x^2) (.Icc (-2) 2) (-2) := by
+  intro x hx
+  simp at hx ⊢
+  nlinarith [sq_nonneg (2 - x), sq_nonneg (2 + x)]
 
 theorem sSup.of_isMaxOn {f:ℝ → ℝ} {X:Set ℝ} {x₀:ℝ} (hx₀: x₀ ∈ X) (h: IsMaxOn f X x₀) :
   sSup (f '' X) = f x₀ := by
@@ -208,26 +226,160 @@ theorem sInf.of_continuous_on_compact {a b:ℝ} (h:a < b) (f:ℝ → ℝ) (hf: C
   choose x hx h' using IsMinOn.of_continuous_on_compact h hf
   grind [sInf.of_isMinOn]
 
-/-- Exercise 9.6.1 -/
+/-- Exercise 9.6.1 a) -/
 example : ∃ f: ℝ → ℝ, ContinuousOn f (.Ioo 1 2) ∧ BddOn f (.Ioo 1 2) ∧
   ∃ x₀ ∈ Set.Ioo 1 2, IsMinOn f (.Ioo 1 2) x₀ ∧
   ¬ ∃ x₀ ∈ Set.Ioo 1 2, IsMaxOn f (.Ioo 1 2) x₀
-  := by sorry
+  := by
+  use fun x ↦ |x - 1.5|
+  constructor
+  . apply Continuous.continuousOn; continuity
+  . constructor
+    . use 2
+      intro x hx
+      simp at hx
+      rw [abs_le]
+      constructor
+      · linarith [abs_nonneg (x - 1.5)]
+      · rw [abs_le]; constructor <;> linarith
+    . use 1.5
+      constructor
+      . norm_num
+      . constructor
+        . rw [isMinOn_iff]
+          intro x hx
+          simp at hx
+          rw [abs_le]
+          simp
+        . push_neg
+          intro x hx
+          rw [isMaxOn_iff]
+          push_neg
+          -- is x is > 1.5, get a bigger value by moving left; if x is < 1.5, get a bigger value by moving right
+          by_cases h : x < 1.5
+          . use (x + 1) / 2
+            constructor
+            · constructor <;> [linarith [hx.1]; linarith]
+            · rw [abs_of_neg (by linarith), abs_of_neg (by linarith : (x + 1) / 2 - 1.5 < 0)]
+              linarith [hx.1]
+          . use (x + 2) / 2
+            constructor
+            · constructor <;> [linarith; linarith [hx.2]]
+            · rw [abs_of_nonneg (by linarith), abs_of_nonneg (by linarith : (x + 2) / 2 - 1.5 ≥ 0)]
+              linarith [hx.2]
 
-/-- Exercise 9.6.1 -/
-example : ∃ f: ℝ → ℝ, ContinuousOn f (.Ioo 1 2) ∧ BddOn f (.Ioo 1 2) ∧
-  ∃ x₀ ∈ Set.Ioo 1 2, IsMaxOn f (.Ioo 1 2) x₀ ∧
-  ¬ ∃ x₀ ∈ Set.Ioo 1 2, IsMinOn f (.Ioo 1 2) x₀
-  := by sorry
+/-- Exercise 9.6.1 b) -/
+example : ∃ f: ℝ → ℝ, ContinuousOn f (.Ici 0) ∧ BddOn f (.Ici 0) ∧
+  ∃ x₀ ∈ Set.Ici 0, IsMaxOn f (.Ici 0) x₀ ∧
+  ¬ ∃ x₀ ∈ Set.Ici 0, IsMinOn f (.Ici 0) x₀
+  := by
+  use fun x ↦ 1 / (x + 1)
+  constructor
+  . apply continuousOn_const.div (continuousOn_id.add continuousOn_const)
+    intro x hx
+    simp at hx ⊢
+    linarith
+  . constructor
+    . use 1
+      intro x hx
+      simp at hx
+      rw [abs_le]
+      simp
+      constructor
+      . field_simp
+        linarith
+      . field_simp
+        linarith
+    . use 0
+      constructor
+      . simp
+      . constructor
+        . rw [isMaxOn_iff]
+          intro x hx
+          simp at hx ⊢
+          field_simp
+          linarith
+        . push_neg
+          intro x hx
+          rw [isMinOn_iff]
+          push_neg
+          use x + 1
+          constructor
+          . simp at hx ⊢
+            linarith
+          . simp at hx
+            apply div_lt_div_of_pos_left one_pos (by linarith) (by linarith)
 
-/-- Exercise 9.6.1 -/
+/-- Exercise 9.6.1 c) -/
 example : ∃ f: ℝ → ℝ, BddOn f (.Icc (-1) 1) ∧
-  ¬ ∃ x₀ ∈ Set.Icc (-1) 1, IsMinOn f (.Icc (-1) 1) x₀ ∧
-  ¬ ∃ x₀ ∈ Set.Icc (-1) 1, IsMaxOn f (.Icc (-1) 1) x₀
-  := by sorry
+  (¬ ∃ x₀ ∈ Set.Icc (-1) 1, IsMinOn f (.Icc (-1) 1) x₀) ∧
+  (¬ ∃ x₀ ∈ Set.Icc (-1) 1, IsMaxOn f (.Icc (-1) 1) x₀)
+  := by
+  use fun x ↦ if x = -1 ∨ x = 1 then 0 else x
+  constructor
+  . use 1
+    intro x hx
+    simp
+    by_cases h : x = -1 ∨ x = 1
+    . by_cases h' : x = -1
+      . simp [h']
+      . simp [h]
+    . simp [h]
+      rw [abs_le]
+      exact hx
+  . constructor
+    . push_neg
+      intro x hx
+      rw [isMinOn_iff]
+      push_neg
+      by_cases h : x = -1 ∨ x = 1
+      . use -0.5
+        simp [h]
+        norm_num
+      . use (x - 1) / 2
+        simp only [Set.mem_Icc] at hx
+        have hne1 : x ≠ -1 := fun e => h (Or.inl e)
+        have hne2 : x ≠ 1 := fun e => h (Or.inr e)
+        have hl : -1 < x := lt_of_le_of_ne hx.1 (Ne.symm hne1)
+        have hr : x < 1 := lt_of_le_of_ne hx.2 hne2
+        have hne : ¬((x - 1) / 2 = -1 ∨ (x - 1) / 2 = 1) := by
+          rintro (e | e) <;> linarith
+        constructor
+        · simp only [Set.mem_Icc]; exact ⟨by linarith, by linarith⟩
+        · simp only [if_neg hne, if_neg h]; linarith
+    . push_neg
+      intro x hx
+      rw [isMaxOn_iff]
+      push_neg
+      by_cases h : x = -1 ∨ x = 1
+      . use 0.5
+        simp [h]
+        norm_num
+      . use (x + 1) / 2
+        simp only [Set.mem_Icc] at hx
+        have hne1 : x ≠ -1 := fun e => h (Or.inl e)
+        have hne2 : x ≠ 1 := fun e => h (Or.inr e)
+        have hl : -1 < x := lt_of_le_of_ne hx.1 (Ne.symm hne1)
+        have hr : x < 1 := lt_of_le_of_ne hx.2 hne2
+        have hne : ¬((x + 1) / 2 = -1 ∨ (x + 1) / 2 = 1) := by
+          rintro (e | e) <;> linarith
+        constructor
+        · simp only [Set.mem_Icc]; exact ⟨by linarith, by linarith⟩
+        · simp only [if_neg hne, if_neg h]; linarith
 
-/-- Exercise 9.6.1 -/
-example : ∃ f: ℝ → ℝ, ¬ BddAboveOn f (.Icc (-1) 1) ∧ ¬ BddBelowOn f (.Icc (-1) 1) := by sorry
+/-- Exercise 9.6.1 d) -/
+example : ∃ f: ℝ → ℝ, ¬ BddAboveOn f (.Icc (-1) 1) ∧ ¬ BddBelowOn f (.Icc (-1) 1) := by
+  use fun x ↦ 1 / x
+  push_neg
+  refine ⟨fun M ↦ ?_, fun M ↦ ?_⟩
+  . use 1 / (max M 2 + 1)
+    have hpos : (0:ℝ) < max M 2 + 1 := by linarith [le_max_right M 2]
+    refine ⟨⟨?_, ?_⟩, ?_⟩ <;>
+      { field_simp [ne_of_gt hpos]; nlinarith [le_max_left M 2, le_max_right M 2] }
+  . use -1 / (max M 2 + 1)
+    have hpos : (0:ℝ) < max M 2 + 1 := by linarith [le_max_right M 2]
+    refine ⟨⟨?_, ?_⟩, ?_⟩ <;>
+      { field_simp [ne_of_gt hpos]; nlinarith [le_max_left M 2, le_max_right M 2] }
 
 
 end Chapter9

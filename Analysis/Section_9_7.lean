@@ -1,6 +1,7 @@
 import Mathlib.Tactic
 import Analysis.Section_9_3
 import Analysis.Section_9_4
+import Analysis.Section_9_6
 
 
 /-!
@@ -193,14 +194,69 @@ example : ∃ x:ℝ, 0 ≤ x ∧ x ≤ 2 ∧ x^2 = 2 := by
   simp [hx]
 
 /-- Corollary 9.7.4 (Images of continuous functions) / Exercise 9.7.1 -/
-theorem continuous_image_Icc {a b:ℝ} (hab: a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b)) {y:ℝ} (hy: sInf (f '' .Icc a b) ≤ y ∧ y ≤ sSup (f '' .Icc a b)) : ∃ c ∈ Set.Icc a b, f c = y := by
-  sorry
+theorem continuous_image_Icc {a b:ℝ} (hab: a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b)) {y:ℝ}
+    (hy: sInf (f '' .Icc a b) ≤ y ∧ y ≤ sSup (f '' .Icc a b)) : ∃ c ∈ Set.Icc a b, f c = y := by
+  obtain ⟨xmin, hxmin, hm⟩ := sInf.of_continuous_on_compact hab f hf
+  obtain ⟨xmax, hxmax, hM⟩ := sSup.of_continuous_on_compact hab f hf
+  obtain ⟨hym, hyM⟩ := hy
+  rw [hm] at hym; rw [hM] at hyM
+  by_cases heq : xmin = xmax
+  · use xmin, hxmin; rw [← heq] at hyM; linarith
+  · set p := min xmin xmax
+    set q := max xmin xmax
+    have hpq : p < q := lt_of_le_of_ne min_le_max (by simp [p, q, heq])
+    have hsub : Set.Icc p q ⊆ Set.Icc a b :=
+      Set.Icc_subset_Icc (le_min hxmin.1 hxmax.1) (max_le hxmin.2 hxmax.2)
+    have hf' : ContinuousOn f (Set.Icc p q) := hf.mono hsub
+    have hy' : y ∈ Set.Icc (f p) (f q) ∨ y ∈ Set.Icc (f q) (f p) := by
+      rcases le_or_gt xmin xmax with h | h
+      · left;  simp [p, q, min_eq_left h, max_eq_right h]; exact ⟨hym, hyM⟩
+      · right; simp [p, q, min_eq_right h.le, max_eq_left h.le]; exact ⟨hym, hyM⟩
+    obtain ⟨c, hc, hfc⟩ := intermediate_value hpq hf' hy'
+    exact ⟨c, hsub hc, hfc⟩
 
-theorem continuous_image_Icc' {a b:ℝ} (hab: a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b)) : f '' .Icc a b = .Icc (sInf (f '' .Icc a b)) (sSup (f '' .Icc a b)) := by
-  sorry
+theorem continuous_image_Icc' {a b:ℝ} (hab: a < b) {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc a b))
+    : f '' .Icc a b = .Icc (sInf (f '' .Icc a b)) (sSup (f '' .Icc a b)) := by
+  have hbd : Bornology.IsBounded (f '' .Icc a b) :=
+    (BddOn.iff' f (.Icc a b)).mp (BddOn.of_continuous_on_compact hab hf)
+  ext x
+  constructor
+  . intro h
+    constructor
+    . apply csInf_le
+      . exact hbd.bddBelow
+      . exact h
+    . apply le_csSup
+      . exact hbd.bddAbove
+      . exact h
+  . intro h
+    obtain ⟨y, hy⟩ := continuous_image_Icc hab hf h
+    use y
 
 /-- Exercise 9.7.2 -/
 theorem exists_fixed_pt {f:ℝ → ℝ} (hf: ContinuousOn f (.Icc 0 1)) (hmap: f '' .Icc 0 1 ⊆ .Icc 0 1) : ∃ x ∈ Set.Icc 0 1, f x = x := by
-  sorry
-
+  let g := fun x ↦ f x - x
+  have hg : ContinuousOn g (.Icc 0 1) := by
+    apply ContinuousOn.sub
+    . exact hf
+    . exact continuousOn_id
+  have ha : g 0 ≥ 0 := by
+    simp [g]
+    simp only [Set.image_subset_iff] at hmap
+    have : (0:ℝ) ∈ Set.Icc 0 1 := by simp
+    have := hmap this
+    simp only [Set.mem_preimage, Set.mem_Icc] at this
+    exact this.1
+  have hb : g 1 ≤ 0 := by
+    simp [g]
+    simp only [Set.image_subset_iff] at hmap
+    have : (1:ℝ) ∈ Set.Icc 0 1 := by simp
+    have := hmap this
+    simp only [Set.mem_preimage, Set.mem_Icc] at this
+    exact this.2
+  have := intermediate_value (show 0 < 1 by norm_num) hg (y:=0) (Or.inr ⟨hb, ha⟩)
+  obtain ⟨x, hx, hgx⟩ := this
+  use x, hx
+  unfold g at hgx
+  linarith
 end Chapter9

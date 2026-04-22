@@ -11,6 +11,9 @@ Completed
 - Chapter 4 - all
 - Chapter 5 - all
 - Chapter 6 - all
+- Chapter 7 - all
+- Chapter 8 - all
+- Chapter 9 - 1,2,3,4,5
 
 # Lean formalization of _Analysis I_
 

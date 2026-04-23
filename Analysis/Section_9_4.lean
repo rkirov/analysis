@@ -131,7 +131,7 @@ example {x₀:ℝ} (h: x₀ ≠ 0) : ContinuousAt f_9_4_6 x₀ := by
     exact continuousAt_const.congr (by filter_upwards [hev] with x hx; exact hx.symm)
 
 
-example : ¬ ContinuousAt f_9_4_6 0 := by
+theorem f_9_4_6_not_continuousAt_zero : ¬ ContinuousAt f_9_4_6 0 := by
   intro h
   have h' := Metric.continuousAt_iff.mp h (1/2) (by linarith)
   obtain ⟨δ, hδ, hball⟩ := h'

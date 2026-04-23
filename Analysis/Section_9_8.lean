@@ -38,29 +38,94 @@ theorem StrictAntitone.iff {X: Set ℝ} (f: ℝ → ℝ) : StrictAntiOn f X  ↔
   constructor <;> intros <;> solve_by_elim
 
 /-- Examples 9.8.2 -/
-example : StrictMonoOn (fun x:ℝ ↦ x^2) (.Ici 0) := by sorry
+example : StrictMonoOn (fun x:ℝ ↦ x^2) (.Ici 0) := by
+  intro x hx y hy hxy
+  simp only [pow_two]
+  exact mul_self_lt_mul_self hx hxy
 
-example : StrictAntiOn (fun x:ℝ ↦ x^2) (.Iic 0) := by sorry
+example : StrictAntiOn (fun x:ℝ ↦ x^2) (.Iic 0) := by
+  intro x hx y hy hxy
+  simp only [pow_two]
+  simp at hx hy
+  suffices (-y * -y) < (-x * -x) by
+    ring_nf at this ⊢
+    exact this
+  apply mul_self_lt_mul_self (a:= -y) (b:= -x)
+  . linarith
+  . linarith
 
-example : ¬ MonotoneOn (fun x:ℝ ↦ x^2) .univ := by sorry
+theorem pow_not_monotone : ¬ MonotoneOn (fun x:ℝ ↦ x^2) .univ := by
+  rw [MonotoneOn.iff]
+  push_neg
+  use -2, by simp, 1, by norm_num, by norm_num, by norm_num
 
-example : ¬ AntitoneOn (fun x:ℝ ↦ x^2) .univ := by sorry
+theorem pow_not_antitone : ¬ AntitoneOn (fun x:ℝ ↦ x^2) .univ := by
+  rw [AntitoneOn.iff]
+  push_neg
+  use -1, by simp, 2, by norm_num, by norm_num, by norm_num
 
-example {X:Set ℝ} {f:ℝ → ℝ} (hf: StrictMonoOn f X) : MonotoneOn f X := by sorry
+example {X:Set ℝ} {f:ℝ → ℝ} (hf: StrictMonoOn f X) : MonotoneOn f X := by
+  intro x hx y hy hxy
+  rw [StrictMono.iff] at hf
+  specialize hf x hx y hy
+  by_cases h : x = y
+  . subst x; simp
+  . rw [le_iff_lt_or_eq] at hxy
+    simp [h] at hxy
+    specialize hf hxy
+    exact hf.le
 
-example (X:Set ℝ) : MonotoneOn (fun x:ℝ ↦ (6:ℝ)) X := by sorry
+example (X:Set ℝ) : MonotoneOn (fun _:ℝ ↦ (6:ℝ)) X := by
+  rw [MonotoneOn.iff]; intros; rfl
 
-example (X:Set ℝ) : AntitoneOn (fun x:ℝ ↦ (6:ℝ)) X := by sorry
+example (X:Set ℝ) : AntitoneOn (fun _:ℝ ↦ (6:ℝ)) X := by
+  rw [AntitoneOn.iff]; intros; rfl
 
 #check nontrivial_iff
 
-example {X:Set ℝ} (hX: Nontrivial X) : ¬ StrictMonoOn (fun x:ℝ ↦ (6:ℝ)) X := by sorry
+example {X:Set ℝ} (hX: Nontrivial X) : ¬ StrictMonoOn (fun _:ℝ ↦ (6:ℝ)) X := by
+  rw [nontrivial_iff] at hX
+  obtain ⟨ x, y, hxy⟩ := hX
+  rw [StrictMono.iff]
+  push_neg
+  wlog hxy' : x < y
+  . specialize this y x hxy.symm
+    have hxy'' : y < x ∨ y = x ∨ x < y := lt_trichotomy y x
+    have h : y < x := by grind
+    specialize this h
+    exact this
+  use x, x.prop, y, y.prop, hxy'
 
-example (X:Set ℝ) (hX: Nontrivial X) : ¬ StrictAntiOn (fun x:ℝ ↦ (6:ℝ)) X := by sorry
+example {X:Set ℝ} (hX: Nontrivial X) : ¬ StrictAntiOn (fun _:ℝ ↦ (6:ℝ)) X := by
+  rw [nontrivial_iff] at hX
+  obtain ⟨x, y, hxy⟩ := hX
+  rw [StrictAntitone.iff]
+  push_neg
+  wlog hxy' : x < y
+  . specialize this y x hxy.symm
+    have hxy'' : y < x ∨ y = x ∨ x < y := lt_trichotomy y x
+    have h : y < x := by grind
+    specialize this h
+    exact this
+  use x, x.prop, y, y.prop, hxy'
 
-example : ∃ (X:Set ℝ) (f:ℝ → ℝ), ContinuousOn f X ∧ ¬ MonotoneOn f X ∧ ¬ AntitoneOn f X := by sorry
+example : ∃ (X:Set ℝ) (f:ℝ → ℝ), ContinuousOn f X ∧ ¬ MonotoneOn f X ∧ ¬ AntitoneOn f X := by
+  use .univ, fun x ↦ x^2
+  constructor
+  . exact continuousOn_pow 2
+  . constructor
+    . exact pow_not_monotone
+    . exact pow_not_antitone
 
-example : ∃ (X:Set ℝ) (f:ℝ → ℝ), MonotoneOn f X ∧ ¬ ContinuousOn f X := by sorry
+example : ∃ (X:Set ℝ) (f:ℝ → ℝ), MonotoneOn f X ∧ ¬ ContinuousOn f X := by
+  use .univ, f_9_4_6
+  constructor
+  . intro x _ y _ hxy
+    by_cases hx : x ≥ 0
+    . simp [f_9_4_6, if_pos hx, if_pos (hx.trans hxy)]
+    . by_cases hy : y ≥ 0 <;> simp [f_9_4_6, if_neg hx, hy]
+  . exact fun hcont => f_9_4_6_not_continuousAt_zero
+      (continuousOn_univ.mp hcont).continuousAt
 
 /-- Proposition 9.8.3 / Exercise 9.8.4 -/
 theorem MonotoneOn.exist_inverse {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hcont: ContinuousOn f (.Icc a b)) (hmono: StrictMonoOn f (.Icc a b)) :

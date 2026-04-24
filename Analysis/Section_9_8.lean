@@ -1,5 +1,7 @@
 import Mathlib.Tactic
 import Analysis.Section_9_6
+import Analysis.Section_9_7
+
 
 /-!
 # Analysis I, Section 9.8: Monotonic functions
@@ -127,6 +129,76 @@ example : ∃ (X:Set ℝ) (f:ℝ → ℝ), MonotoneOn f X ∧ ¬ ContinuousOn f 
   . exact fun hcont => f_9_4_6_not_continuousAt_zero
       (continuousOn_univ.mp hcont).continuousAt
 
+/-- Proposition 9.8.1 -/
+theorem MonotoneOn.exists_max {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hf: MonotoneOn f (.Icc a b)) :
+  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by
+  use b
+  constructor
+  . simp
+    exact h.le
+  . intro y hy
+    simp
+    rw [MonotoneOn.iff] at hf
+    specialize hf y hy b (by simp;linarith)
+    simp at hy
+    by_cases hy' : y = b
+    . subst y
+      simp
+    . have hy'' : y < b := by grind
+      specialize hf hy''
+      simp at hf
+      exact hf
+
+theorem MonotoneOn.exists_min {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hf: MonotoneOn f (.Icc a b)) :
+  ∃ xmin ∈ Set.Icc a b, IsMinOn f (.Icc a b) xmin := by
+  use a
+  constructor
+  . simp
+    exact h.le
+  . intro y hy
+    simp
+    rw [MonotoneOn.iff] at hf
+    specialize hf a (by simp;linarith) y hy
+    simp at hy
+    by_cases hy' : y = a
+    . subst y
+      simp
+    . have hy'' : a < y := by grind
+      specialize hf hy''
+      simp at hf
+      exact hf
+
+lemma MonotoneCtOn.image {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hcont: ContinuousOn f (.Icc a b)) (hmono: StrictMonoOn f (.Icc a b)) :
+  f '' (.Icc a b) = .Icc (f a) (f b) := by
+  ext x
+  constructor
+  . intro h
+    simp at h
+    obtain ⟨y, hy, hxy⟩ := h
+    simp
+    subst x
+    constructor
+    . rw [StrictMono.iff] at hmono
+      specialize hmono a (by simp;linarith) y hy
+      by_cases hy' : y = a
+      . subst y
+        simp
+      . have hy'' : a < y := by grind
+        specialize hmono hy''
+        simp at hmono
+        exact hmono.le
+    . rw [StrictMono.iff] at hmono
+      specialize hmono y hy b (by simp;linarith)
+      by_cases hy' : y = b
+      . subst y
+        simp
+      . have hy'' : y < b := by grind
+        specialize hmono hy''
+        simp at hmono
+        exact hmono.le
+  . intro x'
+    exact intermediate_value h hcont (Or.inl x')
+
 /-- Proposition 9.8.3 / Exercise 9.8.4 -/
 theorem MonotoneOn.exist_inverse {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hcont: ContinuousOn f (.Icc a b)) (hmono: StrictMonoOn f (.Icc a b)) :
   f '' (.Icc a b) = .Icc (f a) (f b) ∧
@@ -135,7 +207,128 @@ theorem MonotoneOn.exist_inverse {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hcont: C
   (∀ x ∈ Set.Icc a b, finv (f x) = x) ∧
   ∀ y ∈ Set.Icc (f a) (f b), f (finv y) = y
    := by
-  sorry
+  constructor
+  . exact MonotoneCtOn.image h f hcont hmono
+  . let g : ℝ → ℝ := fun x ↦ if hx : x ∈ Set.Icc (f a) (f b) then
+      by
+        rw [← MonotoneCtOn.image h f hcont hmono] at hx
+        simp at hx
+        exact hx.choose
+      else 0
+    have hfinv' : ∀ y ∈ Set.Icc (f a) (f b), f (g y) = y := by
+      intro y hy
+      simp at hy
+      simp [g, hy]
+      generalize_proofs h
+      have ⟨hab, hf⟩ := h.choose_spec
+      exact hf
+    have hgim : ∀ y ∈ Set.Icc (f a) (f b), g y ∈ Set.Icc a b := by
+      intro y hy
+      simp at hy
+      simp [g, hy]
+      generalize_proofs ha
+      obtain ⟨hab, hf⟩ := ha.choose_spec
+      exact hab
+    have hfinv : ∀ x ∈ Set.Icc a b, g (f x) = x := by
+      intro x hx
+      have hfx_mem : f x ∈ Set.Icc (f a) (f b) := by
+        rw [← MonotoneCtOn.image h f hcont hmono]
+        exact ⟨x, hx, rfl⟩
+      exact hmono.injOn (hgim (f x) hfx_mem) hx (hfinv' (f x) hfx_mem)
+    -- Helper: g is strictly mono, so we can invert inequalities via f.
+    have hg_lt_of_lt : ∀ ⦃x y:ℝ⦄, x ∈ Set.Icc a b → y ∈ Set.Icc (f a) (f b) →
+        f x < y → x < g y := by
+      intro x z hx hz hlt
+      by_contra hge; push_neg at hge
+      have : f (g z) ≤ f x := by
+        rcases eq_or_lt_of_le hge with h' | h'
+        · rw [h']
+        · exact (hmono (hgim z hz) hx h').le
+      rw [hfinv' z hz] at this
+      linarith
+    have hg_gt_of_lt : ∀ ⦃x y:ℝ⦄, x ∈ Set.Icc a b → y ∈ Set.Icc (f a) (f b) →
+        y < f x → g y < x := by
+      intro x z hx hz hlt
+      by_contra hge; push_neg at hge
+      have : f x ≤ f (g z) := by
+        rcases eq_or_lt_of_le hge with h' | h'
+        · rw [← h']
+        · exact (hmono hx (hgim z hz) h').le
+      rw [hfinv' z hz] at this
+      linarith
+    have hgct : ContinuousOn g (.Icc (f a) (f b)) := by
+      intro y hy
+      refine (ContinuousWithinAt.tfae (Set.Icc (f a) (f b)) g y).out 0 2 |>.mpr ?_
+      intro ε hε
+      have hgy_mem : g y ∈ Set.Icc a b := hgim y hy
+      have hfgy : f (g y) = y := hfinv' y hy
+      obtain ⟨hgya, hgyb⟩ := hgy_mem
+      -- Clipped endpoints; δL and δR separately, padded to 1 at the degenerate endpoint.
+      set xL := max a (g y - ε)
+      set xR := min b (g y + ε)
+      have hxL_mem : xL ∈ Set.Icc a b :=
+        ⟨le_max_left .., max_le (hgya.trans hgyb) (by linarith)⟩
+      have hxR_mem : xR ∈ Set.Icc a b :=
+        ⟨le_min (hgya.trans hgyb) (by linarith), min_le_left ..⟩
+      have hxL_le : xL ≤ g y := max_le hgya (by linarith)
+      have hgy_le : g y ≤ xR := le_min hgyb (by linarith)
+      set δL := if xL = g y then (1:ℝ) else y - f xL
+      set δR := if xR = g y then (1:ℝ) else f xR - y
+      have hδL_pos : 0 < δL := by
+        by_cases hL : xL = g y
+        · simp [δL, hL]
+        · have : f xL < f (g y) := hmono hxL_mem ⟨hgya, hgyb⟩ (lt_of_le_of_ne hxL_le hL)
+          simp only [δL, if_neg hL]; linarith [hfgy]
+      have hδR_pos : 0 < δR := by
+        by_cases hR : xR = g y
+        · simp [δR, hR]
+        · have : f (g y) < f xR := hmono ⟨hgya, hgyb⟩ hxR_mem (lt_of_le_of_ne hgy_le (Ne.symm hR))
+          simp only [δR, if_neg hR]; linarith [hfgy]
+      use min δL δR, lt_min hδL_pos hδR_pos
+      intro x hx hx_lt
+      have ⟨hxy1, hxy2⟩ := abs_lt.mp hx_lt
+      have hgx_mem := hgim x hx
+      rw [abs_lt]
+      constructor
+      · by_cases hL : xL = g y
+        · have hxLa : xL = a := by
+            rcases le_or_gt (g y - ε) a with h' | h'
+            · simp [xL, max_eq_left h']
+            · have : xL = g y - ε := by simp [xL, max_eq_right h'.le]
+              linarith
+          have : g y = a := by linarith
+          linarith [hgx_mem.1]
+        · have hδL : δL = y - f xL := by simp [δL, if_neg hL]
+          have hfxL : f xL < x := by
+            have : min δL δR ≤ δL := min_le_left _ _
+            linarith
+          have : xL < g x := hg_lt_of_lt hxL_mem hx hfxL
+          linarith [le_max_right a (g y - ε)]
+      · by_cases hR : xR = g y
+        · have hxRb : xR = b := by
+            rcases le_or_gt b (g y + ε) with h' | h'
+            · simp [xR, min_eq_left h']
+            · have : xR = g y + ε := by simp [xR, min_eq_right h'.le]
+              linarith
+          have : g y = b := by linarith
+          linarith [hgx_mem.2]
+        · have hδR : δR = f xR - y := by simp [δR, if_neg hR]
+          have hfxR : x < f xR := by
+            have : min δL δR ≤ δR := min_le_right _ _
+            linarith
+          have : g x < xR := hg_gt_of_lt hxR_mem hx hfxR
+          linarith [min_le_right b (g y + ε)]
+
+    have hgmono : StrictMonoOn g (.Icc (f a) (f b)) := by
+      intro x hx y hy hxy
+      apply hg_lt_of_lt (hgim x hx) hy
+      rw [hfinv' x hx]; exact hxy
+    refine ⟨g, hgct, hgmono, ?_, hfinv, hfinv'⟩
+    have hfab : f a < f b :=
+      hmono (by simp; linarith) (by simp; linarith) h
+    have := MonotoneCtOn.image hfab g hgct hgmono
+    rw [hfinv a (by simp; linarith), hfinv b (by simp; linarith)] at this
+    exact this
 
 /-- Example 9.8.4-/
 example {R :ℝ} (hR: R > 0) {n:ℕ} (hn: n > 0) : ∃ g : ℝ → ℝ, ∀ x ∈ Set.Icc 0 (R^n), (g x)^n = x := by

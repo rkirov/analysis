@@ -66,9 +66,20 @@ theorem pow_not_antitone : ¬ AntitoneOn (fun x:ℝ ↦ x^2) .univ := by
   push_neg
   use -1, by simp, 2, by norm_num, by norm_num, by norm_num
 
-example {X:Set ℝ} {f:ℝ → ℝ} (hf: StrictMonoOn f X) : MonotoneOn f X := by
+theorem mono_of_strictmono {X:Set ℝ} {f:ℝ → ℝ} (hf: StrictMonoOn f X) : MonotoneOn f X := by
   intro x hx y hy hxy
   rw [StrictMono.iff] at hf
+  specialize hf x hx y hy
+  by_cases h : x = y
+  . subst x; simp
+  . rw [le_iff_lt_or_eq] at hxy
+    simp [h] at hxy
+    specialize hf hxy
+    exact hf.le
+
+theorem anti_of_strictanti {X:Set ℝ} {f:ℝ → ℝ} (hf: StrictAntiOn f X) : AntitoneOn f X := by
+  intro x hx y hy hxy
+  rw [StrictAntitone.iff] at hf
   specialize hf x hx y hy
   by_cases h : x = y
   . subst x; simp
@@ -128,45 +139,6 @@ example : ∃ (X:Set ℝ) (f:ℝ → ℝ), MonotoneOn f X ∧ ¬ ContinuousOn f 
     . by_cases hy : y ≥ 0 <;> simp [f_9_4_6, if_neg hx, hy]
   . exact fun hcont => f_9_4_6_not_continuousAt_zero
       (continuousOn_univ.mp hcont).continuousAt
-
-/-- Proposition 9.8.1 -/
-theorem MonotoneOn.exists_max {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hf: MonotoneOn f (.Icc a b)) :
-  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by
-  use b
-  constructor
-  . simp
-    exact h.le
-  . intro y hy
-    simp
-    rw [MonotoneOn.iff] at hf
-    specialize hf y hy b (by simp;linarith)
-    simp at hy
-    by_cases hy' : y = b
-    . subst y
-      simp
-    . have hy'' : y < b := by grind
-      specialize hf hy''
-      simp at hf
-      exact hf
-
-theorem MonotoneOn.exists_min {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hf: MonotoneOn f (.Icc a b)) :
-  ∃ xmin ∈ Set.Icc a b, IsMinOn f (.Icc a b) xmin := by
-  use a
-  constructor
-  . simp
-    exact h.le
-  . intro y hy
-    simp
-    rw [MonotoneOn.iff] at hf
-    specialize hf a (by simp;linarith) y hy
-    simp at hy
-    by_cases hy' : y = a
-    . subst y
-      simp
-    . have hy'' : a < y := by grind
-      specialize hf hy''
-      simp at hf
-      exact hf
 
 lemma MonotoneCtOn.image {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hcont: ContinuousOn f (.Icc a b)) (hmono: StrictMonoOn f (.Icc a b)) :
   f '' (.Icc a b) = .Icc (f a) (f b) := by
@@ -342,36 +314,196 @@ example {R :ℝ} (hR: R > 0) {n:ℕ} (hn: n > 0) : ∃ g : ℝ → ℝ, ∀ x �
 
 /-- Exercise 9.8.1 -/
 theorem IsMaxOn.of_monotone_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf: MonotoneOn f (.Icc a b)) :
-  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by sorry
+  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by
+  use b
+  constructor
+  . simp
+    exact h.le
+  . intro y hy
+    simp
+    rw [MonotoneOn.iff] at hf
+    specialize hf y hy b (by simp;linarith)
+    simp at hy
+    by_cases hy' : y = b
+    . subst y
+      simp
+    . have hy'' : y < b := by grind
+      specialize hf hy''
+      exact hf
 
 theorem IsMaxOn.of_strictmono_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf: StrictMonoOn f (.Icc a b)) :
-  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by sorry
+  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by
+  use b
+  constructor
+  . simp
+    exact h.le
+  . intro y hy
+    simp
+    rw [StrictMono.iff] at hf
+    specialize hf y hy b (by simp;linarith)
+    simp at hy
+    by_cases hy' : y = b
+    . subst y
+      simp
+    . have hy'' : y < b := by grind
+      specialize hf hy''
+      simp at hf
+      exact hf.le
 
 theorem IsMaxOn.of_antitone_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf: AntitoneOn f (.Icc a b)) :
-  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by sorry
+  ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by
+  use a
+  constructor
+  . simp
+    exact h.le
+  . intro y hy
+    simp
+    rw [AntitoneOn.iff] at hf
+    specialize hf a (by simp;linarith) y hy
+    simp at hy
+    by_cases hy' : y = a
+    . subst y
+      simp
+    . have hy'' : a < y:= by grind
+      specialize hf hy''
+      exact hf
 
 theorem IsMaxOn.of_strictantitone_on_compact {a b:ℝ} (h:a < b) {f:ℝ → ℝ} (hf: StrictAntiOn f (.Icc a b)) :
   ∃ xmax ∈ Set.Icc a b, IsMaxOn f (.Icc a b) xmax := by
-  sorry
+  use a
+  constructor
+  . simp
+    exact h.le
+  . intro y hy
+    simp
+    rw [StrictAntitone.iff] at hf
+    specialize hf a (by simp;linarith) y hy
+    simp at hy
+    by_cases hy' : y = a
+    . subst y
+      simp
+    . have hy'' : a < y:= by grind
+      specialize hf hy''
+      exact hf.le
 
 theorem BddOn.of_monotone {a b:ℝ} {f:ℝ → ℝ} (hf: MonotoneOn f (.Icc a b)) :
   BddOn f (.Icc a b) := by
-  sorry
+  refine (iff' f (Set.Icc a b)).mpr ?_
+  refine (isBounded_def (f '' Set.Icc a b)).mpr ?_
+  use max |f a| |f b| + 1
+  constructor
+  . grind
+  . intro x hx
+    simp at hx
+    obtain ⟨y, hy⟩ := hx
+    rw [← hy.2]
+    rw [MonotoneOn.iff] at hf
+    have := hf y hy.1 b (by simp;linarith)
+    by_cases h': y = b
+    . subst b
+      simp
+      grind
+    . by_cases h'': y = a
+      . subst a
+        grind
+      have hy' : b > y := by grind
+      have hy'' : y > a := by grind
+      have hfy' : f a ≤ f y  := by grind
+      have hfy'' : f y ≤ f b := by grind
+      simp
+      constructor
+      . grind
+      . grind
 
 theorem BddOn.of_antitone {a b:ℝ} {f:ℝ → ℝ} (hf: AntitoneOn f (.Icc a b)) :
   BddOn f (.Icc a b) := by
-  sorry
-
-
+  refine (iff' f (Set.Icc a b)).mpr ?_
+  refine (isBounded_def (f '' Set.Icc a b)).mpr ?_
+  use max |f a| |f b| + 1
+  constructor
+  . grind
+  . intro x hx
+    simp at hx
+    obtain ⟨y, hy⟩ := hx
+    rw [← hy.2]
+    rw [AntitoneOn.iff] at hf
+    have := hf y hy.1 b (by simp;linarith)
+    by_cases h': y = b
+    . subst b
+      simp
+      grind
+    . by_cases h'': y = a
+      . subst a
+        grind
+      have hy' : b > y := by grind
+      have hy'' : y > a := by grind
+      have hfy' : f a ≥ f y  := by grind
+      have hfy'' : f y ≥ f b := by grind
+      simp
+      constructor
+      . grind
+      . grind
 
 /-- Exercise 9.8.2 -/
-theorem no_strictmono_intermediate_value : ∃ (a b:ℝ) (hab: a < b) (f:ℝ → ℝ) (hf: StrictMonoOn f (.Icc a b)), ¬ ∃ y, y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f a) (f b) := by sorry
+theorem no_strictmono_intermediate_value : ∃ (a b:ℝ) (_: a < b) (f:ℝ → ℝ)
+    (_: StrictMonoOn f (.Icc a b)),
+    ∃ y, (y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f b) (f a)) ∧
+         ∀ x ∈ Set.Icc a b, f x ≠ y := by
+  let f : ℝ → ℝ := fun x ↦ if x ≤ 0 then 0 else x + 1
+  have hf_zero (x : ℝ) (hx : x = 0) : f x = 0 := by grind
+  have hf_other (x : ℝ) (hx : x > 0) : f x > 1 := by grind
+  use 0, 1, (by norm_num), f
+  refine ⟨?_, 1, ?_, ?_⟩
+  . intro x hx y hy hxy
+    simp at hx hy
+    rcases eq_or_lt_of_le hx.1 with hx0 | hx0
+    . rw [hf_zero x hx0.symm]
+      have hy0 : y > 0 := by linarith [hx0.symm]
+      linarith [hf_other y hy0]
+    . have hy0 : y > 0 := by linarith
+      simp only [f, if_neg (not_le.mpr hx0), if_neg (not_le.mpr hy0)]
+      linarith
+  . left
+    have hf1 : f 1 = 2 := by simp [f]; norm_num
+    simp [hf_zero 0 rfl, hf1]
+  . intro x hx hfx
+    simp at hx
+    rcases eq_or_lt_of_le hx.1 with hx0 | hx0
+    . rw [hf_zero x hx0.symm] at hfx; linarith
+    . exact absurd hfx (ne_of_gt (hf_other x hx0))
 
-theorem no_monotone_intermediate_value : ∃ (a b:ℝ) (hab: a < b) (f:ℝ → ℝ) (hf: MonotoneOn f (.Icc a b)), ¬ ∃ y, y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f a) (f b) := by sorry
 
-theorem no_strictanti_intermediate_value : ∃ (a b:ℝ) (hab: a < b) (f:ℝ → ℝ) (hf: StrictAntiOn f (.Icc a b)), ¬ ∃ y, y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f a) (f b) := by sorry
+theorem no_monotone_intermediate_value : ∃ (a b:ℝ) (_: a < b) (f:ℝ → ℝ)
+    (_: MonotoneOn f (.Icc a b)),
+    ∃ y, (y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f b) (f a)) ∧
+         ∀ x ∈ Set.Icc a b, f x ≠ y := by
+  obtain ⟨a, b, hab, f, hf, h⟩ := no_strictmono_intermediate_value
+  exact ⟨a, b, hab, f, mono_of_strictmono hf, h⟩
 
-theorem no_antitone_intermediate_value : ∃ (a b:ℝ) (hab: a < b) (f:ℝ → ℝ) (hf: AntitoneOn f (.Icc a b)), ¬ ∃ y, y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f a) (f b) := by sorry
+theorem no_strictanti_intermediate_value : ∃ (a b:ℝ) (_: a < b) (f:ℝ → ℝ)
+    (_: StrictAntiOn f (.Icc a b)),
+    ∃ y, (y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f b) (f a)) ∧
+         ∀ x ∈ Set.Icc a b, f x ≠ y := by
+  obtain ⟨a, b, hab, f, hf, y, hy, hyim⟩ := no_strictmono_intermediate_value
+  refine ⟨a, b, hab, fun x ↦ -f x, ?_, -y, ?_, ?_⟩
+  . intro u hu v hv huv
+    exact neg_lt_neg (hf hu hv huv)
+  . rcases hy with hy | hy
+    . right
+      simp at hy ⊢
+      exact ⟨by linarith, by linarith⟩
+    . left
+      simp at hy ⊢
+      exact ⟨by linarith, by linarith⟩
+  . intro x hx hfx
+    exact hyim x hx (by linarith)
+
+theorem no_antitone_intermediate_value : ∃ (a b:ℝ) (_: a < b) (f:ℝ → ℝ)
+    (_: AntitoneOn f (.Icc a b)),
+    ∃ y, (y ∈ Set.Icc (f a) (f b) ∨ y ∈ Set.Icc (f b) (f a)) ∧
+         ∀ x ∈ Set.Icc a b, f x ≠ y := by
+  obtain ⟨a, b, hab, f, hf, h⟩ := no_strictanti_intermediate_value
+  exact ⟨a, b, hab, f, anti_of_strictanti hf, h⟩
 
 /-- Exercise 9.8.3 -/
 theorem mono_of_continuous_inj {a b:ℝ} (h: a < b) {f:ℝ → ℝ}

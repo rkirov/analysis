@@ -505,12 +505,68 @@ theorem no_antitone_intermediate_value : ∃ (a b:ℝ) (_: a < b) (f:ℝ → ℝ
   obtain ⟨a, b, hab, f, hf, h⟩ := no_strictanti_intermediate_value
   exact ⟨a, b, hab, f, anti_of_strictanti hf, h⟩
 
+private lemma strictMono_of_continuous_inj_of_lt {a b:ℝ} {f:ℝ → ℝ}
+  (hf: ContinuousOn f (.Icc a b))
+  (hinj: Function.Injective (fun x: Set.Icc a b ↦ f x ))
+  (ha: f a < f b) : StrictMonoOn f (.Icc a b) := by
+  by_contra
+  rw [StrictMono.iff] at this
+  push_neg at this
+  obtain ⟨x, hx, y, hy, h, h'⟩ := this
+  simp at hx hy
+  by_cases hx' : f a > f y
+  . have hyb : y < b := by
+      rcases lt_or_eq_of_le hy.2 with hyb | hyb
+      · exact hyb
+      · exfalso; rw [hyb] at hx'; linarith
+    obtain ⟨z, hz, hfz⟩ := intermediate_value hyb
+      (hf.mono (fun u hu ↦ by simp at hu ⊢; exact ⟨by linarith [hy.1], hu.2⟩))
+      (y := f a) (Or.inl ⟨by linarith, by linarith⟩)
+    simp at hz
+    have hza : (⟨z, by simp; exact ⟨by linarith, hz.2⟩⟩ : Set.Icc a b)
+             = ⟨a, by simp; linarith⟩ := hinj (by simp [hfz])
+    simp at hza
+    linarith
+  . push_neg at hx'
+    have hfyx : f y < f x := by
+      rcases lt_or_eq_of_le h' with h' | h'
+      · exact h'
+      · exfalso
+        have : (⟨y, by simp; exact hy⟩ : Set.Icc a b) = ⟨x, by simp; exact hx⟩ :=
+          hinj (by simp [h'])
+        simp at this; linarith
+    have hax : a < x := by
+      rcases lt_or_eq_of_le hx.1 with hax | hax
+      · exact hax
+      · exfalso; rw [← hax] at hfyx; linarith
+    obtain ⟨z, hz, hfz⟩ := intermediate_value hax
+      (hf.mono (fun u hu ↦ by simp at hu ⊢; exact ⟨hu.1, by linarith [hx.2]⟩))
+      (y := f y) (Or.inl ⟨hx', by linarith⟩)
+    simp at hz
+    have hzy : (⟨z, by simp; exact ⟨hz.1, by linarith [hx.2]⟩⟩ : Set.Icc a b)
+             = ⟨y, by simp; exact hy⟩ := hinj (by simp [hfz])
+    simp at hzy
+    linarith
+
 /-- Exercise 9.8.3 -/
 theorem mono_of_continuous_inj {a b:ℝ} (h: a < b) {f:ℝ → ℝ}
   (hf: ContinuousOn f (.Icc a b))
   (hinj: Function.Injective (fun x: Set.Icc a b ↦ f x )) :
   StrictMonoOn f (.Icc a b) ∨ StrictAntiOn f (.Icc a b) := by
-  sorry
+  by_cases ha : f a < f b
+  . exact Or.inl (strictMono_of_continuous_inj_of_lt hf hinj ha)
+  . simp at ha
+    rw [le_iff_lt_or_eq] at ha
+    cases' ha with ha ha
+    . right
+      intro u hu v hv huv
+      have := strictMono_of_continuous_inj_of_lt hf.neg
+        (fun p q hpq ↦ hinj (by simpa using hpq)) (by simpa using ha) hu hv huv
+      simp at this; linarith
+    . have ha' : (fun x: Set.Icc a b ↦ f x ) ⟨a, by grind only [= Set.mem_Icc]⟩
+          = (fun x: Set.Icc a b ↦ f x ) ⟨b, by grind only [= Set.mem_Icc]⟩ := by simp [ha]
+      have := hinj ha'
+      grind only
 
 /-- Exercise 9.8.4 -/
 def MonotoneOn.exist_inverse_without_continuity {a b:ℝ} (h: a < b) {f: ℝ → ℝ} (hmono: StrictMonoOn f (.Icc a b)) :

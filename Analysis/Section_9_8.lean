@@ -569,49 +569,336 @@ theorem mono_of_continuous_inj {a b:ℝ} (h: a < b) {f:ℝ → ℝ}
       grind only
 
 /-- Exercise 9.8.4 -/
-def MonotoneOn.exist_inverse_without_continuity {a b:ℝ} (h: a < b) {f: ℝ → ℝ} (hmono: StrictMonoOn f (.Icc a b)) :
-  Decidable ( f '' (.Icc a b) = .Icc (f a) (f b) ∧
-  ∃ finv: ℝ → ℝ, ContinuousOn finv (.Icc (f a) (f b)) ∧ StrictMonoOn finv (.Icc (f a) (f b)) ∧
-  finv '' (.Icc (f a) (f b)) = .Icc a b ∧
-  (∀ x ∈ Set.Icc a b, finv (f x) = x) ∧
-  ∀ y ∈ Set.Icc (f a) (f b), f (finv y) = y )
+def MonotoneOn.exist_inverse_without_continuity {a b:ℝ} (h: a < b) :
+  Decidable ( ∀ f: ℝ → ℝ, StrictMonoOn f (.Icc a b) →
+    f '' (.Icc a b) = .Icc (f a) (f b) ∧
+    ∃ finv: ℝ → ℝ, ContinuousOn finv (.Icc (f a) (f b)) ∧ StrictMonoOn finv (.Icc (f a) (f b)) ∧
+    finv '' (.Icc (f a) (f b)) = .Icc a b ∧
+    (∀ x ∈ Set.Icc a b, finv (f x) = x) ∧
+    ∀ y ∈ Set.Icc (f a) (f b), f (finv y) = y )
    := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  let f := fun x ↦ if x < (a + b) / 2 then x else x + 1
+  use f
+  constructor
+  . intro x hx y hy hxy
+    simp only [f]
+    split_ifs with hx' hy' hy'
+    . exact hxy
+    . linarith
+    . linarith
+    . linarith
+  . intro h
+    exfalso
+    have hmem : (a + b) / 2 ∈ Set.Icc a b := by
+      simp only [Set.mem_Icc]
+      constructor <;> linarith
+    have hnotmem : (a + b) / 2 ∉ f '' Set.Icc a b := by
+      rintro ⟨x, hx, hfx⟩
+      simp only [Set.mem_Icc] at hx
+      simp only [f] at hfx
+      split_ifs at hfx with hx'
+      . linarith
+      . linarith
+    have hfa : f a = a := by
+      simp only [f, if_pos (show a < (a + b) / 2 by linarith)]
+    have hfb : f b = b + 1 := by
+      simp only [f, if_neg (show ¬ b < (a + b) / 2 by linarith)]
+    rw [hfa, hfb] at h
+    apply hnotmem
+    rw [h]
+    simp only [Set.mem_Icc]
+    constructor <;> linarith
 
 /-- Exercise 9.8.4 -/
-def MonotoneOn.exist_inverse_without_strictmono {a b:ℝ} (h: a < b) (f: ℝ → ℝ)
-  (hcont: ContinuousOn f (.Icc a b)) (hmono: MonotoneOn f (.Icc a b)) :
-  Decidable ( f '' (.Icc a b) = .Icc (f a) (f b) ∧
-  ∃ finv: ℝ → ℝ, ContinuousOn finv (.Icc (f a) (f b)) ∧ StrictMonoOn finv (.Icc (f a) (f b)) ∧
-  finv '' (.Icc (f a) (f b)) = .Icc a b ∧
-  (∀ x ∈ Set.Icc a b, finv (f x) = x) ∧
-  ∀ y ∈ Set.Icc (f a) (f b), f (finv y) = y )
+def MonotoneOn.exist_inverse_without_strictmono {a b:ℝ} (h: a < b) :
+  Decidable ( ∀ f: ℝ → ℝ, ContinuousOn f (.Icc a b) → MonotoneOn f (.Icc a b) →
+    f '' (.Icc a b) = .Icc (f a) (f b) ∧
+    ∃ finv: ℝ → ℝ, ContinuousOn finv (.Icc (f a) (f b)) ∧ StrictMonoOn finv (.Icc (f a) (f b)) ∧
+    finv '' (.Icc (f a) (f b)) = .Icc a b ∧
+    (∀ x ∈ Set.Icc a b, finv (f x) = x) ∧
+    ∀ y ∈ Set.Icc (f a) (f b), f (finv y) = y )
    := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use fun x ↦ a
+  constructor
+  . exact continuousOn_const
+  . constructor
+    . intro x hx y hy hxy
+      simp
+    . intro _ finv _ _ _ hfinv
+      exfalso
+      have ha := hfinv a ⟨le_refl a, h.le⟩
+      have hb := hfinv b ⟨h.le, le_refl b⟩
+      linarith
 
+/- Exercise 9.8.4: state and prove an analogue of `MonotoneOn.exist_inverse` for `Antitone` functions. -/
+theorem AntitoneOn.exist_inverse {a b:ℝ} (h: a < b) (f: ℝ → ℝ)
+    (hcont: ContinuousOn f (.Icc a b)) (hanti: StrictAntiOn f (.Icc a b)) :
+    f '' (.Icc a b) = .Icc (f b) (f a) ∧
+    ∃ finv: ℝ → ℝ, ContinuousOn finv (.Icc (f b) (f a)) ∧ StrictAntiOn finv (.Icc (f b) (f a)) ∧
+    finv '' (.Icc (f b) (f a)) = .Icc a b ∧
+    (∀ x ∈ Set.Icc a b, finv (f x) = x) ∧
+    ∀ y ∈ Set.Icc (f b) (f a), f (finv y) = y
+     := by
+  set g : ℝ → ℝ := fun x ↦ -f x with hg_def
+  have hgcont : ContinuousOn g (.Icc a b) := hcont.neg
+  have hgmono : StrictMonoOn g (.Icc a b) := fun x hx y hy hxy ↦ by
+    simp [g]; exact hanti hx hy hxy
+  obtain ⟨himg, ginv, hginvct, hginvmono, hginvim, hginv_left, hginv_right⟩ :=
+    MonotoneOn.exist_inverse h g hgcont hgmono
+  have hga : g a = -f a := rfl
+  have hgb : g b = -f b := rfl
+  have hneg_mem : ∀ y, y ∈ Set.Icc (f b) (f a) ↔ -y ∈ Set.Icc (g a) (g b) := by
+    intro y; simp [hga, hgb, Set.mem_Icc]; constructor <;> rintro ⟨h1, h2⟩ <;>
+      exact ⟨by linarith, by linarith⟩
+  refine ⟨?_, fun y ↦ ginv (-y), ?_, ?_, ?_, ?_, ?_⟩
+  · ext y
+    simp only [Set.mem_image, Set.mem_Icc]
+    constructor
+    · rintro ⟨x, hx, rfl⟩
+      have : g x ∈ Set.Icc (g a) (g b) := himg ▸ ⟨x, hx, rfl⟩
+      simp only [hga, hgb, Set.mem_Icc] at this
+      exact ⟨by linarith [this.2], by linarith [this.1]⟩
+    · intro hy
+      have : -y ∈ Set.Icc (g a) (g b) := (hneg_mem y).mp hy
+      rw [← himg] at this
+      obtain ⟨x, hx, hgx⟩ := this
+      exact ⟨x, hx, by simp [g] at hgx; linarith⟩
+  · refine hginvct.comp (Continuous.continuousOn continuous_neg) ?_
+    intro y hy; exact (hneg_mem y).mp hy
+  · intro y₁ hy₁ y₂ hy₂ hlt
+    apply hginvmono ((hneg_mem y₂).mp hy₂) ((hneg_mem y₁).mp hy₁)
+    linarith
+  · rw [← hginvim]
+    ext x
+    simp only [Set.mem_image]
+    constructor
+    · rintro ⟨y, hy, rfl⟩
+      exact ⟨-y, (hneg_mem y).mp hy, rfl⟩
+    · rintro ⟨z, hz, rfl⟩
+      refine ⟨-z, ?_, by rw [neg_neg]⟩
+      rw [hneg_mem, neg_neg]; exact hz
+  · intro x hx
+    have := hginv_left x hx
+    simp only [g] at this
+    exact this
+  · intro y hy
+    have := hginv_right (-y) ((hneg_mem y).mp hy)
+    simp only [g] at this
+    linarith
 
-/- Exercise 9.8.4: state and prove an analogue of `MonotoneOne.exist_inverse` for `Antitone` functions. -/
--- theorem AntitoneOn.exist_inverse {a b:ℝ} (h: a < b) (f: ℝ → ℝ) (hcont: ContinuousOn f (.Icc a b)) (hmono: StrictAntiOn f (.Icc a b)) : sorry := by sorry
 
 /-- An equivalence between the natural numbers and the rationals. -/
 noncomputable abbrev q_9_8_5 : ℕ ≃ ℚ := nonempty_equiv_of_countable.some
 
-noncomputable abbrev g_9_8_5 : ℚ → ℝ := fun q ↦ (2:ℝ)^(-q_9_8_5.symm q:ℤ)
+noncomputable abbrev g_9_8_5 : ℚ → ℝ := fun q ↦ (2:ℝ)^(-(q_9_8_5.symm q):ℤ)
 
 noncomputable abbrev f_9_8_5 : ℝ → ℝ := fun x ↦ ∑' r : {r:ℚ // (r:ℝ) < x}, g_9_8_5 r
 
+private lemma g_9_8_5_pos (q : ℚ) : 0 < g_9_8_5 q := by
+  unfold g_9_8_5; positivity
+
+private lemma summable_g_9_8_5 : Summable g_9_8_5 := by
+  rw [← q_9_8_5.summable_iff]
+  have hcomp : g_9_8_5 ∘ q_9_8_5 = fun n : ℕ ↦ ((1:ℝ)/2) ^ n := by
+    ext n
+    simp [g_9_8_5, q_9_8_5.symm_apply_apply, zpow_neg, ← inv_pow]
+  rw [hcomp]
+  exact summable_geometric_iff_norm_lt_one.mpr (by norm_num)
+
 /-- Exercise 9.8.5(a) -/
 theorem StrictMonoOn.of_f_9_8_5 : StrictMonoOn f_9_8_5 .univ := by
-  sorry
+  intro x _ y _ hxy
+  rw [f_9_8_5, f_9_8_5]
+  obtain ⟨r₀, hxr, hry⟩ := exists_rat_btwn hxy
+  rw [show (∑' (r : {r:ℚ // (r:ℝ) < x}), g_9_8_5 r) =
+      ∑' (r : ℚ), {r : ℚ | (r:ℝ) < x}.indicator g_9_8_5 r from
+      tsum_subtype {r : ℚ | (r:ℝ) < x} g_9_8_5,
+      show (∑' (r : {r:ℚ // (r:ℝ) < y}), g_9_8_5 r) =
+      ∑' (r : ℚ), {r : ℚ | (r:ℝ) < y}.indicator g_9_8_5 r from
+      tsum_subtype {r : ℚ | (r:ℝ) < y} g_9_8_5]
+  apply Summable.tsum_lt_tsum (i := r₀) ?_ ?_
+    (summable_g_9_8_5.indicator _) (summable_g_9_8_5.indicator _)
+  · intro r
+    by_cases h1 : (r:ℝ) < x
+    · have h2 : (r:ℝ) < y := h1.trans hxy
+      simp [Set.indicator_of_mem, h1, h2]
+    · rw [Set.indicator_of_notMem (by simpa using h1)]
+      by_cases h2 : (r:ℝ) < y
+      · rw [Set.indicator_of_mem (by simpa using h2)]
+        exact (g_9_8_5_pos r).le
+      · rw [Set.indicator_of_notMem (by simpa using h2)]
+  · have hnx : ¬ ((r₀:ℝ) < x) := not_lt.mpr hxr.le
+    rw [Set.indicator_of_notMem (by simpa using hnx),
+        Set.indicator_of_mem (by simpa using hry)]
+    exact g_9_8_5_pos r₀
+
+private lemma f_9_8_5_jump (r : ℚ) {x : ℝ} (hrx : (r:ℝ) < x) :
+    f_9_8_5 r + g_9_8_5 r ≤ f_9_8_5 x := by
+  show (∑' q : {q : ℚ // (q:ℝ) < r}, g_9_8_5 q) + g_9_8_5 r ≤
+       ∑' q : {q : ℚ // (q:ℝ) < x}, g_9_8_5 q
+  rw [show (∑' q : {q : ℚ // (q:ℝ) < r}, g_9_8_5 q) =
+        ∑' q : ℚ, {q : ℚ | (q:ℝ) < r}.indicator g_9_8_5 q from
+        tsum_subtype {q : ℚ | (q:ℝ) < r} g_9_8_5,
+      show (∑' q : {q : ℚ // (q:ℝ) < x}, g_9_8_5 q) =
+        ∑' q : ℚ, {q : ℚ | (q:ℝ) < x}.indicator g_9_8_5 q from
+        tsum_subtype {q : ℚ | (q:ℝ) < x} g_9_8_5]
+  have hsr : Summable ({q : ℚ | (q:ℝ) < r}.indicator g_9_8_5) :=
+    summable_g_9_8_5.indicator _
+  have hsx : Summable ({q : ℚ | (q:ℝ) < x}.indicator g_9_8_5) :=
+    summable_g_9_8_5.indicator _
+  have hsing : Summable (Pi.single (M := fun _ : ℚ => ℝ) r (g_9_8_5 r)) :=
+    (hasSum_pi_single r (g_9_8_5 r)).summable
+  rw [← tsum_pi_single r (g_9_8_5 r), ← hsr.tsum_add hsing]
+  apply (hsr.add hsing).tsum_le_tsum ?_ hsx
+  intro q
+  simp only [Pi.single_apply, Set.indicator_apply, Set.mem_setOf_eq]
+  by_cases hqr : (q:ℝ) < r
+  · have hqx : (q:ℝ) < x := hqr.trans hrx
+    have hqr_ne : q ≠ r := fun h => by subst h; exact lt_irrefl _ hqr
+    simp [hqr, hqx, hqr_ne]
+  · by_cases hqx : (q:ℝ) < x
+    · by_cases hqr_eq : q = r
+      · subst hqr_eq; simp [hqx]
+      · simp [hqr, hqx, hqr_eq]
+    · have hqr_ne : q ≠ r := fun h => by subst h; exact hqx hrx
+      simp [hqr, hqx, hqr_ne]
 
 /-- Exercise 9.8.5(b) -/
 theorem ContinuousAt.of_f_9_8_5' (r:ℚ) : ¬ ContinuousAt f_9_8_5 r := by
-  sorry
+  rw [Metric.continuousAt_iff]
+  push_neg
+  refine ⟨g_9_8_5 r / 2, by linarith [g_9_8_5_pos r], ?_⟩
+  intro δ hδ
+  obtain ⟨x, hrx, hxrδ⟩ := exists_between (show (r:ℝ) < r + δ by linarith)
+  refine ⟨x, ?_, ?_⟩
+  · rw [Real.dist_eq]; rw [abs_lt]; constructor <;> linarith
+  · have hjump := f_9_8_5_jump r hrx
+    have hmono : f_9_8_5 r ≤ f_9_8_5 x :=
+      le_of_lt (StrictMonoOn.of_f_9_8_5 (Set.mem_univ _) (Set.mem_univ _) hrx)
+    rw [Real.dist_eq, abs_of_nonneg (by linarith)]
+    linarith [g_9_8_5_pos r]
+
+/-- Reindex f_9_8_5 x as a tsum over ℕ via the bijection q_9_8_5. -/
+private lemma f_9_8_5_reindex (x : ℝ) :
+    f_9_8_5 x = ∑' k : ℕ, if ((q_9_8_5 k : ℚ):ℝ) < x then ((1:ℝ)/2)^k else 0 := by
+  show (∑' r : {r : ℚ // (r:ℝ) < x}, g_9_8_5 r) = _
+  rw [show (∑' r : {r : ℚ // (r:ℝ) < x}, g_9_8_5 r) =
+        ∑' r : ℚ, {r : ℚ | (r:ℝ) < x}.indicator g_9_8_5 r from
+        tsum_subtype {r : ℚ | (r:ℝ) < x} g_9_8_5,
+      ← q_9_8_5.tsum_eq ({r : ℚ | (r:ℝ) < x}.indicator g_9_8_5)]
+  congr 1; ext k
+  simp [Set.indicator_apply, g_9_8_5, q_9_8_5.symm_apply_apply, zpow_neg, ← inv_pow]
+
+private noncomputable def f_n_9_8_5 (n : ℕ) (x : ℝ) : ℝ :=
+  ∑ k ∈ Finset.range (n+1), if ((q_9_8_5 k : ℚ):ℝ) < x then ((1:ℝ)/2)^k else 0
+
+private lemma summable_geom_half : Summable (fun k : ℕ => ((1:ℝ)/2)^k) :=
+  summable_geometric_iff_norm_lt_one.mpr (by norm_num)
+
+private lemma summable_geom_half_filter (x : ℝ) :
+    Summable (fun k : ℕ => if ((q_9_8_5 k : ℚ):ℝ) < x then ((1:ℝ)/2)^k else 0) := by
+  apply summable_geom_half.of_nonneg_of_le (fun _ => by split_ifs <;> simp [pow_nonneg])
+  intro k; split_ifs <;> simp [pow_nonneg]
+
+/-- Tail bound for the partial sum approximation. -/
+private lemma f_9_8_5_tail_bound (n : ℕ) (x : ℝ) :
+    |f_9_8_5 x - f_n_9_8_5 n x| ≤ ((1:ℝ)/2)^n := by
+  set h : ℕ → ℝ := fun k => if ((q_9_8_5 k : ℚ):ℝ) < x then ((1:ℝ)/2)^k else 0 with hh_def
+  have hh_summ : Summable h := summable_geom_half_filter x
+  have hsum_split : f_9_8_5 x =
+      ∑ k ∈ Finset.range (n+1), h k + ∑' k : ℕ, h (k + (n+1)) := by
+    rw [f_9_8_5_reindex]
+    exact (Summable.sum_add_tsum_nat_add (n+1) hh_summ).symm
+  have h_diff : f_9_8_5 x - f_n_9_8_5 n x = ∑' k : ℕ, h (k + (n+1)) := by
+    rw [hsum_split, f_n_9_8_5]; ring
+  rw [h_diff]
+  have h_tail_nn : 0 ≤ ∑' k : ℕ, h (k + (n+1)) := by
+    apply tsum_nonneg; intro k; simp [hh_def]; split_ifs <;> [positivity; rfl]
+  rw [abs_of_nonneg h_tail_nn]
+  have h_summ_shift : Summable fun k : ℕ => h (k + (n+1)) :=
+    hh_summ.comp_injective (add_left_injective (n+1))
+  have h_geom_shift : Summable fun k : ℕ => ((1:ℝ)/2)^(k + (n+1)) :=
+    summable_geom_half.comp_injective (add_left_injective (n+1))
+  calc ∑' k : ℕ, h (k + (n+1))
+      ≤ ∑' k : ℕ, ((1:ℝ)/2)^(k + (n+1)) := by
+        apply h_summ_shift.tsum_le_tsum (hg := h_geom_shift)
+        intro k; simp [hh_def]; split_ifs <;> simp [pow_nonneg]
+    _ = ((1:ℝ)/2)^(n+1) * ∑' k : ℕ, ((1:ℝ)/2)^k := by
+        rw [← tsum_mul_left]; congr 1; ext k; rw [pow_add]; ring
+    _ = ((1:ℝ)/2)^(n+1) * 2 := by
+        rw [tsum_geometric_of_lt_one (by norm_num) (by norm_num : (1:ℝ)/2 < 1)]
+        norm_num
+    _ = ((1:ℝ)/2)^n := by rw [pow_succ]; ring
+
+/-- The partial sum is locally constant at any x avoiding the first n+1 enumerated rationals. -/
+private lemma f_n_9_8_5_eventuallyEq (n : ℕ) {x : ℝ}
+    (hx : ∀ k ∈ Finset.range (n+1), ((q_9_8_5 k : ℚ):ℝ) ≠ x) :
+    f_n_9_8_5 n =ᶠ[nhds x] (fun _ => f_n_9_8_5 n x) := by
+  -- pick δ = min over k ≤ n of |x - q_9_8_5 k|, all positive
+  have h_pos : ∀ k ∈ Finset.range (n+1), 0 < |x - ((q_9_8_5 k : ℚ):ℝ)| := by
+    intro k hk; rw [abs_pos]
+    intro h; exact hx k hk (by linarith)
+  set δ := (Finset.range (n+1)).inf' (Finset.nonempty_range_iff.mpr (Nat.succ_ne_zero n))
+    (fun k => |x - ((q_9_8_5 k : ℚ):ℝ)|) with hδ_def
+  have hδ_pos : 0 < δ := by
+    rw [hδ_def]; exact (Finset.lt_inf'_iff _).mpr h_pos
+  have hδ_le : ∀ k ∈ Finset.range (n+1), δ ≤ |x - ((q_9_8_5 k : ℚ):ℝ)| := by
+    intro k hk; exact Finset.inf'_le _ hk
+  filter_upwards [Metric.ball_mem_nhds x hδ_pos] with y hy
+  unfold f_n_9_8_5
+  refine Finset.sum_congr rfl fun k hk => ?_
+  -- For each k, the predicate (q_9_8_5 k < x) ↔ (q_9_8_5 k < y)
+  have hyx : |y - x| < δ := by
+    rw [Metric.mem_ball, Real.dist_eq] at hy; exact hy
+  have hδk := hδ_le k hk
+  by_cases h : ((q_9_8_5 k : ℚ):ℝ) < x
+  · have : ((q_9_8_5 k : ℚ):ℝ) < y := by
+      rw [abs_sub_lt_iff] at hyx
+      rw [abs_of_pos (by linarith)] at hδk
+      linarith
+    simp [h, this]
+  · push_neg at h
+    have hne : ((q_9_8_5 k : ℚ):ℝ) ≠ x := hx k hk
+    have h' : x < ((q_9_8_5 k : ℚ):ℝ) := lt_of_le_of_ne h (Ne.symm hne)
+    have : ¬ ((q_9_8_5 k : ℚ):ℝ) < y := by
+      push_neg
+      rw [abs_sub_lt_iff] at hyx
+      rw [abs_of_neg (by linarith), neg_sub] at hδk
+      linarith
+    simp [show ¬ ((q_9_8_5 k : ℚ):ℝ) < x from not_lt.mpr h, this]
 
 /-- Exercise 9.8.5(c) -/
 theorem ContinuousAt.of_f_9_8_5 {x:ℝ} (hx: ¬ ∃ r:ℚ, x = r) : ContinuousAt f_9_8_5 x := by
-  sorry
+  rw [Metric.continuousAt_iff]
+  intro ε hε
+  obtain ⟨n, hn⟩ : ∃ n : ℕ, ((1:ℝ)/2)^n < ε/3 :=
+    exists_pow_lt_of_lt_one (by linarith) (by norm_num : (1:ℝ)/2 < 1)
+  -- f_n_9_8_5 n is locally constant at x (since x is irrational)
+  have hxne : ∀ k ∈ Finset.range (n+1), ((q_9_8_5 k : ℚ):ℝ) ≠ x := by
+    intro k _ heq; exact hx ⟨q_9_8_5 k, heq.symm⟩
+  obtain ⟨δ, hδ_pos, hδ⟩ : ∃ δ > 0, ∀ y, |y - x| < δ → f_n_9_8_5 n y = f_n_9_8_5 n x := by
+    have := f_n_9_8_5_eventuallyEq n hxne
+    rw [Filter.eventuallyEq_iff_exists_mem] at this
+    obtain ⟨U, hU, hUeq⟩ := this
+    rw [Metric.mem_nhds_iff] at hU
+    obtain ⟨δ, hδ_pos, hδ⟩ := hU
+    exact ⟨δ, hδ_pos, fun y hy => hUeq (hδ (by rw [Metric.mem_ball, Real.dist_eq]; exact hy))⟩
+  refine ⟨δ, hδ_pos, fun y hy => ?_⟩
+  rw [Real.dist_eq] at hy
+  have h1 : |f_9_8_5 y - f_n_9_8_5 n y| ≤ ((1:ℝ)/2)^n := f_9_8_5_tail_bound n y
+  have h2 : |f_9_8_5 x - f_n_9_8_5 n x| ≤ ((1:ℝ)/2)^n := f_9_8_5_tail_bound n x
+  have h3 : f_n_9_8_5 n y = f_n_9_8_5 n x := hδ y hy
+  rw [Real.dist_eq]
+  calc |f_9_8_5 y - f_9_8_5 x|
+      = |(f_9_8_5 y - f_n_9_8_5 n y) - (f_9_8_5 x - f_n_9_8_5 n x)| := by rw [h3]; ring_nf
+    _ ≤ |f_9_8_5 y - f_n_9_8_5 n y| + |f_9_8_5 x - f_n_9_8_5 n x| := abs_sub _ _
+    _ ≤ ((1:ℝ)/2)^n + ((1:ℝ)/2)^n := by linarith
+    _ < ε := by linarith
 
 end Chapter9

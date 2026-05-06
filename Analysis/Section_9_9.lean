@@ -21,11 +21,26 @@ open Chapter6 Filter
 
 namespace Chapter9
 
-example : ContinuousOn (fun x:ℝ ↦ 1/x) (.Icc 0 2) := by
-  sorry
+example : ContinuousOn (fun x:ℝ ↦ 1/x) (.Ioo 0 2) := by
+  intro x hx
+  simp only [Set.mem_Ioo] at hx
+  have hxne : x ≠ 0 := ne_of_gt hx.1
+  exact ((continuousAt_const (y := (1:ℝ))).div continuousAt_id hxne).continuousWithinAt
 
-example : ¬ BddOn (fun x:ℝ ↦ 1/x) (.Icc 0 2) := by
-  sorry
+example : ¬ BddOn (fun x:ℝ ↦ 1/x) (.Ioo 0 2) := by
+  rw [BddOn]
+  push_neg
+  intro M
+  use 1 / max (|M| + 1) 2
+  simp
+  constructor
+  . have h2 : (2:ℝ) ≤ max (|M| + 1) 2 := le_max_right _ _
+    calc (max (|M| + 1) 2)⁻¹ ≤ (2:ℝ)⁻¹ := inv_anti₀ (by norm_num) h2
+      _ < 2 := by norm_num
+  . calc _ ≤ |M| := le_abs_self M
+      _ < |M| + 1 := by linarith
+      _ ≤ max (|M| + 1) 2 := le_max_left _ _
+      _ ≤ |max (|M| + 1) 2| := le_abs_self _
 
 /-- Example 9.9.1 -/
 example (x : ℝ) :
@@ -35,7 +50,15 @@ example (x : ℝ) :
   let δ : ℝ := 1/11
   |x-x₀| ≤ δ → |f x - f x₀| ≤ ε := by
   extract_lets f ε x₀ δ
-  sorry
+  intro h
+  unfold f x₀ ε
+  unfold x₀ δ at h
+  norm_num
+  have hxpos : x > 0 := by rw [abs_le] at h; linarith [h.1]
+  rw [show (x⁻¹ - 1 : ℝ) = (1 - x) / x by field_simp]
+  rw [abs_div, abs_of_pos hxpos, abs_sub_comm]
+  rw [div_le_iff₀ hxpos]
+  nlinarith [abs_le.mp h]
 
 example (x:ℝ) :
   let f : ℝ → ℝ := fun x ↦ 1/x
@@ -43,8 +66,15 @@ example (x:ℝ) :
   let x₀ : ℝ := 0.1
   let δ : ℝ := 1/1010
   |x-x₀| ≤ δ → |f x - f x₀| ≤ ε := by
-  extract_lets -merge f ε x₀ δ -- need the `-merge` flag due to the collision of `ε` and `x₀`
-  sorry
+  extract_lets -merge f ε x₀ δ
+  intro h
+  unfold f x₀ ε
+  unfold x₀ δ at h
+  have hxpos : x > 0 := by rw [abs_le] at h; linarith [h.1]
+  rw [show (1/x - 1/0.1 : ℝ) = (0.1 - x) / (0.1 * x) by field_simp]
+  rw [abs_div, abs_of_pos (by positivity : (0.1 * x : ℝ) > 0), abs_sub_comm]
+  rw [div_le_iff₀ (by positivity : (0.1 * x : ℝ) > 0)]
+  nlinarith [abs_le.mp h]
 
 example (x:ℝ) :
   let g : ℝ → ℝ := fun x ↦ 2*x
@@ -53,7 +83,11 @@ example (x:ℝ) :
   let δ : ℝ := 0.05
   |x-x₀| ≤ δ → |g x - g x₀| ≤ ε := by
   extract_lets g ε x₀ δ
-  sorry
+  intro h
+  unfold g ε x₀
+  unfold x₀ δ at h
+  rw [show (2*x - 2*1 : ℝ) = 2 * (x - 1) by ring, abs_mul]
+  nlinarith [abs_nonneg (x - 1)]
 
 example (x₀ x : ℝ) :
   let g : ℝ → ℝ := fun x ↦ 2*x
@@ -61,7 +95,11 @@ example (x₀ x : ℝ) :
   let δ : ℝ := 0.05
   |x-x₀| ≤ δ → |g x - g x₀| ≤ ε := by
   extract_lets g ε δ
-  sorry
+  intro h
+  unfold g ε
+  unfold δ at h
+  rw [show (2*x - 2*x₀ : ℝ) = 2 * (x - x₀) by ring, abs_mul]
+  nlinarith [abs_nonneg (x - x₀)]
 
 /-- Definition 9.9.2.  Here we use the Mathlib term {name}`UniformContinuousOn` -/
 theorem UniformContinuousOn.iff (f: ℝ → ℝ) (X:Set ℝ) : UniformContinuousOn f X  ↔
@@ -71,10 +109,35 @@ theorem UniformContinuousOn.iff (f: ℝ → ℝ) (X:Set ℝ) : UniformContinuous
 
 theorem ContinuousOn.ofUniformContinuousOn {X:Set ℝ} (f: ℝ → ℝ) (hf: UniformContinuousOn f X) :
   ContinuousOn f X := by
-  sorry
+  intro x hx
+  have hiff := (ContinuousWithinAt.tfae X f x).out 0 3
+  rw [hiff]
+  rw [UniformContinuousOn.iff] at hf
+  intro ε hε
+  obtain ⟨δ, hδ, hf⟩ := hf ε hε
+  refine ⟨δ, hδ, fun x' hx' hd => ?_⟩
+  specialize hf x hx x' hx'
+  simp only [Real.Close, Real.dist_eq] at hf
+  exact hf hd
 
 example : ¬ UniformContinuousOn (fun x:ℝ ↦ 1/x) (Set.Icc 0 2) := by
-  sorry
+  rw [UniformContinuousOn.iff]
+  push_neg
+  use 0.1
+  norm_num
+  intro δ hδ
+  set x₀ : ℝ := min δ (1/10) with hx₀_def
+  have hx₀_pos : x₀ > 0 := lt_min hδ (by norm_num)
+  have hx₀_le : x₀ ≤ 1/10 := min_le_right _ _
+  have hx₀_le_δ : x₀ ≤ δ := min_le_left _ _
+  refine ⟨x₀, ⟨hx₀_pos.le, by linarith⟩, x₀/2, ⟨by linarith, by linarith⟩, ?_, ?_⟩
+  · rw [Real.dist_eq]
+    rw [show (x₀/2 - x₀ : ℝ) = -(x₀/2) by ring, abs_neg, abs_of_pos (by linarith)]
+    linarith
+  · rw [Real.dist_eq, show ((x₀/2)⁻¹ - x₀⁻¹ : ℝ) = x₀⁻¹ by field_simp; ring]
+    rw [abs_of_pos (by positivity)]
+    rw [lt_inv_comm₀ (by norm_num) hx₀_pos]
+    linarith
 
 end Chapter9
 

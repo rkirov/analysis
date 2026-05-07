@@ -151,19 +151,78 @@ abbrev Real.EventuallyCloseSeqs (ε:ℝ) (a b: Chapter6.Sequence) : Prop :=
 abbrev Chapter6.Sequence.equiv (a b: Sequence) : Prop :=
   ∀ ε > (0:ℝ), ε.EventuallyCloseSeqs a b
 
+theorem EventuallyCloseSeqs.mono {ε₁ ε₂:ℝ} {a b: Sequence} (h: ε₁ ≤ ε₂) :
+  ε₁.EventuallyCloseSeqs a b → ε₂.EventuallyCloseSeqs a b := by
+  rintro ⟨N, hN, hm, hclose⟩
+  exact ⟨N, hN, hm, λ n hn => le_trans (hclose n hn) h⟩
+
 /-- Remark 9.9.6 -/
 theorem Chapter6.Sequence.equiv_iff_rat (a b: Sequence) :
   a.equiv b ↔ ∀ ε > (0:ℚ), (ε:ℝ).EventuallyCloseSeqs a b := by
-  sorry
+  constructor
+  . intro h ε hε
+    rw [equiv] at h
+    have h' : ε > (0:ℝ) := by exact_mod_cast hε
+    specialize h ε h'
+    exact h
+  . intro h
+    rw [equiv]
+    intro ε hε
+    obtain ⟨ε', hε', hclose⟩ := exists_rat_btwn hε
+    have hε'' : ε' > 0 := by exact_mod_cast hε'
+    specialize h ε' hε''
+    exact EventuallyCloseSeqs.mono hclose.le h
 
 /-- Lemma 9.9.7 / Exercise 9.9.1 -/
 theorem Chapter6.Sequence.equiv_iff (a b: Sequence) :
   a.equiv b ↔ atTop.Tendsto (fun n ↦ a n - b n) (nhds 0) := by
-  sorry
-
+  constructor
+  . intro h
+    rw [equiv] at h
+    rw [Metric.tendsto_nhds]
+    intro ε hε
+    specialize h (ε/2) (by linarith)
+    rw [Real.EventuallyCloseSeqs] at h
+    obtain ⟨N, hN, hclose⟩ := h
+    rw [Filter.eventually_atTop]
+    use N
+    intro n hn
+    rw [Real.CloseSeqs] at hclose
+    obtain ⟨hm, hclose'⟩ := hclose
+    specialize hclose' n
+    have hmem : n ≥ (a.from N).m := by simp; omega
+    specialize hclose' hmem
+    rw [Real.Close, Real.dist_eq] at hclose'
+    rw [Real.dist_eq]
+    simp only [sub_zero]
+    rw [Sequence.from_eval _ hn, Sequence.from_eval _ hn] at hclose'
+    linarith
+  . intro h
+    rw [equiv]
+    rw [Metric.tendsto_nhds] at h
+    intro ε hε
+    specialize h ε hε
+    rw [Filter.eventually_atTop] at h
+    rw [Real.EventuallyCloseSeqs]
+    obtain ⟨N, hN⟩ := h
+    use max (max N a.m) b.m
+    constructor
+    . simp
+    . rw [Real.CloseSeqs]
+      simp
+      intro n hn hna hnb
+      simp [hn, hna, hnb]
+      specialize hN n hn
+      rw [Real.dist_eq] at hN ⊢
+      simp at hN
+      exact hN.le
 
 namespace Chapter9
 
+theorem Real.dist_symm (x y: ℝ) : dist x y = dist y x := by
+  rw [Real.dist_eq]
+  rw [Real.dist_eq]
+  rw [abs_sub_comm]
 
 /-- Proposition 9.9.8 / Exercise 9.9.2 -/
 theorem UniformContinuousOn.iff_preserves_equiv {X:Set ℝ} (f: ℝ → ℝ) :
@@ -171,38 +230,240 @@ theorem UniformContinuousOn.iff_preserves_equiv {X:Set ℝ} (f: ℝ → ℝ) :
   ∀ x y: ℕ → ℝ, (∀ n, x n ∈ X) → (∀ n, y n ∈ X) →
   (x:Sequence).equiv (y:Sequence) →
   (f ∘ x:Sequence).equiv (f ∘ y:Sequence) := by
-  sorry
+  constructor
+  . intro h x y hx hy h'
+    rw [Chapter6.Sequence.equiv] at h' ⊢
+    intro ε hε
+    rw [UniformContinuousOn.iff] at h
+    specialize h ε hε
+    obtain ⟨δ, hδ, hf⟩ := h
+    specialize h' δ hδ
+    rw [Real.EventuallyCloseSeqs] at h' ⊢
+    obtain ⟨N, hN, hclose⟩ := h'
+    use N
+    constructor
+    . simp at hN
+      linarith
+    . rw [Real.CloseSeqs] at hclose ⊢
+      simp at hclose ⊢
+      intro n hn hN'
+      specialize hclose n hn hN'
+      simp [hn, hN'] at hclose ⊢
+      specialize hf (x n.toNat) (hx n.toNat) (y n.toNat) (hy n.toNat)
+      have : δ.Close (y n.toNat) (x n.toNat) := by
+        rw [Real.Close, Real.dist_symm]
+        exact hclose
+      specialize hf this
+      rw [Real.Close] at hf
+      rw [Real.dist_symm] at hf
+      exact hf
+  . intro h
+    rw [UniformContinuousOn.iff]
+    intro ε hε
+    by_contra h'
+    push_neg at h'
+    -- for every n, specialize h' at 1/(n+1) to find two points in X
+    choose x₀ hx₀ x hx hclose hgap using
+      (fun n : ℕ => h' (1/(n+1:ℝ)) (by positivity))
+    -- x and x₀ are equiv as ℕ-sequences (using the def directly, no equiv_iff needed)
+    have hequiv : (x:Sequence).equiv (x₀:Sequence) := by
+      intro η hη
+      obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+        |>.eventually_lt_const hη |> Filter.eventually_atTop.mp)
+      refine ⟨N, by simp, ?_, ?_⟩
+      · simp
+      · intro n hn
+        have hn_nat : n ≥ (N : ℤ) := by simp at hn; omega
+        rw [Sequence.from_eval _ hn_nat, Sequence.from_eval _ hn_nat]
+        obtain ⟨k, rfl⟩ : ∃ k : ℕ, (k : ℤ) = n := ⟨n.toNat, by omega⟩
+        rw [Sequence.eval_coe, Sequence.eval_coe]
+        have hk_ge : k ≥ N := by exact_mod_cast hn_nat
+        have hk_lt : (1/((k:ℝ)+1)) < η := hN k hk_ge
+        have := hclose k
+        rw [Real.Close] at this ⊢
+        linarith
+    -- by h, f x and f x₀ are equiv
+    specialize h x x₀ hx hx₀ hequiv
+    rw [Chapter6.Sequence.equiv] at h
+    obtain ⟨N, hN_ge, _, hfclose⟩ := h ε hε
+    -- pick a large enough natural index k
+    have hN_nonneg : N ≥ 0 := by
+      have : ((↑(f ∘ x) : Sequence)).m = 0 := rfl
+      omega
+    set k := N.toNat with hk_def
+    have hkN : (k : ℤ) ≥ N := by simp [hk_def, Int.toNat_of_nonneg hN_nonneg]
+    have hk_in_from : (k : ℤ) ≥ ((↑(f ∘ x) : Sequence).from N).m := by
+      have hm : ((↑(f ∘ x) : Sequence)).m = 0 := rfl
+      simp only
+      omega
+    specialize hfclose k hk_in_from
+    rw [Sequence.from_eval _ hkN, Sequence.from_eval _ hkN] at hfclose
+    rw [Sequence.eval_coe, Sequence.eval_coe] at hfclose
+    rw [Real.Close, Function.comp_apply, Function.comp_apply] at hfclose
+    linarith [hgap k]
 
 /-- Remark 9.9.9 -/
 theorem Chapter6.Sequence.equiv_const (x₀: ℝ) (x:ℕ → ℝ) : atTop.Tendsto x (nhds x₀) ↔
-  (x:Sequence).equiv (fun n:ℕ ↦ x₀:Sequence) := by
-  sorry
+  (x:Sequence).equiv (fun _:ℕ ↦ x₀:Sequence) := by
+  rw [Sequence.equiv_iff]
+  repeat rw [Metric.tendsto_nhds]
+  simp
+  constructor
+  . intro h ε hε
+    specialize h ε hε
+    obtain ⟨N, hN⟩ := h
+    use N
+    intro n hn
+    have : n ≥ 0 := by linarith
+    lift n to ℕ using this
+    specialize hN n (by exact_mod_cast hn)
+    simp
+    exact hN
+  . intro h ε hε
+    specialize h ε hε
+    obtain ⟨N, hN⟩ := h
+    use N.toNat
+    intro b hb
+    have hbZ : (N : ℤ) ≤ (b : ℤ) := by
+      have : (N.toNat : ℤ) ≤ (b : ℤ) := by exact_mod_cast hb
+      omega
+    specialize hN b hbZ
+    simp at hN
+    rw [Real.dist_eq]
+    exact hN
 
 /-- Example 9.9.10 -/
 noncomputable abbrev f_9_9_10 : ℝ → ℝ := fun x ↦ 1/x
 
-example : (fun n:ℕ ↦ 1/(n+1:ℝ):Sequence).equiv (fun n:ℕ ↦ 1/(2*(n+1):ℝ):Sequence) := by sorry
+theorem seqA_eq_seqB : (fun n:ℕ ↦ 1/(n+1:ℝ):Sequence).equiv (fun n:ℕ ↦ 1/(2*(n+1):ℝ):Sequence) := by
+  rw [Chapter6.Sequence.equiv_iff]
+  rw [Metric.tendsto_nhds]
+  intro ε hε
+  rw [Filter.eventually_atTop]
+  obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+    |>.eventually_lt_const hε |> Filter.eventually_atTop.mp)
+  use N
+  intro b hb
+  have hb_nonneg : b ≥ 0 := le_trans (by simp) hb
+  obtain ⟨k, rfl⟩ : ∃ k : ℕ, (k : ℤ) = b := ⟨b.toNat, by omega⟩
+  rw [Sequence.eval_coe, Sequence.eval_coe]
+  have hk_ge : k ≥ N := by exact_mod_cast hb
+  have hk_lt : (1/((k:ℝ)+1)) < ε := hN k hk_ge
+  have hkpos : (0:ℝ) < (k:ℝ) + 1 := by positivity
+  rw [Real.dist_eq, sub_zero,
+    show (1/((k:ℝ)+1) - 1/(2*((k:ℝ)+1)) : ℝ) = 1/(2*((k:ℝ)+1)) by field_simp; ring]
+  rw [abs_of_pos (by positivity)]
+  have : 1/(2*((k:ℝ)+1)) ≤ 1/((k:ℝ)+1) := by
+    apply one_div_le_one_div_of_le hkpos; linarith
+  linarith
 
-example (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by sorry
+theorem seqA_in_ioo02 (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by
+  simp only [one_div, Set.mem_Ioo, inv_pos]
+  refine ⟨by positivity, ?_⟩
+  rw [inv_lt_comm₀ (by positivity) (by norm_num)]
+  have : (n:ℝ) ≥ 0 := by positivity
+  linarith
 
-example (n:ℕ) : 1/(2*(n+1):ℝ) ∈ Set.Ioo 0 2 := by sorry
+theorem seqB_in_ioo02 (n:ℕ) : 1/(2*(n+1):ℝ) ∈ Set.Ioo 0 2 := by
+  simp only [one_div, Set.mem_Ioo, inv_pos]
+  refine ⟨by positivity, ?_⟩
+  rw [inv_lt_comm₀ (by positivity) (by norm_num)]
+  have : (n:ℝ) ≥ 0 := by positivity
+  linarith
 
-example : ¬ (fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ)):Sequence).equiv (fun n:ℕ ↦ f_9_9_10 (1/(2*(n+1):ℝ)):Sequence) := by sorry
+theorem fseqA_ne_fseqB : ¬ (fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ)):Sequence).equiv
+    (fun n:ℕ ↦ f_9_9_10 (1/(2*(n+1):ℝ)):Sequence) := by
+  intro h
+  obtain ⟨N, hN_ge, _, hclose⟩ := h 1 (by norm_num)
+  -- pick a natural index k large enough that the gap > 1
+  set k : ℤ := max N 1 with hk_def
+  have hk_ge : k ≥ N := le_max_left _ _
+  have hk_pos : k ≥ 1 := le_max_right _ _
+  have hk_in : k ≥ ((↑(fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence).from N).m := by
+    have hm : (((↑(fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence)).m : ℤ) = 0 := rfl
+    simp only
+    omega
+  specialize hclose k hk_in
+  rw [Sequence.from_eval _ hk_ge, Sequence.from_eval _ hk_ge] at hclose
+  set m : ℕ := k.toNat with hm_def
+  have hmk : (m : ℤ) = k := by simp [hm_def]; omega
+  rw [show k = ((m:ℕ) : ℤ) from hmk.symm] at hclose
+  rw [Sequence.eval_coe, Sequence.eval_coe] at hclose
+  have hm_pos : m ≥ 1 := by have : (m:ℤ) ≥ 1 := by rw [hmk]; exact hk_pos
+                            exact_mod_cast this
+  unfold f_9_9_10 at hclose
+  rw [Real.Close, Real.dist_eq] at hclose
+  have hmpos : (0:ℝ) < (m:ℝ) + 1 := by positivity
+  have h1 : 1 / (1/((m:ℝ)+1)) = (m:ℝ) + 1 := by field_simp
+  have h2 : 1 / (1/(2*((m:ℝ)+1))) = 2*((m:ℝ) + 1) := by field_simp
+  rw [h1, h2] at hclose
+  have hmR : (m:ℝ) ≥ 1 := by exact_mod_cast hm_pos
+  rw [show ((m:ℝ)+1 - 2*((m:ℝ)+1) : ℝ) = -((m:ℝ)+1) by ring, abs_neg,
+    abs_of_pos hmpos] at hclose
+  linarith
 
 example : ¬ UniformContinuousOn f_9_9_10 (.Ioo 0 2) := by
-  sorry
+  rw [UniformContinuousOn.iff_preserves_equiv]
+  push_neg
+  use (fun n:ℕ ↦ 1/(n+1:ℝ))
+  use (fun n:ℕ ↦ 1/(2*(n+1):ℝ))
+  refine ⟨fun n ↦ seqA_in_ioo02 n, fun n ↦ seqB_in_ioo02 n, seqA_eq_seqB, fseqA_ne_fseqB⟩
 
 /-- Example 9.9.11 -/
 abbrev f_9_9_11 : ℝ → ℝ := fun x ↦ x^2
 
-example : ((fun n:ℕ ↦ (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ (n+1)+1/(n+1:ℝ)):Sequence) := by
-  sorry
+theorem seqC_eq_seqD : ((fun n:ℕ ↦ (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ (n+1)+1/(n+1:ℝ)):Sequence) := by
+  rw [Chapter6.Sequence.equiv_iff]
+  rw [Metric.tendsto_nhds]
+  intro ε hε
+  rw [Filter.eventually_atTop]
+  obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+    |>.eventually_lt_const hε |> Filter.eventually_atTop.mp)
+  use N
+  intro b hb
+  have hb_nonneg : b ≥ 0 := le_trans (by simp) hb
+  simp [hb_nonneg]
+  specialize hN b.toNat (by grind only)
+  simp at hN
+  have : (b.toNat :ℝ) + 1 ≥ 0 := by positivity
+  grind
 
-example : ¬ ((fun n:ℕ ↦ f_9_9_11 (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ f_9_9_11 ((n+1)+1/(n+1:ℝ))):Sequence) := by
-  sorry
+theorem fseqC_neq_fseqD : ¬ ((fun n:ℕ ↦ f_9_9_11 (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ f_9_9_11 ((n+1)+1/(n+1:ℝ))):Sequence) := by
+  intro h
+  obtain ⟨N, hN_ge, _, hclose⟩ := h 1 (by norm_num)
+  set k : ℤ := max N 0 with hk_def
+  have hk_ge : k ≥ N := le_max_left _ _
+  have hk_nonneg : k ≥ 0 := le_max_right _ _
+  have hk_in : k ≥ ((↑(fun n:ℕ ↦ f_9_9_11 (n+1:ℝ)):Sequence).from N).m := by
+    simp only
+    omega
+  specialize hclose k hk_in
+  rw [Sequence.from_eval _ hk_ge, Sequence.from_eval _ hk_ge] at hclose
+  set m : ℕ := k.toNat with hm_def
+  have hmk : (m : ℤ) = k := by simp [hm_def]; omega
+  rw [show k = ((m:ℕ) : ℤ) from hmk.symm] at hclose
+  rw [Sequence.eval_coe, Sequence.eval_coe] at hclose
+  unfold f_9_9_11 at hclose
+  rw [Real.Close, Real.dist_eq] at hclose
+  have hmpos : (0:ℝ) < (m:ℝ) + 1 := by positivity
+  have hexpand : ((m:ℝ)+1)^2 - ((m:ℝ)+1+1/((m:ℝ)+1))^2 = -(2 + 1/((m:ℝ)+1)^2) := by
+    field_simp; ring
+  rw [hexpand, abs_neg, abs_of_pos (by positivity)] at hclose
+  have : (0:ℝ) < 1/((m:ℝ)+1)^2 := by positivity
+  linarith
 
 example : ¬ UniformContinuousOn f_9_9_11 .univ := by
-  sorry
+  rw [UniformContinuousOn.iff_preserves_equiv]
+  push_neg
+  use (fun n:ℕ ↦ (n+1:ℝ))
+  use (fun n:ℕ ↦ (n+1)+1/(n+1:ℝ))
+  constructor
+  . exact fun n ↦ Set.mem_univ _
+  . constructor
+    . exact fun n ↦ Set.mem_univ _
+    . constructor
+      . exact seqC_eq_seqD
+      . exact fseqC_neq_fseqD
 
 /-- Proposition 9.9.12 / Exercise 9.9.3  -/
 theorem UniformContinuousOn.ofCauchy  {X:Set ℝ} (f: ℝ → ℝ)

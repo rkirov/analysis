@@ -37,7 +37,8 @@ theorem BddBelow.unbounded_iff' (X:Set ℝ) : ¬ BddBelow X ↔ sInf ((fun x:ℝ
   intro h M; specialize h (M:EReal) ?_ <;>simp_all
 
 /-- Definition 9.10.13 (Limit at infinity) -/
-theorem Filter.Tendsto.AtTop.iff {X: Set ℝ} (f:ℝ → ℝ) (L:ℝ) : Filter.Tendsto f (.atTop ⊓ .principal X) (nhds L) ↔ ∀ ε > (0:ℝ), ∃ M, ∀ x ∈ X ∩ .Ici M, |f x - L| < ε := by
+theorem Filter.Tendsto.AtTop.iff {X: Set ℝ} (f:ℝ → ℝ) (L:ℝ) : Filter.Tendsto f (.atTop ⊓ .principal X) (nhds L)
+    ↔ ∀ ε > (0:ℝ), ∃ M, ∀ x ∈ X ∩ .Ici M, |f x - L| < ε := by
   rw [LinearOrderedAddCommGroup.tendsto_nhds]
   peel with ε hε
   simp [Filter.eventually_inf_principal]
@@ -45,11 +46,43 @@ theorem Filter.Tendsto.AtTop.iff {X: Set ℝ} (f:ℝ → ℝ) (L:ℝ) : Filter.T
 
 /-- Exercise 9.10.4 -/
 example : Filter.Tendsto (fun x:ℝ ↦ 1/x) (.atTop ⊓ .principal (.Ioi 0)) (nhds 0) := by
-  sorry
+  rw [Filter.Tendsto.AtTop.iff]
+  intro ε hε
+  use (2 / ε)
+  intro x hx
+  simp at hx ⊢
+  rw [abs_of_pos hx.1]
+  obtain ⟨h1, h2⟩ := hx
+  field_simp [hε, h1] at h2 ⊢
+  calc _ < 2 := by norm_num
+    _ ≤ ε * x := h2
 
 open Classical in
 /-- Exercise 9.10.1 -/
-example (a:ℕ → ℝ) (L:ℝ) : Filter.Tendsto (fun x:ℝ ↦ (if h:(∃ n:ℕ, x = n) then a h.choose else 0)) (.atTop ⊓ .principal ((fun n:ℕ ↦ (n:ℝ)) '' .univ)) (nhds L) ↔ Filter.atTop.Tendsto a (nhds L) := by
-  sorry
+example (a:ℕ → ℝ) (L:ℝ) : Filter.Tendsto (fun x:ℝ ↦ (if h:(∃ n:ℕ, x = n) then a h.choose else 0))
+    (.atTop ⊓ .principal ((fun n:ℕ ↦ (n:ℝ)) '' .univ)) (nhds L) ↔ Filter.atTop.Tendsto a (nhds L) := by
+  rw [Filter.Tendsto.AtTop.iff, Metric.tendsto_atTop]
+  constructor
+  . intro h ε hε
+    specialize h ε hε
+    obtain ⟨M, hM⟩ := h
+    let N := Nat.ceil M
+    have hN : (N:ℝ) ≥ M := by exact Nat.le_ceil M
+    use N
+    intro n hn
+    simp at hM
+    specialize hM n (le_trans hN (by exact_mod_cast hn))
+    rw [Real.dist_eq]
+    exact hM
+  . intro h ε hε
+    obtain ⟨N, hN⟩ := h ε hε
+    use (N:ℝ)
+    intro x hx
+    simp at hx
+    obtain ⟨n, rfl⟩ := hx.1
+    simp
+    specialize hN n (by exact_mod_cast hx.2)
+    rw [Real.dist_eq] at hN
+    exact hN
 
 end Chapter9

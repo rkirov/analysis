@@ -1,7 +1,9 @@
 import Mathlib.Tactic
 import Analysis.Section_6_1
+import Analysis.Section_6_epilogue
 import Mathlib.Data.Nat.Nth
 import Analysis.Section_9_6
+
 /-!
 # Analysis I, Section 9.9: Uniform continuity
 
@@ -101,7 +103,8 @@ example (x₀ x : ℝ) :
   rw [show (2*x - 2*x₀ : ℝ) = 2 * (x - x₀) by ring, abs_mul]
   nlinarith [abs_nonneg (x - x₀)]
 
-/-- Definition 9.9.2.  Here we use the Mathlib term {name}`UniformContinuousOn` -/
+/-- Definition 9.9.2.  Here we use the Mathlib term
+{name}`UniformContinuousOn` -/
 theorem UniformContinuousOn.iff (f: ℝ → ℝ) (X:Set ℝ) : UniformContinuousOn f X  ↔
   ∀ ε > (0:ℝ), ∃ δ > (0:ℝ), ∀ x₀ ∈ X, ∀ x ∈ X, δ.Close x x₀ → ε.Close (f x) (f x₀) := by
   simp_rw [Metric.uniformContinuousOn_iff_le, Real.Close]
@@ -302,6 +305,26 @@ theorem UniformContinuousOn.iff_preserves_equiv {X:Set ℝ} (f: ℝ → ℝ) :
     rw [Real.Close, Function.comp_apply, Function.comp_apply] at hfclose
     linarith [hgap k]
 
+/-- Mathlib-flavored variant of {name}`UniformContinuousOn.iff_preserves_equiv`:
+if {lit}`x n, y n ∈ X` eventually and {lit}`x n - y n → 0`, then {lit}`f (x n) - f (y n) → 0`. -/
+theorem UniformContinuousOn.tendsto_sub_zero {X:Set ℝ} {f: ℝ → ℝ}
+  (hf: UniformContinuousOn f X) {x y: ℕ → ℝ}
+  (hx: ∀ᶠ n in atTop, x n ∈ X) (hy: ∀ᶠ n in atTop, y n ∈ X)
+  (hxy: Tendsto (fun n => x n - y n) atTop (nhds 0)) :
+  Tendsto (fun n => f (x n) - f (y n)) atTop (nhds 0) := by
+  rw [Metric.tendsto_nhds]
+  rw [UniformContinuousOn.iff] at hf
+  intro ε hε
+  obtain ⟨δ, hδ, hδf⟩ := hf (ε/2) (by linarith)
+  have habs : Tendsto (fun n => |x n - y n|) atTop (nhds 0) := by simpa using hxy.abs
+  filter_upwards [habs.eventually_lt_const hδ, hx, hy] with n hn hxn hyn
+  have hclose : δ.Close (x n) (y n) := show dist (x n) (y n) ≤ δ by
+    rw [Real.dist_eq]; exact hn.le
+  have := hδf (x n) hxn (y n) hyn (by rwa [Real.Close, dist_comm] at hclose)
+  rw [Real.Close, Real.dist_eq, abs_sub_comm] at this
+  rw [dist_zero_right, Real.norm_eq_abs]
+  linarith
+
 /-- Remark 9.9.9 -/
 theorem Chapter6.Sequence.equiv_const (x₀: ℝ) (x:ℕ → ℝ) : atTop.Tendsto x (nhds x₀) ↔
   (x:Sequence).equiv (fun _:ℕ ↦ x₀:Sequence) := by
@@ -469,32 +492,114 @@ example : ¬ UniformContinuousOn f_9_9_11 .univ := by
 theorem UniformContinuousOn.ofCauchy  {X:Set ℝ} (f: ℝ → ℝ)
   (hf: UniformContinuousOn f X) {x: ℕ → ℝ} (hx: (x:Sequence).IsCauchy) (hmem : ∀ n, x n ∈ X) :
   (f ∘ x:Sequence).IsCauchy := by
-  sorry
+  rw [UniformContinuousOn.iff] at hf
+  rw [Sequence.IsCauchy.coe] at hx ⊢
+  intro ε hε
+  specialize hf ε hε
+  obtain ⟨δ, hδ, hf⟩ := hf
+  specialize hx δ hδ
+  obtain ⟨N, h⟩ := hx
+  use N
+  intro m hm n hn
+  specialize hf (x m) (hmem m) (x n) (hmem n)
+  have : δ.Close (x n) (x m) := by
+    rw [Real.Close, Real.dist_symm]
+    exact h m hm n hn
+  specialize hf this
+  rw [Real.Close] at hf
+  rw [Real.dist_symm] at hf
+  exact hf
 
 /-- Example 9.9.13 -/
-example : ((fun n:ℕ ↦ 1/(n+1:ℝ)):Sequence).IsCauchy := by
-  sorry
+theorem seqA_is_cauchy : ((fun n:ℕ ↦ 1/(n+1:ℝ)):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe]
+  intro ε hε
+  obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+    |>.eventually_lt_const hε |> Filter.eventually_atTop.mp)
+  use N
+  intro j hj k hk
+  have hj_lt : 1/((j:ℝ)+1) < ε := hN j hj
+  have hk_lt : 1/((k:ℝ)+1) < ε := hN k hk
+  have hj_nn : 0 ≤ 1/((j:ℝ)+1) := by positivity
+  have hk_nn : 0 ≤ 1/((k:ℝ)+1) := by positivity
+  rw [Real.dist_eq, abs_le]
+  constructor <;> linarith
 
-example (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by
-  sorry
+theorem seqA_in_ioo02' (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by
+  exact seqA_in_ioo02 n
 
-example : ¬ ((fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence).IsCauchy := by
-  sorry
+theorem fseqA_is_not_cauchy : ¬ ((fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe]
+  push_neg
+  use 1
+  simp only [gt_iff_lt, zero_lt_one, ge_iff_le, one_div, div_inv_eq_mul, one_mul, dist_add_right,
+    Nat.dist_cast_real, true_and]
+  intro N
+  use N
+  constructor
+  . omega
+  . use N + 2
+    constructor
+    . omega
+    . rw [Nat.dist_eq]
+      simp
 
 example : ¬ UniformContinuousOn f_9_9_10 (Set.Ioo 0 2) := by
-  sorry
+  by_contra h
+  have h1 := UniformContinuousOn.ofCauchy f_9_9_10 h seqA_is_cauchy seqA_in_ioo02'
+  have h2 := fseqA_is_not_cauchy
+  contradiction
 
 /-- Corollary 9.9.14 / Exercise 9.9.4 -/
 theorem UniformContinuousOn.limit_at_adherent  {X:Set ℝ} (f: ℝ → ℝ)
   (hf: UniformContinuousOn f X) {x₀:ℝ} (hx₀: AdherentPt x₀ X) :
   ∃ L:ℝ, (nhdsWithin x₀ X).Tendsto f (nhds L) := by
-  sorry
+  rw [limit_of_AdherentPt] at hx₀
+  obtain ⟨x, hx, hxlim⟩ := hx₀
+  -- x converges ⇒ Cauchy ⇒ (by 9.9.12) f∘x Cauchy ⇒ converges to some L
+  have hxC : (x:Sequence).IsCauchy :=
+    (Chapter6.Sequence.Cauchy_iff_CauchySeq x).mpr hxlim.cauchySeq
+  obtain ⟨L, hL⟩ := (Chapter6.Sequence.converges_iff_Tendsto _).mp
+    ((Sequence.Cauchy_iff_convergent _).mp (UniformContinuousOn.ofCauchy f hf hxC hx))
+  refine ⟨L, Filter.tendsto_of_seq_tendsto fun y hy => ?_⟩
+  rw [tendsto_nhdsWithin_iff] at hy
+  obtain ⟨hylim, hyX⟩ := hy
+  -- f∘y - f∘x → 0 (by tendsto_sub_zero) and f∘x → L, so f∘y → L
+  have hxy : Tendsto (fun n => y n - x n) atTop (nhds 0) := by
+    simpa using hylim.sub hxlim
+  simpa using (UniformContinuousOn.tendsto_sub_zero hf hyX
+    (Filter.Eventually.of_forall hx) hxy).add hL
 
 /-- Proposition 9.9.15 / Exercise 9.9.5 -/
 theorem UniformContinuousOn.of_bounded {E X:Set ℝ} {f: ℝ → ℝ}
   (hf: UniformContinuousOn f X) (hEX: E ⊆ X) (hE: Bornology.IsBounded E) :
   Bornology.IsBounded (f '' E) := by
-  sorry
+  rw [← BddOn.iff']
+  by_contra! hunbound
+  set x := fun (n:ℕ) ↦ (hunbound n).choose with hx_def
+  have hxE (n:ℕ) : x n ∈ E := (hunbound n).choose_spec.1
+  have hxgrow (n:ℕ) : (n:ℝ) < |f (x n)| := (hunbound n).choose_spec.2
+  -- E bounded ⇒ closure E closed and bounded ⇒ Heine-Borel gives convergent subsequence
+  have hclosed : IsClosed (closure E) := isClosed_closure
+  have hbounded : Bornology.IsBounded (closure E) := hE.closure
+  have hxclE (n:ℕ) : x n ∈ closure E := subset_closure E (hxE n)
+  obtain ⟨φ, hφ, L, hL_clE, hxφ⟩ :=
+    (Heine_Borel (closure E)).mp ⟨hclosed, hbounded⟩ x hxclE
+  -- L ∈ closure E ⊆ closure X, so L is adherent to X; apply 9.9.14
+  have hL_adh : AdherentPt L X := by
+    rw [← closure_def']
+    exact closure_mono hEX hL_clE
+  obtain ⟨M, hM⟩ := UniformContinuousOn.limit_at_adherent f hf hL_adh
+  -- f ∘ x ∘ φ tends to M (since x∘φ → L with values in X)
+  have hxφX (k:ℕ) : x (φ k) ∈ X := hEX (hxE _)
+  have hfxφ : Tendsto (fun k => f (x (φ k))) atTop (nhds M) :=
+    hM.comp (tendsto_nhdsWithin_iff.mpr ⟨hxφ, Filter.Eventually.of_forall hxφX⟩)
+  -- |f (x (φ k))| > k → ∞ contradicts f∘x∘φ → M
+  have hkfx (k:ℕ) : (k:ℝ) < |f (x (φ k))| :=
+    lt_of_le_of_lt (by exact_mod_cast hφ.id_le k) (hxgrow (φ k))
+  have habsto : Tendsto (fun k => |f (x (φ k))|) atTop atTop :=
+    tendsto_atTop_mono (fun k => (hkfx k).le) tendsto_natCast_atTop_atTop
+  exact not_tendsto_nhds_of_tendsto_atTop habsto |M| hfxφ.abs
 
 /-- Theorem 9.9.16 -/
 theorem UniformContinuousOn.of_continuousOn {a b:ℝ} {f:ℝ → ℝ}
@@ -509,8 +614,35 @@ theorem UniformContinuousOn.of_continuousOn {a b:ℝ} {f:ℝ → ℝ}
     rw [←not_finite_iff_infinite]
     by_contra! this
     replace : ε.EventuallyCloseSeqs (fun n ↦ f (x n):Sequence) (fun n ↦ f (y n):Sequence) := by
-      sorry
-    sorry
+      -- E is finite, so any N greater than every element of E works
+      have hEfin : E.Finite := this
+      obtain ⟨N, hN⟩ : ∃ N : ℕ, ∀ n ∈ E, n < N := by
+        classical
+        refine ⟨hEfin.toFinset.sup id + 1, fun n hn => ?_⟩
+        have : n ≤ hEfin.toFinset.sup id :=
+          Finset.le_sup (f := id) (hEfin.mem_toFinset.mpr hn)
+        omega
+      refine ⟨N, by simp, by simp, ?_⟩
+      intro k hk
+      have hk' : (N : ℤ) ≤ k := by simpa using hk
+      have hk_nn : 0 ≤ k := by have : (0 : ℤ) ≤ N := by positivity
+                               linarith
+      lift k to ℕ using hk_nn with kn
+      have hkn : N ≤ kn := by exact_mod_cast hk'
+      have hknotE : kn ∉ E := fun h => absurd (hN kn h) (not_lt.mpr hkn)
+      simp only [E, Set.mem_setOf_eq, not_not] at hknotE
+      simpa [Sequence.from_eval _ hk', hkn] using hknotE
+    rw [Real.EventuallyCloseSeqs] at this
+    obtain ⟨N, hN, hclose⟩ := this
+    specialize h (N : ℤ) (by omega)
+    obtain ⟨L, hL, hL', hconv⟩ := h
+    lift L to ℕ using hL
+    simp [hL'] at hconv
+    rw [Real.CloseSeqs] at hclose
+    simp at hclose
+    specialize hclose L (by simp) hL'
+    simp [hL'] at hclose
+    linarith
   observe : Countable E
   set n : ℕ → ℕ := Nat.nth E
   rw [Set.infinite_coe_iff] at hE
@@ -539,13 +671,43 @@ theorem UniformContinuousOn.of_continuousOn {a b:ℝ} {f:ℝ → ℝ}
   replace hyconv := hyconv.comp_of_continuous hcont (fun k ↦ hymem (j k))
   have : atTop.Tendsto (fun k ↦ f (x (n (j k))) - f (y (n (j k)))) (nhds 0) := by
     convert hconv'.sub hyconv; simp
-  sorry
-
+  rw [Metric.tendsto_nhds] at this
+  specialize this ε hε
+  rw [Filter.eventually_atTop] at this
+  obtain ⟨N, hN⟩ := this
+  specialize hN N (by simp)
+  specialize hsep (j N)
+  rw [Real.dist_eq] at hN
+  simp at hN
+  linarith
 
 /-- Exercise 9.9.6 -/
 theorem UniformContinuousOn.comp {X Y: Set ℝ} {f g:ℝ → ℝ}
   (hf: UniformContinuousOn f X) (hg: UniformContinuousOn g Y)
   (hrange: f '' X ⊆ Y) : UniformContinuousOn (g ∘ f) X := by
-  sorry
+  rw [UniformContinuousOn.iff_preserves_equiv] at hf hg ⊢
+  intro x y hx hy hequiv
+  specialize hf x y hx hy hequiv
+  rw [Set.subset_def] at hrange
+  specialize hg (f ∘ x) (f ∘ y) (by
+    intro n
+    specialize hrange (f (x n))
+    rw [Set.mem_image] at hrange
+    apply hrange
+    use x n
+    constructor
+    . exact hx n
+    . rfl
+  ) (by
+    intro n
+    specialize hrange (f (y n))
+    rw [Set.mem_image] at hrange
+    apply hrange
+    use y n
+    constructor
+    . exact hy n
+    . rfl
+  ) hf
+  exact hg
 
 end Chapter9

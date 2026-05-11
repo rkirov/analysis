@@ -264,17 +264,50 @@ theorem _root_.ContinuousOn.of_differentiableOn {X: Set ℝ} {f: ℝ → ℝ}
 
 /-- Theorem 10.1.13 (a) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_const (X: Set ℝ) (x₀ : ℝ) (c:ℝ) :
-  HasDerivWithinAt (fun x ↦ c) 0 X x₀ := by sorry
+  HasDerivWithinAt (fun _ ↦ c) 0 X x₀ := by
+  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds]
+  simp
+  intro ε hε
+  use ε, hε
+  intro _ _ _ _
+  exact hε
 
 /-- Theorem 10.1.13 (b) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_id (X: Set ℝ) (x₀ : ℝ) :
-  HasDerivWithinAt (fun x ↦ x) 1 X x₀ := by sorry
+  HasDerivWithinAt (fun x ↦ x) 1 X x₀ := by
+  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds]
+  intro ε hε
+  use ε, hε
+  intro x hx hxd
+  rw [Real.dist_eq] at hxd ⊢
+  have : x ≠ x₀ := by rw [Set.mem_diff] at hx; exact hx.2
+  have key : (x - x₀) ≠ 0 := by contrapose! this; linarith
+  field_simp [this]
+  simp
+  exact hε
 
 /-- Theorem 10.1.13 (c) (Sum rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_add {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
   {f g: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (f + g) (f'x₀ + g'x₀) X x₀ := by
-  sorry
+  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds] at hf hg ⊢
+  intro ε hε
+  specialize hf (ε/2) (by linarith)
+  specialize hg (ε/2) (by linarith)
+  obtain ⟨δf, hδf, hballf⟩ := hf
+  obtain ⟨δg, hδg, hballg⟩ := hg
+  use min δf δg, (by positivity)
+  intro x hx hxd
+  specialize hballf hx (by simp only [lt_inf_iff] at hxd; exact hxd.1)
+  specialize hballg hx (by simp only [lt_inf_iff] at hxd; exact hxd.2)
+  have hsum : ((f + g) x - (f + g) x₀) / (x - x₀) = (f x - f x₀)/(x - x₀) + (g x - g x₀)/(x - x₀) := by
+    simp [Pi.add_apply]; ring
+  rw [hsum, Real.dist_eq] at *
+  have : (f x - f x₀)/(x - x₀) + (g x - g x₀)/(x - x₀) - (f'x₀ + g'x₀) =
+    ((f x - f x₀)/(x - x₀) - f'x₀) + ((g x - g x₀)/(x - x₀) - g'x₀) := by ring
+  rw [this]
+  exact lt_of_le_of_lt (abs_add_le _ _) (by linarith)
+
 
 /-- Theorem 10.1.13 (d) (Product rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_mul {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}

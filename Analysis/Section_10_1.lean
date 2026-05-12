@@ -313,19 +313,145 @@ theorem _root_.HasDerivWithinAt.of_add {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
 theorem _root_.HasDerivWithinAt.of_mul {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
   {f g: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (f * g) (f'x₀ * (g x₀) + (f x₀) * g'x₀) X x₀ := by
-  sorry
+  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds] at hf hg ⊢
+  intro ε hε
+  -- εf bounds |Df - f'x₀| where Df = (f x - f x₀)/(x - x₀); similarly εg.
+  set εf : ℝ := min 1 (ε / (3 * (1 + |g x₀|)))
+  set εg : ℝ := min 1 (ε / (3 * (1 + |f x₀|)))
+  have hεf : εf > 0 := by positivity
+  have hεg : εg > 0 := by positivity
+  specialize hf εf hεf
+  specialize hg εg hεg
+  obtain ⟨δf, hδf, hballf⟩ := hf
+  obtain ⟨δg, hδg, hballg⟩ := hg
+  -- δC bounds the cross term (g x - g x₀) · Df by making |x - x₀| small.
+  set δC : ℝ := ε / (3 * (1 + |g'x₀|) * (1 + |f'x₀|))
+  have hδC : δC > 0 := by positivity
+  use min (min δf δg) (min 1 δC), (by positivity)
+  intro x hx hxd
+  have hxdf : dist x x₀ < δf := lt_of_lt_of_le hxd (le_trans (min_le_left _ _) (min_le_left _ _))
+  have hxdg : dist x x₀ < δg := lt_of_lt_of_le hxd (le_trans (min_le_left _ _) (min_le_right _ _))
+  have hxd1 : dist x x₀ < 1 := lt_of_lt_of_le hxd (le_trans (min_le_right _ _) (min_le_left _ _))
+  have hxdC : dist x x₀ < δC := lt_of_lt_of_le hxd (le_trans (min_le_right _ _) (min_le_right _ _))
+  specialize hballf hx hxdf
+  specialize hballg hx hxdg
+  have hxne : x ≠ x₀ := (Set.mem_diff _ |>.mp hx).2
+  have hxne' : x - x₀ ≠ 0 := sub_ne_zero.mpr hxne
+  -- Notation for the two error terms and the difference quotients.
+  set A : ℝ := (f x - f x₀) / (x - x₀) - f'x₀
+  set B : ℝ := (g x - g x₀) / (x - x₀) - g'x₀
+  rw [Real.dist_eq] at hballf hballg hxd1 hxdC ⊢
+  change |A| < εf at hballf
+  change |B| < εg at hballg
+  -- Key algebraic identity: split (fg)' - target into three controllable terms.
+  have hkey : ((f * g) x - (f * g) x₀) / (x - x₀) - (f'x₀ * g x₀ + f x₀ * g'x₀)
+      = g x₀ * A + f x₀ * B + (g x - g x₀) * ((f x - f x₀) / (x - x₀)) := by
+    have hgx : g x - g x₀ = (x - x₀) * (B + g'x₀) := by
+      simp only [B]; field_simp; ring
+    simp only [Pi.mul_apply]
+    field_simp
+    simp only [A, B]
+    field_simp
+    ring
+  rw [hkey]
+  -- Bound each piece.
+  have hεf_le : εf ≤ ε / (3 * (1 + |g x₀|)) := min_le_right _ _
+  have hεg_le : εg ≤ ε / (3 * (1 + |f x₀|)) := min_le_right _ _
+  have hεf1 : εf ≤ 1 := min_le_left _ _
+  have hεg1 : εg ≤ 1 := min_le_left _ _
+  -- Term 1: |g x₀ · A| < ε/3
+  have hT1 : |g x₀ * A| < ε / 3 := by
+    rw [abs_mul]
+    have hbound : (1 + |g x₀|) * εf ≤ ε / 3 := by
+      calc (1 + |g x₀|) * εf
+          ≤ (1 + |g x₀|) * (ε / (3 * (1 + |g x₀|))) := by gcongr
+        _ = ε / 3 := by
+            have : (1 + |g x₀|) ≠ 0 := by positivity
+            field_simp
+    have hstrict : |g x₀| * |A| < (1 + |g x₀|) * εf := by
+      apply mul_lt_mul' (by linarith [abs_nonneg (g x₀)]) hballf
+        (abs_nonneg A) (by linarith [abs_nonneg (g x₀)])
+    linarith
+  -- Term 2: |f x₀ · B| < ε/3
+  have hT2 : |f x₀ * B| < ε / 3 := by
+    rw [abs_mul]
+    have hbound : (1 + |f x₀|) * εg ≤ ε / 3 := by
+      calc (1 + |f x₀|) * εg
+          ≤ (1 + |f x₀|) * (ε / (3 * (1 + |f x₀|))) := by gcongr
+        _ = ε / 3 := by
+            have : (1 + |f x₀|) ≠ 0 := by positivity
+            field_simp
+    have hstrict : |f x₀| * |B| < (1 + |f x₀|) * εg := by
+      apply mul_lt_mul' (by linarith [abs_nonneg (f x₀)]) hballg
+        (abs_nonneg B) (by linarith [abs_nonneg (f x₀)])
+    linarith
+  -- Cross term: |(g x - g x₀) · ((f x - f x₀)/(x - x₀))| < ε/3
+  have hgdiff : |g x - g x₀| ≤ |x - x₀| * (1 + |g'x₀|) := by
+    have heq : g x - g x₀ = (x - x₀) * (B + g'x₀) := by
+      simp only [B]; field_simp; ring
+    rw [heq, abs_mul]
+    have hBb : |B + g'x₀| ≤ 1 + |g'x₀| := by
+      calc |B + g'x₀|
+          ≤ |B| + |g'x₀| := abs_add_le _ _
+        _ ≤ εg + |g'x₀| := by linarith
+        _ ≤ 1 + |g'x₀| := by linarith
+    exact mul_le_mul_of_nonneg_left hBb (abs_nonneg _)
+  have hfdiff : |(f x - f x₀) / (x - x₀)| ≤ 1 + |f'x₀| := by
+    have : (f x - f x₀) / (x - x₀) = A + f'x₀ := by simp only [A]; ring
+    rw [this]
+    calc |A + f'x₀|
+        ≤ |A| + |f'x₀| := abs_add_le _ _
+      _ ≤ εf + |f'x₀| := by linarith
+      _ ≤ 1 + |f'x₀| := by linarith
+  have hT3 : |(g x - g x₀) * ((f x - f x₀) / (x - x₀))| < ε / 3 := by
+    rw [abs_mul]
+    calc |g x - g x₀| * |(f x - f x₀) / (x - x₀)|
+        ≤ (|x - x₀| * (1 + |g'x₀|)) * (1 + |f'x₀|) := by
+          apply mul_le_mul hgdiff hfdiff (abs_nonneg _)
+          exact mul_nonneg (abs_nonneg _) (by linarith [abs_nonneg (g'x₀)])
+      _ = |x - x₀| * ((1 + |g'x₀|) * (1 + |f'x₀|)) := by ring
+      _ < δC * ((1 + |g'x₀|) * (1 + |f'x₀|)) := by
+          gcongr
+      _ = ε / 3 := by
+          simp only [δC]
+          have h1 : (1 + |g'x₀|) ≠ 0 := by positivity
+          have h2 : (1 + |f'x₀|) ≠ 0 := by positivity
+          field_simp
+  calc |g x₀ * A + f x₀ * B + (g x - g x₀) * ((f x - f x₀) / (x - x₀))|
+      ≤ |g x₀ * A + f x₀ * B| + |(g x - g x₀) * ((f x - f x₀) / (x - x₀))| := abs_add_le _ _
+    _ ≤ |g x₀ * A| + |f x₀ * B| + |(g x - g x₀) * ((f x - f x₀) / (x - x₀))| := by
+        linarith [abs_add_le (g x₀ * A) (f x₀ * B)]
+    _ < ε / 3 + ε / 3 + ε / 3 := by linarith
+    _ = ε := by ring
 
 /-- Theorem 10.1.13 (e) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_smul {X: Set ℝ} {x₀ f'x₀: ℝ} (c:ℝ)
   {f: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) :
   HasDerivWithinAt (c • f) (c * f'x₀) X x₀ := by
-  sorry
+  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds] at hf ⊢
+  intro ε hε
+  specialize hf (ε / (|c| + 1)) (by positivity)
+  obtain ⟨δ, hδ, hball⟩ := hf
+  use δ, hδ
+  intro x hx hxd
+  specialize hball hx hxd
+  simp
+  rw [Real.dist_eq] at hball ⊢
+  have key : |(c * f x - c * f x₀) / (x - x₀) - c * f'x₀| = |c| * |(f x - f x₀) / (x - x₀) - f'x₀| := by
+    rw [← abs_mul]
+    ring_nf
+  rw [key]
+  calc _ ≤ |c| * (ε / (|c| + 1)) := by gcongr
+      _ < ε := by field_simp; linarith
 
 /-- Theorem 10.1.13 (f) (Difference rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_sub {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
   {f g: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (f - g) (f'x₀ - g'x₀) X x₀ := by
-  sorry
+  rw [show (f - g) = (f + (-1:ℝ) • g) by funext; simp; ring_nf]
+  apply HasDerivWithinAt.of_add hf
+  rw [show -g'x₀ = (-1:ℝ) * g'x₀ by ring]
+  exact HasDerivWithinAt.of_smul (-1) hg
 
 /-- Theorem 10.1.13 (g) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_inv {X: Set ℝ} {x₀ g'x₀: ℝ}

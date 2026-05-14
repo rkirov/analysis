@@ -265,184 +265,61 @@ theorem _root_.ContinuousOn.of_differentiableOn {X: Set ℝ} {f: ℝ → ℝ}
 /-- Theorem 10.1.13 (a) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_const (X: Set ℝ) (x₀ : ℝ) (c:ℝ) :
   HasDerivWithinAt (fun _ ↦ c) 0 X x₀ := by
-  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds]
-  simp
-  intro ε hε
-  use ε, hε
-  intro _ _ _ _
-  exact hε
+  rw [_root_.HasDerivWithinAt.iff]
+  simp only [sub_self, zero_div]
+  exact tendsto_const_nhds
 
 /-- Theorem 10.1.13 (b) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_id (X: Set ℝ) (x₀ : ℝ) :
   HasDerivWithinAt (fun x ↦ x) 1 X x₀ := by
-  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds]
-  intro ε hε
-  use ε, hε
-  intro x hx hxd
-  rw [Real.dist_eq] at hxd ⊢
-  have : x ≠ x₀ := by rw [Set.mem_diff] at hx; exact hx.2
-  have key : (x - x₀) ≠ 0 := by contrapose! this; linarith
-  field_simp [this]
-  simp
-  exact hε
+  rw [_root_.HasDerivWithinAt.iff]
+  apply Filter.Tendsto.congr' (f₁ := fun _ ↦ 1) _ tendsto_const_nhds
+  rw [Filter.EventuallyEq, eventually_nhdsWithin_iff]
+  filter_upwards with x hx
+  field_simp [sub_ne_zero.mpr hx.2]
 
 /-- Theorem 10.1.13 (c) (Sum rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_add {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
   {f g: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (f + g) (f'x₀ + g'x₀) X x₀ := by
-  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds] at hf hg ⊢
-  intro ε hε
-  specialize hf (ε/2) (by linarith)
-  specialize hg (ε/2) (by linarith)
-  obtain ⟨δf, hδf, hballf⟩ := hf
-  obtain ⟨δg, hδg, hballg⟩ := hg
-  use min δf δg, (by positivity)
-  intro x hx hxd
-  specialize hballf hx (by simp only [lt_inf_iff] at hxd; exact hxd.1)
-  specialize hballg hx (by simp only [lt_inf_iff] at hxd; exact hxd.2)
-  have hsum : ((f + g) x - (f + g) x₀) / (x - x₀) = (f x - f x₀)/(x - x₀) + (g x - g x₀)/(x - x₀) := by
-    simp [Pi.add_apply]; ring
-  rw [hsum, Real.dist_eq] at *
-  have : (f x - f x₀)/(x - x₀) + (g x - g x₀)/(x - x₀) - (f'x₀ + g'x₀) =
-    ((f x - f x₀)/(x - x₀) - f'x₀) + ((g x - g x₀)/(x - x₀) - g'x₀) := by ring
-  rw [this]
-  exact lt_of_le_of_lt (abs_add_le _ _) (by linarith)
-
+  rw [_root_.HasDerivWithinAt.iff] at hf hg ⊢
+  have := hf.add hg
+  apply this.congr'
+  filter_upwards with x
+  simp only [Pi.add_apply]
+  ring
 
 /-- Theorem 10.1.13 (d) (Product rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_mul {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
   {f g: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (f * g) (f'x₀ * (g x₀) + (f x₀) * g'x₀) X x₀ := by
-  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds] at hf hg ⊢
-  intro ε hε
-  -- εf bounds |Df - f'x₀| where Df = (f x - f x₀)/(x - x₀); similarly εg.
-  set εf : ℝ := min 1 (ε / (3 * (1 + |g x₀|)))
-  set εg : ℝ := min 1 (ε / (3 * (1 + |f x₀|)))
-  have hεf : εf > 0 := by positivity
-  have hεg : εg > 0 := by positivity
-  specialize hf εf hεf
-  specialize hg εg hεg
-  obtain ⟨δf, hδf, hballf⟩ := hf
-  obtain ⟨δg, hδg, hballg⟩ := hg
-  -- δC bounds the cross term (g x - g x₀) · Df by making |x - x₀| small.
-  set δC : ℝ := ε / (3 * (1 + |g'x₀|) * (1 + |f'x₀|))
-  have hδC : δC > 0 := by positivity
-  use min (min δf δg) (min 1 δC), (by positivity)
-  intro x hx hxd
-  have hxdf : dist x x₀ < δf := lt_of_lt_of_le hxd (le_trans (min_le_left _ _) (min_le_left _ _))
-  have hxdg : dist x x₀ < δg := lt_of_lt_of_le hxd (le_trans (min_le_left _ _) (min_le_right _ _))
-  have hxd1 : dist x x₀ < 1 := lt_of_lt_of_le hxd (le_trans (min_le_right _ _) (min_le_left _ _))
-  have hxdC : dist x x₀ < δC := lt_of_lt_of_le hxd (le_trans (min_le_right _ _) (min_le_right _ _))
-  specialize hballf hx hxdf
-  specialize hballg hx hxdg
-  have hxne : x ≠ x₀ := (Set.mem_diff _ |>.mp hx).2
-  have hxne' : x - x₀ ≠ 0 := sub_ne_zero.mpr hxne
-  -- Notation for the two error terms and the difference quotients.
-  set A : ℝ := (f x - f x₀) / (x - x₀) - f'x₀
-  set B : ℝ := (g x - g x₀) / (x - x₀) - g'x₀
-  rw [Real.dist_eq] at hballf hballg hxd1 hxdC ⊢
-  change |A| < εf at hballf
-  change |B| < εg at hballg
-  -- Key algebraic identity: split (fg)' - target into three controllable terms.
-  have hkey : ((f * g) x - (f * g) x₀) / (x - x₀) - (f'x₀ * g x₀ + f x₀ * g'x₀)
-      = g x₀ * A + f x₀ * B + (g x - g x₀) * ((f x - f x₀) / (x - x₀)) := by
-    have hgx : g x - g x₀ = (x - x₀) * (B + g'x₀) := by
-      simp only [B]; field_simp; ring
-    simp only [Pi.mul_apply]
-    field_simp
-    simp only [A, B]
-    field_simp
-    ring
-  rw [hkey]
-  -- Bound each piece.
-  have hεf_le : εf ≤ ε / (3 * (1 + |g x₀|)) := min_le_right _ _
-  have hεg_le : εg ≤ ε / (3 * (1 + |f x₀|)) := min_le_right _ _
-  have hεf1 : εf ≤ 1 := min_le_left _ _
-  have hεg1 : εg ≤ 1 := min_le_left _ _
-  -- Term 1: |g x₀ · A| < ε/3
-  have hT1 : |g x₀ * A| < ε / 3 := by
-    rw [abs_mul]
-    have hbound : (1 + |g x₀|) * εf ≤ ε / 3 := by
-      calc (1 + |g x₀|) * εf
-          ≤ (1 + |g x₀|) * (ε / (3 * (1 + |g x₀|))) := by gcongr
-        _ = ε / 3 := by
-            have : (1 + |g x₀|) ≠ 0 := by positivity
-            field_simp
-    have hstrict : |g x₀| * |A| < (1 + |g x₀|) * εf := by
-      apply mul_lt_mul' (by linarith [abs_nonneg (g x₀)]) hballf
-        (abs_nonneg A) (by linarith [abs_nonneg (g x₀)])
-    linarith
-  -- Term 2: |f x₀ · B| < ε/3
-  have hT2 : |f x₀ * B| < ε / 3 := by
-    rw [abs_mul]
-    have hbound : (1 + |f x₀|) * εg ≤ ε / 3 := by
-      calc (1 + |f x₀|) * εg
-          ≤ (1 + |f x₀|) * (ε / (3 * (1 + |f x₀|))) := by gcongr
-        _ = ε / 3 := by
-            have : (1 + |f x₀|) ≠ 0 := by positivity
-            field_simp
-    have hstrict : |f x₀| * |B| < (1 + |f x₀|) * εg := by
-      apply mul_lt_mul' (by linarith [abs_nonneg (f x₀)]) hballg
-        (abs_nonneg B) (by linarith [abs_nonneg (f x₀)])
-    linarith
-  -- Cross term: |(g x - g x₀) · ((f x - f x₀)/(x - x₀))| < ε/3
-  have hgdiff : |g x - g x₀| ≤ |x - x₀| * (1 + |g'x₀|) := by
-    have heq : g x - g x₀ = (x - x₀) * (B + g'x₀) := by
-      simp only [B]; field_simp; ring
-    rw [heq, abs_mul]
-    have hBb : |B + g'x₀| ≤ 1 + |g'x₀| := by
-      calc |B + g'x₀|
-          ≤ |B| + |g'x₀| := abs_add_le _ _
-        _ ≤ εg + |g'x₀| := by linarith
-        _ ≤ 1 + |g'x₀| := by linarith
-    exact mul_le_mul_of_nonneg_left hBb (abs_nonneg _)
-  have hfdiff : |(f x - f x₀) / (x - x₀)| ≤ 1 + |f'x₀| := by
-    have : (f x - f x₀) / (x - x₀) = A + f'x₀ := by simp only [A]; ring
-    rw [this]
-    calc |A + f'x₀|
-        ≤ |A| + |f'x₀| := abs_add_le _ _
-      _ ≤ εf + |f'x₀| := by linarith
-      _ ≤ 1 + |f'x₀| := by linarith
-  have hT3 : |(g x - g x₀) * ((f x - f x₀) / (x - x₀))| < ε / 3 := by
-    rw [abs_mul]
-    calc |g x - g x₀| * |(f x - f x₀) / (x - x₀)|
-        ≤ (|x - x₀| * (1 + |g'x₀|)) * (1 + |f'x₀|) := by
-          apply mul_le_mul hgdiff hfdiff (abs_nonneg _)
-          exact mul_nonneg (abs_nonneg _) (by linarith [abs_nonneg (g'x₀)])
-      _ = |x - x₀| * ((1 + |g'x₀|) * (1 + |f'x₀|)) := by ring
-      _ < δC * ((1 + |g'x₀|) * (1 + |f'x₀|)) := by
-          gcongr
-      _ = ε / 3 := by
-          simp only [δC]
-          have h1 : (1 + |g'x₀|) ≠ 0 := by positivity
-          have h2 : (1 + |f'x₀|) ≠ 0 := by positivity
-          field_simp
-  calc |g x₀ * A + f x₀ * B + (g x - g x₀) * ((f x - f x₀) / (x - x₀))|
-      ≤ |g x₀ * A + f x₀ * B| + |(g x - g x₀) * ((f x - f x₀) / (x - x₀))| := abs_add_le _ _
-    _ ≤ |g x₀ * A| + |f x₀ * B| + |(g x - g x₀) * ((f x - f x₀) / (x - x₀))| := by
-        linarith [abs_add_le (g x₀ * A) (f x₀ * B)]
-    _ < ε / 3 + ε / 3 + ε / 3 := by linarith
-    _ = ε := by ring
+  -- Decompose: ((f·g)(x) - (f·g)(x₀))/(x - x₀) = Df(x) · g(x) + f(x₀) · Dg(x).
+  -- The limit of the first factor in the first term is f'x₀, of the second g(x₀)
+  -- (continuity of g), giving f'x₀ · g(x₀); the second term has constant f(x₀)
+  -- times Dg → g'x₀, giving f(x₀) · g'x₀.
+  rw [_root_.HasDerivWithinAt.iff] at hf hg ⊢
+  have hgcont : Filter.Tendsto g (nhdsWithin x₀ (X \ {x₀})) (nhds (g x₀)) := by
+    have := ContinuousWithinAt.of_differentiableWithinAt
+      (DifferentiableWithinAt.of_hasDeriv (by rw [HasDerivWithinAt.iff]; exact hg))
+    rw [ContinuousWithinAt] at this
+    exact this.mono_left (nhdsWithin_mono _ Set.diff_subset)
+  apply ((hf.mul hgcont).add (tendsto_const_nhds.mul hg)).congr'
+  rw [Filter.EventuallyEq, eventually_nhdsWithin_iff]
+  filter_upwards with x hx
+  simp only [Pi.mul_apply]
+  field_simp
+  ring
 
 /-- Theorem 10.1.13 (e) (Differential calculus) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_smul {X: Set ℝ} {x₀ f'x₀: ℝ} (c:ℝ)
   {f: ℝ → ℝ} (hf: HasDerivWithinAt f f'x₀ X x₀) :
   HasDerivWithinAt (c • f) (c * f'x₀) X x₀ := by
-  rw [_root_.HasDerivWithinAt.iff, Metric.tendsto_nhdsWithin_nhds] at hf ⊢
-  intro ε hε
-  specialize hf (ε / (|c| + 1)) (by positivity)
-  obtain ⟨δ, hδ, hball⟩ := hf
-  use δ, hδ
-  intro x hx hxd
-  specialize hball hx hxd
-  simp
-  rw [Real.dist_eq] at hball ⊢
-  have key : |(c * f x - c * f x₀) / (x - x₀) - c * f'x₀| = |c| * |(f x - f x₀) / (x - x₀) - f'x₀| := by
-    rw [← abs_mul]
-    ring_nf
-  rw [key]
-  calc _ ≤ |c| * (ε / (|c| + 1)) := by gcongr
-      _ < ε := by field_simp; linarith
+  rw [_root_.HasDerivWithinAt.iff] at hf ⊢
+  simp only [Pi.smul_apply, smul_eq_mul]
+  apply (tendsto_const_nhds.mul hf).congr'
+  rw [Filter.EventuallyEq, eventually_nhdsWithin_iff]
+  filter_upwards with x hx
+  field_simp
 
 /-- Theorem 10.1.13 (f) (Difference rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_sub {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
@@ -457,35 +334,184 @@ theorem _root_.HasDerivWithinAt.of_sub {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
 theorem _root_.HasDerivWithinAt.of_inv {X: Set ℝ} {x₀ g'x₀: ℝ}
   {g: ℝ → ℝ} (hgx₀ : g x₀ ≠ 0) (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (1/g) (-g'x₀ / (g x₀)^2) X x₀ := by
-  sorry
+  rw [_root_.HasDerivWithinAt.iff] at hg ⊢
+  have hgcont : Filter.Tendsto g (nhdsWithin x₀ (X \ {x₀})) (nhds (g x₀)) := by
+    have := ContinuousWithinAt.of_differentiableWithinAt
+      (DifferentiableWithinAt.of_hasDeriv (by rw [HasDerivWithinAt.iff]; exact hg))
+    rw [ContinuousWithinAt] at this
+    exact this.mono_left (nhdsWithin_mono _ Set.diff_subset)
+  have hgne : ∀ᶠ x in nhdsWithin x₀ (X \ {x₀}), g x ≠ 0 :=
+    hgcont.eventually_ne hgx₀
+  have hprod : Filter.Tendsto (fun x ↦ g x * g x₀) (nhdsWithin x₀ (X \ {x₀}))
+      (nhds ((g x₀)^2)) := by
+    have := hgcont.mul (tendsto_const_nhds (x := g x₀))
+    simpa [sq] using this
+  have hinv : Filter.Tendsto (fun x ↦ (-1 : ℝ) / (g x * g x₀)) (nhdsWithin x₀ (X \ {x₀}))
+      (nhds (-1 / (g x₀)^2)) :=
+    tendsto_const_nhds.div hprod (by simp [pow_ne_zero _ hgx₀])
+  rw [show (-g'x₀ / (g x₀)^2 : ℝ) = -1 / (g x₀)^2 * g'x₀ by ring]
+  apply (hinv.mul hg).congr'
+  filter_upwards [hgne, self_mem_nhdsWithin] with x hgxne hx
+  have hne : x - x₀ ≠ 0 := sub_ne_zero.mpr (Set.mem_diff_singleton.mp hx).2
+  simp only [Pi.div_apply, Pi.one_apply]
+  field_simp
+  ring
 
 /-- Theorem 10.1.13 (h) (Quotient rule) / Exercise 10.1.4 -/
 theorem _root_.HasDerivWithinAt.of_div {X: Set ℝ} {x₀ f'x₀ g'x₀: ℝ}
   {f g: ℝ → ℝ} (hgx₀ : g x₀ ≠ 0) (hf: HasDerivWithinAt f f'x₀ X x₀)
   (hg: HasDerivWithinAt g g'x₀ X x₀) :
   HasDerivWithinAt (f / g) ((f'x₀ * (g x₀) - (f x₀) * g'x₀) / (g x₀)^2) X x₀ := by
-  sorry
+  -- f / g = f * (1/g); apply product + reciprocal rules.
+  have hmul := HasDerivWithinAt.of_mul hf (HasDerivWithinAt.of_inv hgx₀ hg)
+  rw [show ((f'x₀ * g x₀ - f x₀ * g'x₀) / (g x₀)^2 : ℝ)
+      = f'x₀ * (1 / g x₀) + f x₀ * (-g'x₀ / (g x₀)^2) by field_simp; ring]
+  rw [HasDerivWithinAt.iff] at hmul ⊢
+  apply hmul.congr'
+  filter_upwards [self_mem_nhdsWithin] with x hx
+  simp only [Pi.mul_apply, Pi.div_apply, Pi.one_apply]
+  ring
 
 example (x₀:ℝ) (hx₀: x₀ ≠ 1): HasDerivWithinAt (fun x ↦ (x-2)/(x-1)) (1 /(x₀-1)^2) (.univ \ {1}) x₀ := by
-  sorry
+  have hid : HasDerivWithinAt (fun x : ℝ ↦ x) 1 (.univ \ {1}) x₀ :=
+    HasDerivWithinAt.of_id _ _
+  have hc2 : HasDerivWithinAt (fun _ : ℝ ↦ (2:ℝ)) 0 (.univ \ {1}) x₀ :=
+    HasDerivWithinAt.of_const _ _ _
+  have hc1 : HasDerivWithinAt (fun _ : ℝ ↦ (1:ℝ)) 0 (.univ \ {1}) x₀ :=
+    HasDerivWithinAt.of_const _ _ _
+  have hf : HasDerivWithinAt (fun x : ℝ ↦ x - 2) (1 - 0) (.univ \ {1}) x₀ := hid.of_sub hc2
+  have hg : HasDerivWithinAt (fun x : ℝ ↦ x - 1) (1 - 0) (.univ \ {1}) x₀ := hid.of_sub hc1
+  have hgx₀ : (fun x : ℝ ↦ x - 1) x₀ ≠ 0 := by
+    simp; intro h; exact hx₀ (by linarith)
+  -- Pin x₀ explicitly — otherwise Lean infers it from `(fun x ↦ x - 1)`'s shape.
+  have hdiv := HasDerivWithinAt.of_div (f := fun x : ℝ ↦ x - 2)
+    (g := fun x : ℝ ↦ x - 1) (x₀ := x₀) hgx₀ hf hg
+  convert hdiv using 1
+  field_simp; ring
+
+/-- Newton's approximation reformulated as an {name}`Eventually` over the filter {lean}`nhdsWithin x₀ X`. -/
+theorem _root_.HasDerivWithinAt.iff_eventually (X: Set ℝ) (x₀ :ℝ) (f: ℝ → ℝ) (L:ℝ) :
+    HasDerivWithinAt f L X x₀ ↔
+    ∀ ε > 0, ∀ᶠ x in nhdsWithin x₀ X, |f x - f x₀ - L * (x - x₀)| ≤ ε * |x - x₀| := by
+  rw [HasDerivWithinAt.iff_approx_linear]
+  refine forall_congr' fun ε => imp_congr_right fun _ => ?_
+  rw [eventually_nhdsWithin_iff, Metric.eventually_nhds_iff_ball]
+  constructor
+  · rintro ⟨δ, hδ, hb⟩
+    exact ⟨δ, hδ, fun x hxd hxX => hb x hxX (by rw [← Real.dist_eq]; exact hxd)⟩
+  · rintro ⟨δ, hδ, hb⟩
+    exact ⟨δ, hδ, fun x hxX hxd => hb x (by rw [Metric.mem_ball, Real.dist_eq]; exact hxd) hxX⟩
 
 /-- Theorem 10.1.15 (Chain rule) / Exercise 10.1.7 -/
 theorem _root_.HasDerivWithinAt.of_comp {X Y: Set ℝ} {x₀ y₀ f'x₀ g'y₀: ℝ}
   {f g: ℝ → ℝ} (hfx₀: f x₀ = y₀) (hfX : ∀ x ∈ X, f x ∈ Y)
   (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: HasDerivWithinAt g g'y₀ Y y₀) :
   HasDerivWithinAt (g ∘ f) (g'y₀ * f'x₀) X x₀ := by
-  sorry
+  -- Switch to the IsLittleO formulation; then the chain rule reduces to:
+  --   (g(f x) - g y₀ - g'y₀ f'x₀ (x - x₀)) = (error_g composed with f) + g'y₀ · error_f
+  -- where each summand is o[nhdsWithin x₀ X] (x - x₀).
+  rw [hasDerivWithinAt_iff_isLittleO] at hf hg ⊢
+  -- f is continuous at x₀ and lands in Y, so f tends to y₀ along nhdsWithin y₀ Y.
+  have hfY : Filter.Tendsto f (nhdsWithin x₀ X) (nhdsWithin y₀ Y) := by
+    have hfcont : ContinuousWithinAt f X x₀ := ContinuousWithinAt.of_differentiableWithinAt
+      (DifferentiableWithinAt.of_hasDeriv (by rw [hasDerivWithinAt_iff_isLittleO]; exact hf))
+    rw [ContinuousWithinAt, hfx₀] at hfcont
+    rw [tendsto_nhdsWithin_iff]
+    exact ⟨hfcont, Filter.eventually_of_mem self_mem_nhdsWithin hfX⟩
+  -- Transport hg's little-o through f: (g(f x) - g y₀ - g'y₀(f x - y₀)) =o[x₀] (f x - y₀).
+  have hg_comp := hg.comp_tendsto hfY
+  -- f x - y₀ = O(x - x₀) since (f x - f x₀) - f'x₀(x - x₀) is o(x - x₀) and f'x₀(x - x₀) is O.
+  have hf_isBigO : (fun x => f x - y₀) =O[nhdsWithin x₀ X] (fun x => x - x₀) := by
+    rw [← hfx₀]
+    have key : (fun x => f x - f x₀)
+        = (fun x => (f x - f x₀ - (x - x₀) • f'x₀) + f'x₀ • (x - x₀)) := by
+      funext x; simp only [smul_eq_mul]; ring
+    rw [key]
+    refine hf.isBigO.add ?_
+    exact (Asymptotics.isBigO_refl (fun x : ℝ => x - x₀) (nhdsWithin x₀ X)).const_smul_left f'x₀
+  -- Combine: first error term is o(x - x₀) by trans_isBigO.
+  have h1 : (fun x => g (f x) - g y₀ - (f x - y₀) • g'y₀) =o[nhdsWithin x₀ X] (fun x => x - x₀) :=
+    hg_comp.trans_isBigO hf_isBigO
+  -- Second error term: g'y₀ · ((f x - f x₀) - f'x₀(x - x₀)) =o (x - x₀).
+  have h2 : (g'y₀ • fun x => f x - f x₀ - (x - x₀) • f'x₀) =o[nhdsWithin x₀ X] (fun x => x - x₀) :=
+    hf.const_smul_left g'y₀
+  -- Algebraic regrouping shows the chain rule's error equals h1 + h2.
+  have hsum : ((fun x => g (f x) - g y₀ - (f x - y₀) • g'y₀)
+      + g'y₀ • fun x => f x - f x₀ - (x - x₀) • f'x₀)
+      = fun x => (g ∘ f) x - (g ∘ f) x₀ - (x - x₀) • (g'y₀ * f'x₀) := by
+    funext x
+    simp only [Pi.add_apply, Pi.smul_apply, Function.comp_apply, smul_eq_mul]
+    rw [hfx₀]; ring
+  rw [← hsum]
+  exact h1.add h2
 
 /-- Exercise 10.1.5 -/
 theorem _root_.HasDerivWithinAt.of_pow (n:ℕ) (x₀:ℝ) : HasDerivWithinAt (fun x ↦ x^n)
 (n * x₀^((n:ℤ)-1)) .univ x₀ := by
-  sorry
+  induction n with
+  | zero => simp; exact hasDerivAt_const x₀ 1
+  | succ n ih =>
+    rw [show (fun x ↦ x^(n+1)) = (fun x ↦ x) * (fun x ↦ x^n) by funext; simp; ring]
+    simp only [Nat.cast_add, Nat.cast_one, add_sub_cancel_right, zpow_natCast]
+    rw [show ((↑n + 1) * x₀ ^ n) = 1 * x₀ ^ n + x₀ * (↑n * x₀ ^ ((n:ℤ) - 1)) by
+      ring_nf
+      -- After ring_nf, the goal has `x₀^((-1:ℤ) + n)`. Convert to a ℕ-power.
+      rcases Nat.eq_zero_or_pos n with h | h
+      · subst h; simp
+      · have heq : x₀ ^ ((-1 : ℤ) + (n : ℤ)) = x₀ ^ (n - 1) := by
+          rw [show ((-1 : ℤ) + (n : ℤ)) = ((n - 1 : ℕ) : ℤ) by omega]
+          rw [zpow_natCast]
+        rw [heq]
+        have hn1 : x₀ ^ n = x₀ * x₀ ^ (n - 1) := by
+          rw [← pow_succ', Nat.sub_one_add_one h.ne']
+        rw [hn1]
+        ring]
+    apply HasDerivWithinAt.of_mul (HasDerivWithinAt.of_id _ _) ih
 
 /-- Exercise 10.1.6 -/
 theorem _root_.HasDerivWithinAt.of_zpow (n:ℤ) (x₀:ℝ) (hx₀: x₀ ≠ 0) :
   HasDerivWithinAt (fun x ↦ x^n) (n * x₀^(n-1)) (.univ \ {0}) x₀ := by
-  sorry
-
-
+  by_cases hn : n ≥ 0
+  . lift n to ℕ using hn
+    simp
+    have := HasDerivWithinAt.of_pow n x₀
+    rw [HasDerivWithinAt.iff] at this ⊢
+    apply this.mono_left
+    apply nhdsWithin_mono
+    simp
+  . simp at hn
+    -- replace n with -m, m = -n > 0; use 10.1.5 (of_pow) and reciprocal rule (of_inv).
+    set m : ℕ := (-n).toNat with hm_def
+    have hmpos : 0 < m := by simp [hm_def]; omega
+    have hnm : (n : ℤ) = -(m : ℤ) := by simp [hm_def]; omega
+    -- f(x) = x^m has derivative m * x₀^(m-1) on Set.univ \ {0}.
+    have hpow := HasDerivWithinAt.of_pow m x₀
+    have hpow' : HasDerivWithinAt (fun x : ℝ ↦ x^m) ((m : ℝ) * x₀^((m:ℤ)-1))
+        (.univ \ {0}) x₀ := by
+      rw [HasDerivWithinAt.iff] at hpow ⊢
+      exact hpow.mono_left (nhdsWithin_mono _ (by simp))
+    have hxm : (fun x : ℝ ↦ x^m) x₀ ≠ 0 := pow_ne_zero _ hx₀
+    have hinv := HasDerivWithinAt.of_inv hxm hpow'
+    -- `hinv` displays with `npowRec m`, but is defeq to a clean lambda — restate.
+    have hinv2 : HasDerivWithinAt (fun x : ℝ ↦ 1 / x^m)
+        (-((m : ℝ) * x₀ ^ ((m:ℤ) - 1)) / (x₀^m)^2) (Set.univ \ {0}) x₀ := hinv
+    have hfun : (fun x : ℝ ↦ 1 / x^m) = (fun x ↦ x^n) := by
+      funext x; simp [hnm, zpow_neg, zpow_natCast]
+    rw [hfun] at hinv2
+    convert hinv2 using 1
+    -- Reconcile the derivative value `n * x₀^(n-1) = -(m * x₀^(m-1))/(x₀^m)²`.
+    rw [hnm]; push_cast
+    rw [show (-(m:ℤ)) - 1 = -((m:ℤ) + 1) from by ring]
+    rw [zpow_neg]
+    rw [show ((m:ℤ) + 1) = ((m + 1 : ℕ) : ℤ) from by push_cast; ring]
+    rw [zpow_natCast]
+    rw [show ((m:ℤ) - 1) = ((m - 1 : ℕ) : ℤ) from by omega]
+    rw [zpow_natCast]
+    have hxm_pow : x₀^(m+1) = x₀ * x₀^m := by rw [pow_succ']
+    have hxm_pow' : x₀^m = x₀ * x₀^(m-1) := by
+      rw [← pow_succ', Nat.sub_one_add_one hmpos.ne']
+    field_simp
+    rw [hxm_pow, hxm_pow']
+    ring
 
 end Chapter10

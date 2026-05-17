@@ -503,7 +503,7 @@ theorem _root_.HasDerivWithinAt.of_zpow (n:ℤ) (x₀:ℝ) (hx₀: x₀ ≠ 0) :
     -- Both sides are powers of x₀ (× scalar), so unify via zpow_add₀.
     rw [hnm]; push_cast
     field_simp
-    rw [← zpow_natCast x₀ m, ← zpow_add₀ hx₀, ← zpow_add₀ hx₀]
+    rw [← zpow_natCast x₀ m, sq, ← mul_assoc, ← zpow_add₀ hx₀, ← zpow_add₀ hx₀]
     ring_nf
 
 end Chapter10

@@ -389,7 +389,7 @@ example (x₀:ℝ) (hx₀: x₀ ≠ 1): HasDerivWithinAt (fun x ↦ (x-2)/(x-1))
   convert hdiv using 1
   field_simp; ring
 
-/-- Newton's approximation reformulated as an {name}`Eventually` over the filter {lean}`nhdsWithin x₀ X`. -/
+/-- Newton's approximation reformulated as an {lit}`Eventually` over the filter {lean}`nhdsWithin x₀ X`. -/
 theorem _root_.HasDerivWithinAt.iff_eventually (X: Set ℝ) (x₀ :ℝ) (f: ℝ → ℝ) (L:ℝ) :
     HasDerivWithinAt f L X x₀ ↔
     ∀ ε > 0, ∀ᶠ x in nhdsWithin x₀ X, |f x - f x₀ - L * (x - x₀)| ≤ ε * |x - x₀| := by
@@ -500,18 +500,10 @@ theorem _root_.HasDerivWithinAt.of_zpow (n:ℤ) (x₀:ℝ) (hx₀: x₀ ≠ 0) :
     rw [hfun] at hinv2
     convert hinv2 using 1
     -- Reconcile the derivative value `n * x₀^(n-1) = -(m * x₀^(m-1))/(x₀^m)²`.
+    -- Both sides are powers of x₀ (× scalar), so unify via zpow_add₀.
     rw [hnm]; push_cast
-    rw [show (-(m:ℤ)) - 1 = -((m:ℤ) + 1) from by ring]
-    rw [zpow_neg]
-    rw [show ((m:ℤ) + 1) = ((m + 1 : ℕ) : ℤ) from by push_cast; ring]
-    rw [zpow_natCast]
-    rw [show ((m:ℤ) - 1) = ((m - 1 : ℕ) : ℤ) from by omega]
-    rw [zpow_natCast]
-    have hxm_pow : x₀^(m+1) = x₀ * x₀^m := by rw [pow_succ']
-    have hxm_pow' : x₀^m = x₀ * x₀^(m-1) := by
-      rw [← pow_succ', Nat.sub_one_add_one hmpos.ne']
     field_simp
-    rw [hxm_pow, hxm_pow']
-    ring
+    rw [← zpow_natCast x₀ m, ← zpow_add₀ hx₀, ← zpow_add₀ hx₀]
+    ring_nf
 
 end Chapter10

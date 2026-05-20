@@ -50,7 +50,32 @@ theorem _root_.HasDerivWithinAt.of_inverse_of_zero_deriv {X Y: Set ℝ} {f: ℝ 
   by_contra this; rw [DifferentiableWithinAt.iff] at this; choose _ hg using this
   apply hf.of_inverse at hg <;> grind
 
-example : ¬ DifferentiableWithinAt ℝ (fun x:ℝ ↦ x^(1/3:ℝ)) (.Ici 0) 0 := by sorry
+example : ¬ DifferentiableWithinAt ℝ (fun x:ℝ ↦ x^(1/3:ℝ)) (.Ici 0) 0 := by
+  apply _root_.HasDerivWithinAt.of_inverse_of_zero_deriv
+    (X:= .Ici 0) (Y := .Ici 0) (f := fun x ↦ x^3) (x₀ := 0)
+  . simp
+  . norm_num
+  . simp
+    rw [clusterPt_iff_forall_mem_closure]
+    intro s hs
+    rw [Filter.mem_principal] at hs
+    have : closure (Set.Ioi (0:ℝ)) ⊆ closure s := closure_mono hs
+    rw [closure_Ioi] at this
+    exact this Set.self_mem_Ici
+  . have hpow : HasDerivAt (fun x : ℝ => x^3) ((3:ℕ) * (0:ℝ)^(3-1)) 0 := by
+      simpa using hasDerivAt_pow 3 (0:ℝ)
+    have := hpow.hasDerivWithinAt (s := Set.Ici (0:ℝ))
+    simpa using this
+  . intro x hx
+    simp at hx ⊢
+    exact pow_succ_nonneg hx 2
+  . intro x hx
+    simp at hx ⊢
+    suffices h : (x ^ (3:ℝ)) ^ (3⁻¹:ℝ) = x by exact_mod_cast h
+    have h1 : (x ^ (3:ℝ)) = (x ^ (3:ℕ)) := by
+      rw [show ((3:ℝ) = ((3:ℕ):ℝ)) from by norm_num, Real.rpow_natCast]
+    rw [h1, show ((3⁻¹:ℝ) = ((3:ℕ):ℝ)⁻¹) from by norm_num]
+    exact Real.pow_rpow_inv_natCast hx (by norm_num)
 
 /-- Theorem 10.4.2 (Inverse function theorem) -/
 theorem inverse_function_theorem {X Y: Set ℝ} {f: ℝ → ℝ} {g:ℝ → ℝ}

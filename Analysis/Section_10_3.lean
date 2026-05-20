@@ -84,6 +84,42 @@ theorem strictAnti_of_negative_derivative {a b:ℝ} {f:ℝ → ℝ}
   have := hmono.neg
   simpa using this
 
+theorem const_of_zero_derivative {a b:ℝ} {f:ℝ → ℝ}
+  (hderiv: DifferentiableOn ℝ f (.Icc a b)) (hzero: ∀ x ∈ Set.Ioo a b, derivWithin f (.Icc a b) x = 0) :
+    ∀ x y : Set.Icc a b, f x = f y := by
+  have key : ∀ x y : ℝ, x ∈ Set.Icc a b → y ∈ Set.Icc a b → x ≤ y → f x = f y := by
+    intro x y hx hy hxy
+    rcases eq_or_lt_of_le hxy with heq | hlt
+    · rw [heq]
+    · have hxy_sub_Icc : Set.Icc x y ⊆ Set.Icc a b := Set.Icc_subset_Icc hx.1 hy.2
+      have hxy_sub_Ioo : Set.Ioo x y ⊆ Set.Ioo a b :=
+        fun z hz ↦ ⟨lt_of_le_of_lt hx.1 hz.1, lt_of_lt_of_le hz.2 hy.2⟩
+      have hcont_xy : ContinuousOn f (.Icc x y) :=
+        (hderiv.continuousOn).mono hxy_sub_Icc
+      have hderiv_Ioo : DifferentiableOn ℝ f (.Ioo x y) :=
+        (hderiv.mono (hxy_sub_Ioo.trans Set.Ioo_subset_Icc_self))
+      obtain ⟨c, hc, hderiv_c⟩ := _root_.HasDerivWithinAt.mean_value hlt hcont_xy hderiv_Ioo
+      have hc_Ioo_ab : c ∈ Set.Ioo a b := hxy_sub_Ioo hc
+      have hdiff_at_c : DifferentiableWithinAt ℝ f (.Icc a b) c :=
+        hderiv c (Set.Ioo_subset_Icc_self hc_Ioo_ab)
+      have heq : derivWithin f (.Ioo x y) c = derivWithin f (.Icc a b) c := by
+        rw [derivWithin_subset (hxy_sub_Ioo.trans Set.Ioo_subset_Icc_self)
+            (isOpen_Ioo.uniqueDiffWithinAt hc) hdiff_at_c]
+      have hL := hderiv_c.derivWithin (isOpen_Ioo.uniqueDiffWithinAt hc)
+      rw [heq, hzero c hc_Ioo_ab] at hL
+      have hyx : y - x ≠ 0 := sub_ne_zero.mpr (by linarith)
+      have hzero_slope : (f y - f x) / (y - x) = 0 := hL.symm
+      have : f y - f x = 0 := by
+        have := (div_eq_zero_iff.mp hzero_slope)
+        rcases this with h | h
+        · exact h
+        · exact absurd h hyx
+      linarith
+  intro x y
+  rcases le_total (x : ℝ) y with hxy | hxy
+  · exact key x y x.2 y.2 hxy
+  · exact (key y x y.2 x.2 hxy).symm
+
 /-- Example 10.3.2 -/
 example : ∃ f : ℝ → ℝ, Continuous f ∧ StrictMono f ∧ ¬ DifferentiableAt ℝ f 0 := by
   set f : ℝ → ℝ := fun x ↦ if x < 0 then x else x^3 with hf_def

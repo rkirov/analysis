@@ -82,24 +82,39 @@ theorem inverse_function_theorem {X Y: Set ℝ} {f: ℝ → ℝ} {g:ℝ → ℝ}
   (hfXY: ∀ x ∈ X, f x ∈ Y) (hgYX: ∀ y ∈ Y, g y ∈ X)
   (hgf: ∀ x ∈ X, g (f x) = x) (hfg: ∀ y ∈ Y, f (g y) = y)
   {x₀ y₀ f'x₀: ℝ} (hx₀: x₀ ∈ X) (hfx₀: f x₀ = y₀) (hne : f'x₀ ≠ 0)
-  (hcluster: ClusterPt x₀ (.principal (X \ {x₀})))
   (hf: HasDerivWithinAt f f'x₀ X x₀) (hg: ContinuousWithinAt g Y y₀) :
     HasDerivWithinAt g (1/f'x₀) Y y₀ := by
     -- This proof is written to follow the structure of the original text.
     rw [HasDerivWithinAt.iff, ←Convergesto.iff, Convergesto.iff_conv _ _]
     intro y hy hconv
     set x : ℕ → ℝ := fun n ↦ g (y n)
-    have hy' : ∀ n, y n ∈ Y := by aesop
+    have hy' : ∀ n, y n ∈ Y := by
+      intro n
+      specialize hy n
+      exact hy.1
     have hy₀: y₀ ∈ Y := by aesop
     have hx : ∀ n, x n ∈ X \ {x₀}:= by
-      sorry
+      intro n
+      simp [x]
+      constructor
+      . apply hgYX
+        exact hy' n
+      . by_contra h
+        have : f (g (y n)) = f x₀ := by simp [h]
+        specialize hfg (y n) (hy' n)
+        rw [hfg] at this
+        rw [hfx₀] at this
+        specialize hy n
+        obtain ⟨_, h⟩ := hy
+        contradiction
     replace hconv := hconv.comp_of_continuous hg hy'
     have hgy₀ : g y₀ = x₀ := by aesop
     rw [HasDerivWithinAt.iff, ←Convergesto.iff, Convergesto.iff_conv _ _] at hf
     convert (hf _ hx _).inv₀ _ using 2 with n <;> grind
 
 /-- Exercise 10.4.1(a) -/
-example {n:ℕ} (hn: n > 0) : ContinuousOn (fun x:ℝ ↦ x^(1/n:ℝ)) (.Ici 0) := by sorry
+example {n:ℕ} (hn: n > 0) : ContinuousOn (fun x:ℝ ↦ x^(1/n:ℝ)) (.Ioi 0) := by
+  exact Continuous.exp' (1 / ↑n)
 
 /-- Exercise 10.4.1(b) -/
 example {n:ℕ} (hn: n > 0) {x:ℝ} (hx: x ∈ Set.Ici 0) : HasDerivWithinAt (fun x:ℝ ↦ x^(1/n:ℝ))
@@ -118,7 +133,7 @@ example (q:ℚ) : (nhdsWithin 1 (.Ici 0 \ {1})).Tendsto (fun x:ℝ ↦ (x^(q:ℝ
 example (α:ℝ) : (nhdsWithin 1 (.Ici 0 \ {1})).Tendsto (fun x:ℝ ↦ (x^α-1^α)/(x-1)) (nhds α) := by
   sorry
 
-/-- Exercise 10.4.2(b) -/
+/-- Exercise 10.4.3(b) -/
 example (α:ℝ) {x:ℝ} (hx: x ∈ Set.Ici 0) : HasDerivWithinAt (fun x:ℝ ↦ x^α) (α * x^(α-1)) (.Ici 0) x := by
   sorry
 

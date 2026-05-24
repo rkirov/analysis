@@ -915,7 +915,7 @@ a canonical constructor for the result. -/
 example : ∃ P P' : Partition (Icc 1 4),
     P.intervals = {Ico 1 3, Icc 3 4} ∧
     P'.intervals = {Icc 1 2, Ioc 2 4} ∧
-    (P' ⊔ P).intervals.image ((↑) : BoundedInterval → Set ℝ) =
+    (P' ⊔ P).intervals.image toSet =
       {Set.Icc 1 2, Set.Ioo 2 3, Set.Icc 3 4, ∅} := by
   set P : Partition (Icc 1 4) :=
     (⊥ : Partition (Ico 1 3)).join (⊥ : Partition (Icc 3 4))

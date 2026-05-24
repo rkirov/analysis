@@ -105,20 +105,53 @@ noncomputable abbrev f_11_2_4 : ℝ → ℝ := fun x ↦
             0 -- junk value
 
 example : PiecewiseConstantOn f_11_2_4 (Icc 1 6) := by
-  use Partition.mk { Ico 1 3, Icc 3 3, Ioo 3 6, Icc 6 6} ?_ ?_
-  . sorry
-  . sorry
-  sorry
+  use ((((⊥ : Partition (Ico 1 3)).join (⊥ : Partition (Icc 3 3))
+      (join_Ico_Icc (by norm_num) (by norm_num))).join (⊥ : Partition (Ioo 3 6))
+      (join_Icc_Ioo (by norm_num) (by norm_num))).join (⊥ : Partition (Icc 6 6))
+      (join_Ico_Icc (by norm_num) (by norm_num)))
+  intro J hJ
+  simp [Partition.mem_intervals_iff] at hJ
+  rcases hJ with rfl | rfl | rfl | rfl
+  · exact ConstantOn.of_const (c := 7) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 4) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 5) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 2) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
 
 example : PiecewiseConstantOn f_11_2_4 (Icc 1 6) := by
-  use Partition.mk { Ico 1 2, Icc 2 2, Ioo 2 3, Icc 3 3, Ioo 3 5, Ico 5 6, Icc 6 6} ?_ ?_
-  . sorry
-  . sorry
-  sorry
+  use ((((((⊥ : Partition (Ico 1 2)).join (⊥ : Partition (Icc 2 2))
+      (join_Ico_Icc (by norm_num) (by norm_num))).join (⊥ : Partition (Ioo 2 3))
+      (join_Icc_Ioo (by norm_num) (by norm_num))).join (⊥ : Partition (Icc 3 3))
+      (join_Ico_Icc (by norm_num) (by norm_num))).join (⊥ : Partition (Ioo 3 5))
+      (join_Icc_Ioo (by norm_num) (by norm_num))).join (⊥ : Partition (Ico 5 6))
+      (join_Ico_Ico (by norm_num) (by norm_num))).join (⊥ : Partition (Icc 6 6))
+      (join_Ico_Icc (by norm_num) (by norm_num))
+  intro J hJ
+  simp [Partition.mem_intervals_iff] at hJ
+  rcases hJ with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact ConstantOn.of_const (c := 7) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 7) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 7) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 4) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 5) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 5) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
+  · exact ConstantOn.of_const (c := 2) (fun x hx ↦ by simp [f_11_2_4]; simp at hx; grind)
 
 /-- Example 11.2.6 -/
 theorem ConstantOn.piecewiseConstantOn {f:ℝ → ℝ} {I: BoundedInterval} (h: ConstantOn f (I:Set ℝ)) :
-  PiecewiseConstantOn f I := by sorry
+  PiecewiseConstantOn f I := by
+  use {
+    intervals := {I},
+    contains := by simp [subset_iff];
+    exists_unique := by
+      intro x hx
+      use I
+      simp
+      exact hx
+  }
+  intro J hJ
+  simp [Membership.mem] at hJ
+  subst hJ
+  exact h
 
 /-- Lemma 11.2.7 / Exercise 11.2.1 -/
 theorem PiecewiseConstantWith.mono {f:ℝ → ℝ} {I: BoundedInterval} {P P': Partition I} (hPP': P ≤ P')

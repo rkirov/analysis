@@ -962,16 +962,12 @@ theorem PiecewiseConstantOn.integ_of_join {I J K: BoundedInterval} (hIJK: K.join
   show ∑ L ∈ (PI.join PJ hIJK).intervals, _ = _
   rw [Partition.intervals_of_join]
   have h_inter_zero : ∀ L ∈ PI.intervals ∩ PJ.intervals,
-      constant_value_on f (L : Set ℝ) * |L|ₗ = 0 := by
-    intro L hL
+      constant_value_on f (L : Set ℝ) * |L|ₗ = 0 := fun L hL => by
     rw [Finset.mem_inter] at hL
-    have hLempty : (L : Set ℝ) = ∅ := by
-      rw [Set.eq_empty_iff_forall_notMem]
-      intro x hxL
-      have hxI : x ∈ (I : Set ℝ) := (subset_iff _ _).mp (PI.contains L hL.1) hxL
-      have hxJ : x ∈ (J : Set ℝ) := (subset_iff _ _).mp (PJ.contains L hL.2) hxL
-      have : x ∈ ((I : Set ℝ) ∩ (J : Set ℝ)) := ⟨hxI, hxJ⟩
-      rw [hIJK.1] at this; exact this
+    have hLempty : (L : Set ℝ) = ∅ := Set.eq_empty_of_subset_empty
+      (hIJK.1 ▸ Set.subset_inter
+        ((subset_iff _ _).mp (PI.contains L hL.1))
+        ((subset_iff _ _).mp (PJ.contains L hL.2)))
     rw [BoundedInterval.length_of_empty hLempty]; ring
   have hu := @Finset.sum_union_inter _ _ PI.intervals PJ.intervals _
     (fun L => constant_value_on f (L : Set ℝ) * |L|ₗ) _

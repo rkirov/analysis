@@ -20,44 +20,261 @@ namespace Chapter11
 open Chapter9
 
 /-- Theorem 11.4.1(a) / Exercise 11.4.1 -/
+theorem lower_inter_add {I: BoundedInterval} {f g:ℝ → ℝ}
+  (hf: BddOn f I) (hg: BddOn g I) :
+  lower_integral (f + g) I ≥ lower_integral f I + lower_integral g I := by
+  have hfg : BddOn (f + g) I := BddOn.add f g I hf hg
+  -- Each lower sum for `f` plus each lower sum for `g` is a lower sum for `f + g`
+  -- (the sum of two minorants is a minorant, and `integ` is additive), so the sup
+  -- for `f + g` dominates the sumset of the two sups.
+  repeat rw [lower_integral]
+  rw [← csSup_add (integral_bound_lower_nonempty hf) (integral_bound_above hf)
+        (integral_bound_lower_nonempty hg) (integral_bound_above hg)]
+  apply csSup_le_csSup (integral_bound_above hfg)
+    ((integral_bound_lower_nonempty hf).add (integral_bound_lower_nonempty hg))
+  rintro x hx
+  obtain ⟨a, ⟨g₁, ⟨hmin₁, hpc₁⟩, rfl⟩, b, ⟨g₂, ⟨hmin₂, hpc₂⟩, rfl⟩, rfl⟩ := Set.mem_add.mp hx
+  exact ⟨g₁ + g₂, ⟨fun x hx ↦ add_le_add (hmin₁ x hx) (hmin₂ x hx), hpc₁.add hpc₂⟩,
+    PiecewiseConstantOn.integ_add hpc₁ hpc₂⟩
+
+theorem upper_inter_add {I: BoundedInterval} {f g:ℝ → ℝ} (hf: BddOn f I) (hg: BddOn g I) :
+  upper_integral (f + g) I ≤ upper_integral f I + upper_integral g I := by
+  have hfg : BddOn (f + g) I := BddOn.add f g I hf hg
+  repeat rw [upper_integral]
+  rw [← csInf_add (integral_bound_upper_nonempty hf) (integral_bound_below hf)
+        (integral_bound_upper_nonempty hg) (integral_bound_below hg)]
+  apply csInf_le_csInf (integral_bound_below hfg)
+    ((integral_bound_upper_nonempty hf).add (integral_bound_upper_nonempty hg))
+  rintro x hx
+  obtain ⟨a, ⟨g₁, ⟨hmaj₁, hpc₁⟩, rfl⟩, b, ⟨g₂, ⟨hmaj₂, hpc₂⟩, rfl⟩, rfl⟩ := Set.mem_add.mp hx
+  exact ⟨g₁ + g₂, ⟨fun x hx ↦ add_le_add (hmaj₁ x hx) (hmaj₂ x hx), hpc₁.add hpc₂⟩,
+    PiecewiseConstantOn.integ_add hpc₁ hpc₂⟩
+
 theorem IntegrableOn.add {I: BoundedInterval} {f g:ℝ → ℝ} (hf: IntegrableOn f I) (hg: IntegrableOn g I) :
   IntegrableOn (f + g) I ∧ integ (f + g) I = integ f I + integ g I := by
-  sorry
+  have hle : lower_integral (f + g) I ≥ lower_integral f I + lower_integral g I := lower_inter_add hf.1 hg.1
+  have hge : upper_integral (f + g) I ≤ upper_integral f I + upper_integral g I := upper_inter_add hf.1 hg.1
+  have : IntegrableOn (f + g) I := by
+    unfold IntegrableOn at hf hg
+    have hb : BddOn (f + g) I := BddOn.add f g I hf.1 hg.1
+    rw [IntegrableOn]
+    use hb
+    have hle' : lower_integral (f + g) I ≤ upper_integral (f + g) I := lower_integral_le_upper hb
+    linarith
+  use this
+  have hlf := hf.2
+  have hlg := hg.2
+  have hluadd := this.2
+  repeat rw [integ]
+  linarith
+
+open scoped Pointwise in
+theorem mul_const_upper_pos {I: BoundedInterval} (c:ℝ) {f:ℝ → ℝ} (hc: 0 < c) :
+  upper_integral (c • f) I = c * upper_integral f I := by
+  repeat rw [upper_integral]
+  -- Scaling by `c > 0` is a bijection on majorants (`g ↦ c⁻¹ • g`), so the set of
+  -- majorant integrals for `c • f` is exactly `c •` the set for `f`.
+  have hset : (PiecewiseConstantOn.integ · I) '' {g | MajorizesOn g (c • f) I ∧ PiecewiseConstantOn g I}
+      = c • ((PiecewiseConstantOn.integ · I) '' {g | MajorizesOn g f I ∧ PiecewiseConstantOn g I}) := by
+    ext y
+    simp only [Set.mem_image, Set.mem_setOf_eq, Set.mem_smul_set]
+    constructor
+    · rintro ⟨g, ⟨hmaj, hpc⟩, rfl⟩
+      refine ⟨_, ⟨c⁻¹ • g, ⟨fun x hx ↦ ?_, hpc.smul c⁻¹⟩, rfl⟩, ?_⟩
+      · have h := hmaj x hx
+        simp only [Pi.smul_apply, smul_eq_mul] at h ⊢
+        rwa [le_inv_mul_iff₀ hc]
+      · rw [PiecewiseConstantOn.integ_smul c⁻¹ hpc, smul_eq_mul, ← mul_assoc, mul_inv_cancel₀ hc.ne', one_mul]
+    · rintro ⟨t, ⟨g, ⟨hmaj, hpc⟩, rfl⟩, rfl⟩
+      refine ⟨c • g, ⟨fun x hx ↦ ?_, hpc.smul c⟩, ?_⟩
+      · have h := hmaj x hx
+        simp only [Pi.smul_apply, smul_eq_mul] at h ⊢
+        exact mul_le_mul_of_nonneg_left h hc.le
+      · rw [PiecewiseConstantOn.integ_smul c hpc, smul_eq_mul]
+  rw [hset, Real.sInf_smul_of_nonneg hc.le, smul_eq_mul]
+
+open scoped Pointwise in
+theorem mul_const_lower_pos {I: BoundedInterval} (c:ℝ) {f:ℝ → ℝ} (hc: 0 < c) :
+  lower_integral (c • f) I = c * lower_integral f I := by
+  repeat rw [lower_integral]
+  have hset : (PiecewiseConstantOn.integ · I) '' {g | MinorizesOn g (c • f) I ∧ PiecewiseConstantOn g I}
+      = c • ((PiecewiseConstantOn.integ · I) '' {g | MinorizesOn g f I ∧ PiecewiseConstantOn g I}) := by
+    ext y
+    simp only [Set.mem_image, Set.mem_setOf_eq, Set.mem_smul_set]
+    constructor
+    · rintro ⟨g, ⟨hmin, hpc⟩, rfl⟩
+      refine ⟨_, ⟨c⁻¹ • g, ⟨fun x hx ↦ ?_, hpc.smul c⁻¹⟩, rfl⟩, ?_⟩
+      · have h := hmin x hx
+        simp only [Pi.smul_apply, smul_eq_mul] at h ⊢
+        rwa [inv_mul_le_iff₀ hc]
+      · rw [PiecewiseConstantOn.integ_smul c⁻¹ hpc, smul_eq_mul, ← mul_assoc, mul_inv_cancel₀ hc.ne', one_mul]
+    · rintro ⟨t, ⟨g, ⟨hmin, hpc⟩, rfl⟩, rfl⟩
+      refine ⟨c • g, ⟨fun x hx ↦ ?_, hpc.smul c⟩, ?_⟩
+      · have h := hmin x hx
+        simp only [Pi.smul_apply, smul_eq_mul] at h ⊢
+        exact mul_le_mul_of_nonneg_left h hc.le
+      · rw [PiecewiseConstantOn.integ_smul c hpc, smul_eq_mul]
+  rw [hset, Real.sSup_smul_of_nonneg hc.le, smul_eq_mul]
+
+theorem IntegrableOn.smul_pos {I: BoundedInterval} (c:ℝ) {f:ℝ → ℝ} (hf: IntegrableOn f I) (hc: 0 < c):
+  IntegrableOn (c • f) I ∧ integ (c • f) I = c * integ f I := by
+  constructor
+  . rw [IntegrableOn] at hf ⊢
+    have : BddOn (c • f) I := by
+      choose M hM using hf.1
+      use c * |M|
+      intro x hx
+      specialize hM _ hx
+      simp
+      rw [abs_of_pos hc]
+      field_simp
+      have : M ≤ |M| := le_abs_self M
+      linarith
+    use this
+    rw [mul_const_upper_pos c hc]
+    rw [← hf.2]
+    rw [mul_const_lower_pos c hc]
+  exact mul_const_upper_pos c hc
+
+theorem lower_neg_of_upper {I: BoundedInterval} {f:ℝ → ℝ} :
+  lower_integral (-f) I = -upper_integral f I := by
+  rw [lower_integral, upper_integral, ← Real.sSup_neg]
+  -- the minorants of `-f` are exactly the negations of the majorants of `f`
+  congr 1
+  ext y
+  simp only [Set.mem_neg, Set.mem_image, Set.mem_setOf_eq]
+  constructor
+  · rintro ⟨g, ⟨hmin, hpc⟩, rfl⟩
+    refine ⟨-g, ⟨fun x hx ↦ ?_, ?_⟩, ?_⟩
+    · have h := hmin x hx; simp only [Pi.neg_apply] at h ⊢; linarith
+    · rw [← neg_one_smul ℝ g]; exact hpc.smul (-1)
+    · rw [← neg_one_smul ℝ g, PiecewiseConstantOn.integ_smul (-1) hpc]; ring
+  · rintro ⟨g, ⟨hmaj, hpc⟩, hy⟩
+    refine ⟨-g, ⟨fun x hx ↦ ?_, ?_⟩, ?_⟩
+    · have h := hmaj x hx; simp only [Pi.neg_apply] at h ⊢; linarith
+    · rw [← neg_one_smul ℝ g]; exact hpc.smul (-1)
+    · rw [← neg_one_smul ℝ g, PiecewiseConstantOn.integ_smul (-1) hpc, hy]; ring
+
+theorem upper_neg_of_lower {I: BoundedInterval} {f:ℝ → ℝ} :
+  upper_integral (-f) I = -lower_integral f I := by
+  rw [upper_integral, lower_integral, ← Real.sInf_neg]
+  congr 1
+  ext y
+  simp only [Set.mem_neg, Set.mem_image, Set.mem_setOf_eq]
+  constructor
+  · rintro ⟨g, ⟨hmaj, hpc⟩, rfl⟩
+    refine ⟨-g, ⟨fun x hx ↦ ?_, ?_⟩, ?_⟩
+    · have h := hmaj x hx; simp only [Pi.neg_apply] at h ⊢; linarith
+    · rw [← neg_one_smul ℝ g]; exact hpc.smul (-1)
+    · rw [← neg_one_smul ℝ g, PiecewiseConstantOn.integ_smul (-1) hpc]; ring
+  · rintro ⟨g, ⟨hmin, hpc⟩, hy⟩
+    refine ⟨-g, ⟨fun x hx ↦ ?_, ?_⟩, ?_⟩
+    · have h := hmin x hx; simp only [Pi.neg_apply] at h ⊢; linarith
+    · rw [← neg_one_smul ℝ g]; exact hpc.smul (-1)
+    · rw [← neg_one_smul ℝ g, PiecewiseConstantOn.integ_smul (-1) hpc, hy]; ring
+
+theorem IntegrableOn.neg {I: BoundedInterval} {f:ℝ → ℝ} (hf: IntegrableOn f I) :
+  IntegrableOn (-f) I ∧ integ (-f) I = -integ f I := by
+  constructor
+  . rw [IntegrableOn] at hf ⊢
+    have : BddOn (-f) I := by
+      choose M hM using hf.1
+      use |M|
+      intro x hx
+      specialize hM _ hx
+      simp only [Pi.neg_apply, abs_neg]
+      have : M ≤ |M| := le_abs_self M
+      linarith
+    use this
+    rw [lower_neg_of_upper, upper_neg_of_lower]
+    rw [← hf.2]
+  . repeat rw [integ]
+    rw [upper_neg_of_lower]
+    simp
+    exact hf.2
 
 /-- Theorem 11.4.1(b) / Exercise 11.4.1 -/
 theorem IntegrableOn.smul {I: BoundedInterval} (c:ℝ) {f:ℝ → ℝ} (hf: IntegrableOn f I) :
   IntegrableOn (c • f) I ∧ integ (c • f) I = c * integ f I := by
-  sorry
-
-theorem IntegrableOn.neg {I: BoundedInterval} {f:ℝ → ℝ} (hf: IntegrableOn f I) :
-  IntegrableOn (-f) I ∧ integ (-f) I = -integ f I := by have := IntegrableOn.smul (-1) hf; aesop
+  by_cases hc: c > 0
+  . exact IntegrableOn.smul_pos c hf hc
+  . by_cases hc_zero: c = 0
+    . simp [hc_zero]
+      have hpc0 : PiecewiseConstantOn (fun _ ↦ (0:ℝ)) I := (ConstantOn.of_const' 0 I).piecewiseConstantOn
+      have hint0 := integ_of_piecewise_const hpc0
+      have hzerou : upper_integral 0 I = 0 := by
+        show integ (fun _ ↦ (0:ℝ)) I = 0
+        rw [hint0.2]; show PiecewiseConstantOn.integ (fun _ ↦ (0:ℝ)) I = 0
+        rw [PiecewiseConstantOn.integ_const, zero_mul]
+      have hzerol : lower_integral 0 I = 0 := by
+        show lower_integral (fun _ ↦ (0:ℝ)) I = 0
+        rw [hint0.1.2]; exact hzerou
+      constructor
+      . rw [IntegrableOn] at hf ⊢
+        have : BddOn (fun _ ↦ 0) I := by
+          use 0; intro x hx; simp
+        use this
+        rw [hzerou, hzerol]
+      . rw [integ, hzerou]
+    . -- c < 0: write c • f = -((-c) • f), with -c > 0
+      have hcpos : 0 < -c := by linarith [lt_of_le_of_ne (not_lt.mp hc) hc_zero]
+      have hpos := IntegrableOn.smul_pos (-c) hf hcpos
+      have hneg := IntegrableOn.neg hpos.1
+      have heq : -((-c) • f) = c • f := by rw [neg_smul, neg_neg]
+      refine ⟨heq ▸ hneg.1, ?_⟩
+      rw [← heq, hneg.2, hpos.2]
+      ring
 
 /-- Theorem 11.4.1(c) / Exercise 11.4.1 -/
 theorem IntegrableOn.sub {I: BoundedInterval} {f g:ℝ → ℝ} (hf: IntegrableOn f I) (hg: IntegrableOn g I) :
   IntegrableOn (f - g) I ∧ integ (f - g) I = integ f I - integ g I := by
-  sorry
+  have hng := IntegrableOn.neg hg
+  have hadd := IntegrableOn.add hf hng.1
+  rw [show f - g = f + (-g) from sub_eq_add_neg f g]
+  exact ⟨hadd.1, by rw [hadd.2, hng.2]; ring⟩
 
 /-- Theorem 11.4.1(d) / Exercise 11.4.1 -/
 theorem IntegrableOn.nonneg {I: BoundedInterval} {f:ℝ → ℝ} (hf: IntegrableOn f I) (hf_nonneg: ∀ x ∈ I, 0 ≤ f x) :
   0 ≤ integ f I := by
-  sorry
+  have hpc0 : PiecewiseConstantOn (fun _ ↦ (0:ℝ)) I := (ConstantOn.of_const' 0 I).piecewiseConstantOn
+  have hmin : MinorizesOn (fun _ ↦ (0:ℝ)) f I := fun x hx ↦ hf_nonneg x hx
+  have hval : hpc0.integ' = 0 := by
+    show PiecewiseConstantOn.integ (fun _ ↦ (0:ℝ)) I = 0
+    rw [PiecewiseConstantOn.integ_const, zero_mul]
+  have hle := integ_le_lower_integral hf.1 hmin hpc0
+  rw [hval] at hle
+  rw [integ, ← hf.2]
+  exact hle
 
 /-- Theorem 11.4.1(e) / Exercise 11.4.1 -/
 theorem IntegrableOn.mono {I: BoundedInterval} {f g:ℝ → ℝ} (hf: IntegrableOn f I) (hg: IntegrableOn g I)
   (h: MajorizesOn g f I) :
   integ f I ≤ integ g I := by
-  sorry
+  have hsub := IntegrableOn.sub hg hf
+  have hnn : 0 ≤ integ (g - f) I :=
+    IntegrableOn.nonneg hsub.1 (fun x hx ↦ by simp only [Pi.sub_apply]; linarith [h x hx])
+  rw [hsub.2] at hnn
+  linarith
 
 /-- Theorem 11.4.1(f) / Exercise 11.4.1 -/
 theorem IntegrableOn.const (c:ℝ) (I: BoundedInterval) :
   IntegrableOn (fun _ ↦ c) I ∧ integ (fun _ ↦ c) I = c * |I|ₗ := by
-  sorry
+  have hpc : PiecewiseConstantOn (fun _ ↦ c) I := (ConstantOn.of_const' c I).piecewiseConstantOn
+  have hint := integ_of_piecewise_const hpc
+  refine ⟨hint.1, ?_⟩
+  rw [hint.2]
+  show PiecewiseConstantOn.integ (fun _ ↦ c) I = c * |I|ₗ
+  rw [PiecewiseConstantOn.integ_const]
 
 /-- Theorem 11.4.1(f) / Exercise 11.4.1 -/
 theorem IntegrableOn.const' {I: BoundedInterval} {f:ℝ → ℝ} (hf: ConstantOn f I) :
   IntegrableOn f I ∧ integ f I = (constant_value_on f I) * |I|ₗ := by
-  sorry
-
+  have hpc := hf.piecewiseConstantOn
+  have hint := integ_of_piecewise_const hpc
+  refine ⟨hint.1, ?_⟩
+  rw [hint.2]
+  show PiecewiseConstantOn.integ f I = (constant_value_on f I) * |I|ₗ
+  rw [PiecewiseConstantOn.integ_const' hf]
 
 open Classical in
 /-- Theorem 11.4.1 (g)  / Exercise 11.4.1 -/

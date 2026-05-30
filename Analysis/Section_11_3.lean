@@ -246,7 +246,19 @@ theorem upper_integ_le_upper_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn 
 
 theorem upper_integ_eq_inf_upper_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I) :
   upper_integral f I = sInf (.range (fun P : Partition I ↦ upper_riemann_sum f P)) := by
-  sorry
+  have hbdd : BddBelow (Set.range (fun P : Partition I ↦ upper_riemann_sum f P)) :=
+    ⟨upper_integral f I, by rintro _ ⟨P, rfl⟩; exact upper_integ_le_upper_sum hf P⟩
+  apply le_antisymm
+  · refine le_csInf ?_ ?_
+    · exact ⟨upper_riemann_sum f (⊥ : Partition I), (⊥ : Partition I), rfl⟩
+    · rintro _ ⟨P, rfl⟩
+      exact upper_integ_le_upper_sum hf P
+  · apply le_csInf (integral_bound_upper_nonempty hf)
+    rintro _ ⟨g, ⟨hgf, hgC⟩, rfl⟩
+    obtain ⟨P, hP⟩ := hgC
+    calc sInf _ ≤ upper_riemann_sum f P := csInf_le hbdd ⟨P, rfl⟩
+      _ ≤ integ g I := upper_riemann_sum_le P hgf hP
+      _ = PiecewiseConstantOn.integ g I := (integ_of_piecewise_const ⟨P, hP⟩).2
 
 theorem lower_integ_ge_lower_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I)
     (P: Partition I): lower_riemann_sum f P ≤ lower_integral f I := by
@@ -286,33 +298,91 @@ theorem lower_integ_ge_lower_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn 
 
 theorem lower_integ_eq_sup_lower_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I) :
   lower_integral f I = sSup (.range (fun P : Partition I ↦ lower_riemann_sum f P)) := by
-  sorry
+  have hbdd : BddAbove (Set.range (fun P : Partition I ↦ lower_riemann_sum f P)) :=
+    ⟨lower_integral f I, by rintro _ ⟨P, rfl⟩; exact lower_integ_ge_lower_sum hf P⟩
+  apply le_antisymm
+  · refine csSup_le (integral_bound_lower_nonempty hf) ?_
+    rintro _ ⟨h, ⟨hhf, hhC⟩, rfl⟩
+    obtain ⟨P, hP⟩ := hhC
+    calc PiecewiseConstantOn.integ h I
+        = integ h I := ((integ_of_piecewise_const ⟨P, hP⟩).2).symm
+      _ ≤ lower_riemann_sum f P := lower_riemann_sum_ge P hhf hP
+      _ ≤ sSup _ := le_csSup hbdd ⟨P, rfl⟩
+  · refine csSup_le ?_ ?_
+    · exact ⟨lower_riemann_sum f (⊥ : Partition I), (⊥ : Partition I), rfl⟩
+    · rintro _ ⟨P, rfl⟩
+      exact lower_integ_ge_lower_sum hf P
 
 /-- Exercise 11.3.1 -/
 theorem MajorizesOn.trans {f g h: ℝ → ℝ} {I: BoundedInterval}
   (hfg: MajorizesOn f g I) (hgh: MajorizesOn g h I) : MajorizesOn f h I := by
-  sorry
+  rw [MajorizesOn] at hfg hgh ⊢
+  intro x hx
+  specialize hfg x hx
+  specialize hgh x hx
+  linarith
 
 /-- Exercise 11.3.1 -/
 theorem MajorizesOn.anti_symm {f g: ℝ → ℝ} {I: BoundedInterval}:
-  ∀ x ∈ (I:Set ℝ), f x = g x ↔ MajorizesOn f g I ∧ MajorizesOn g f I := by
-  sorry
+  (∀ x ∈ (I:Set ℝ), f x = g x) ↔ MajorizesOn f g I ∧ MajorizesOn g f I := by
+  constructor
+  . intro h
+    repeat rw [MajorizesOn]
+    constructor
+    . intro x hx
+      specialize h x hx
+      rw [h]
+    . intro x hx
+      specialize h x hx
+      rw [h]
+  . rintro ⟨hfg, hgf⟩
+    rw [MajorizesOn] at hfg hgf
+    intro x hx
+    specialize hfg x hx
+    specialize hgf x hx
+    linarith
 
 /-- Exercise 11.3.2 -/
-def MajorizesOn.of_add : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (hfg: MajorizesOn f g I),
+def MajorizesOn.of_add : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (_: MajorizesOn f g I),
  MajorizesOn (f+h) (g+h) I) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intros f g h I hfg x hx
+  rw [MajorizesOn] at hfg
+  specialize hfg x hx
+  simp only [Pi.add_apply, add_le_add_iff_right]
+  exact hfg
 
-def MajorizesOn.of_mul : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (hfg: MajorizesOn f g I),
+def MajorizesOn.of_mul : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (_: MajorizesOn f g I),
  MajorizesOn (f*h) (g*h) I) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push Not
+  use fun _ => 1
+  use fun _ => 0
+  use fun _ => -1
+  use BoundedInterval.Icc 0 1
+  simp
+  constructor
+  . rw [MajorizesOn]
+    intro x hx
+    norm_num
+  . use 0
+    simp
 
-def MajorizesOn.of_smul : Decidable ( ∀ (f g:ℝ → ℝ) (c:ℝ) (I:BoundedInterval) (hfg: MajorizesOn f g I),
+def MajorizesOn.of_smul : Decidable ( ∀ (f g:ℝ → ℝ) (c:ℝ) (I:BoundedInterval) (_: MajorizesOn f g I),
  MajorizesOn (c • f) (c • g) I) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
+  apply isFalse
+  push Not
+  use fun _ => 1
+  use fun _ => 0
+  use -1
+  use BoundedInterval.Icc 0 1
+  simp
+  constructor
+  . rw [MajorizesOn]
+    intro x hx
+    norm_num
+  . use 0
+    norm_num
 
 end Chapter11

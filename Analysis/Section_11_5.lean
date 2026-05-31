@@ -21,6 +21,69 @@ namespace Chapter11
 open BoundedInterval
 open Chapter9
 
+/-- Split an interval {lit}`I` at an interior point {lit}`c` into a left piece {lit}`L`
+(right-open) and a right piece {lit}`R` (left-closed), recording the endpoints. -/
+theorem exists_split (I : BoundedInterval) {c : ℝ} (hac : I.a < c) (hcb : c < I.b) :
+    ∃ L R : BoundedInterval, I.joins L R ∧ L.a = I.a ∧ L.b = c ∧ R.a = c ∧ R.b = I.b := by
+  cases I with
+  | Icc a b => exact ⟨Ico a c, Icc c b, join_Ico_Icc hac.le hcb.le, rfl, rfl, rfl, rfl⟩
+  | Ico a b => exact ⟨Ico a c, Ico c b, join_Ico_Ico hac.le hcb.le, rfl, rfl, rfl, rfl⟩
+  | Ioc a b => exact ⟨Ioo a c, Icc c b, join_Ioo_Icc hac hcb.le, rfl, rfl, rfl, rfl⟩
+  | Ioo a b => exact ⟨Ioo a c, Ico c b, join_Ioo_Ico hac hcb.le, rfl, rfl, rfl, rfl⟩
+
+/-- For {lit}`a < b` and {lit}`N ≥ 1`, {lit}`I` admits a partition into {lit}`N` subintervals
+each of length {lit}`(b - a)/N`, using the equally-spaced endpoints {lit}`a + i·(b-a)/N`.  Proved
+by peeling the leftmost piece and recursing on the (uniformly shorter) remainder. -/
+theorem exists_uniform_partition {I : BoundedInterval} {N : ℕ} (hN : 0 < N)
+    (hab : I.a < I.b) :
+    ∃ P : Partition I, P.intervals.card = N ∧ ∀ J ∈ P.intervals, |J|ₗ = (I.b - I.a) / N := by
+  obtain ⟨n, rfl⟩ : ∃ n, N = n + 1 := ⟨N - 1, by omega⟩
+  clear hN
+  induction n generalizing I with
+  | zero =>
+    refine ⟨⊥, by simp, ?_⟩
+    intro J hJ
+    rw [Partition.intervals_of_bot, Finset.mem_singleton] at hJ
+    subst hJ
+    rw [show ((0 + 1 : ℕ):ℝ) = 1 by norm_num, div_one]
+    show max (J.b - J.a) 0 = J.b - J.a
+    exact max_eq_left (by linarith)
+  | succ n ih =>
+    have hsub_pos : 0 < I.b - I.a := by linarith
+    have hw : 0 < (I.b - I.a) / ((n:ℝ) + 1 + 1) := div_pos hsub_pos (by positivity)
+    have hwlt : (I.b - I.a) / ((n:ℝ) + 1 + 1) < I.b - I.a := by
+      rw [div_lt_iff₀ (show (0:ℝ) < (n:ℝ) + 1 + 1 by positivity)]
+      nlinarith [hsub_pos, (Nat.cast_nonneg n : (0:ℝ) ≤ (n:ℝ))]
+    set c := I.a + (I.b - I.a) / ((n:ℝ) + 1 + 1) with hc
+    have hac : I.a < c := by rw [hc]; linarith
+    have hcb : c < I.b := by rw [hc]; linarith
+    obtain ⟨L, R, hjoin, hLa, hLb, hRa, hRb⟩ := exists_split I hac hcb
+    obtain ⟨P, hPcard, hPlen⟩ := ih (I := R) (by rw [hRa, hRb]; exact hcb)
+    have hmid : (I.a + c) / 2 ∈ L := by
+      apply L.Ioo_subset
+      rw [BoundedInterval.mem_iff, BoundedInterval.set_Ioo, hLa, hLb, Set.mem_Ioo]
+      exact ⟨by linarith, by linarith⟩
+    have hLne : (L:Set ℝ).Nonempty := ⟨_, hmid⟩
+    have hLnotmem : L ∉ P.intervals := by
+      intro hmem
+      obtain ⟨x, hx⟩ := hLne
+      have : x ∈ (L:Set ℝ) ∩ (R:Set ℝ) := ⟨hx, (BoundedInterval.subset_iff _ _).mp (P.contains _ hmem) hx⟩
+      rw [hjoin.1] at this; exact this
+    refine ⟨(⊥ : Partition L).join P hjoin, ?_, ?_⟩
+    · rw [Partition.intervals_of_join, Partition.intervals_of_bot, ← Finset.insert_eq,
+          Finset.card_insert_of_notMem hLnotmem, hPcard]
+    · intro J hJ
+      rw [Partition.intervals_of_join, Partition.intervals_of_bot] at hJ
+      simp only [Finset.mem_union, Finset.mem_singleton] at hJ
+      rcases hJ with rfl | hJ
+      · show max (J.b - J.a) 0 = _
+        rw [hLa, hLb, max_eq_left (by linarith : (0:ℝ) ≤ c - I.a), hc]
+        push_cast; ring
+      · rw [hPlen J hJ, hRa, hRb, hc]
+        have h1 : ((n:ℝ) + 1) ≠ 0 := by positivity
+        have h2 : ((n:ℝ) + 1 + 1) ≠ 0 := by positivity
+        push_cast; field_simp; ring
+
 /-- Theorem 11.5.1 -/
 theorem integ_of_uniform_cts {I: BoundedInterval} {f:ℝ → ℝ} (hf: UniformContinuousOn f I) :
   IntegrableOn f I := by
@@ -42,8 +105,8 @@ theorem integ_of_uniform_cts {I: BoundedInterval} {f:ℝ → ℝ} (hf: UniformCo
       have : 0 < (b-a)/δ := by positivity
       rify; order
     have hN' : (b-a)/N < δ := by rwa [div_lt_comm₀] <;> positivity
-    have : ∃ P: Partition I, P.intervals.card = N ∧ ∀ J ∈ P.intervals, |J|ₗ = (b-a) / N := by
-      sorry
+    have : ∃ P: Partition I, P.intervals.card = N ∧ ∀ J ∈ P.intervals, |J|ₗ = (b-a) / N :=
+      exists_uniform_partition hNpos hsing
     choose P hcard hlength using this
     calc
       _ ≤ ∑ J ∈ P.intervals, (sSup (f '' J) - sInf (f '' J)) * |J|ₗ := by
@@ -83,9 +146,20 @@ theorem integ_of_uniform_cts {I: BoundedInterval} {f:ℝ → ℝ} (hf: UniformCo
 theorem integ_of_cts {a b:ℝ} {f:ℝ → ℝ} (hf: ContinuousOn f (Icc a b)) :
   IntegrableOn f (Icc a b) := integ_of_uniform_cts (UniformContinuousOn.of_continuousOn hf)
 
-example : ContinuousOn (fun x:ℝ ↦ 1/x) (Icc 0 1) := by sorry
+example : ContinuousOn (fun x:ℝ ↦ 1/x) (Ioc 0 1) := by
+  intro x hx
+  rw [BoundedInterval.set_Ioc, Set.mem_Ioc] at hx
+  exact ((continuousAt_const (y := (1:ℝ))).div continuousAt_id (ne_of_gt hx.1)).continuousWithinAt
 
-example : ¬ IntegrableOn (fun x:ℝ ↦ 1/x) (Icc 0 1) := by sorry
+example : ¬ IntegrableOn (fun x:ℝ ↦ 1/x) (Ioc 0 1) := by
+  rintro ⟨⟨M, hM⟩, -⟩
+  have hx : 1 / (|M| + 1) ∈ (Ioc 0 1 : Set ℝ) := by
+    rw [BoundedInterval.set_Ioc, Set.mem_Ioc]
+    refine ⟨by positivity, ?_⟩
+    rw [div_le_one (by positivity)]; linarith [abs_nonneg M]
+  have := hM _ hx
+  simp only [one_div_one_div, abs_of_nonneg (by positivity : (0:ℝ) ≤ |M| + 1)] at this
+  linarith [le_abs_self M]
 
 open PiecewiseConstantOn ConstantOn in
 set_option maxHeartbeats 300000 in

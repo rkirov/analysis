@@ -379,6 +379,66 @@ theorem BoundedInterval.join_Ioo_Icc {a b c:ℝ} (hab: a < b) (hbc: b ≤ c) : (
 theorem BoundedInterval.join_Ioo_Ico {a b c:ℝ} (hab: a < b) (hbc: b ≤ c) : (Ioo a c).joins (Ioo a b) (Ico b c) := by
   simp_all [joins, le_of_lt hab]; grind
 
+/-- A nonempty subinterval {lit}`J ⊆ I` splits {lit}`I` into a left piece {lit}`L` and a middle
+piece {lit}`M`, with {lit}`M` in turn splitting into {lit}`J` and a right piece {lit}`R`. In other
+words {lit}`I = L ⊔ J ⊔ R`, realized as two successive joins. The construction is by case analysis
+on the endpoint brackets of {lit}`I` and {lit}`J`; the only subtle point is endpoint ownership
+(e.g. a closed endpoint of {lit}`J` sitting inside an open {lit}`I` forces a strict inequality
+there). -/
+theorem BoundedInterval.exists_join_split {I J : BoundedInterval} (hJI : J ⊆ I)
+    (hJ : (J:Set ℝ).Nonempty) :
+    ∃ L M R : BoundedInterval, I.joins L M ∧ M.joins J R := by
+  have hsub : (J:Set ℝ) ⊆ (I:Set ℝ) := (subset_iff J I).mp hJI
+  obtain ⟨x, hx⟩ := hJ
+  have hxJ : x ∈ Set.Icc J.a J.b := by
+    have h := J.subset_Icc; rw [subset_iff, set_Icc] at h; exact h hx
+  have hxI : x ∈ Set.Icc I.a I.b := by
+    have h := I.subset_Icc; rw [subset_iff, set_Icc] at h; exact h (hJI x hx)
+  have hcd : J.a ≤ J.b := le_trans (Set.mem_Icc.mp hxJ).1 (Set.mem_Icc.mp hxJ).2
+  have hIoo : Set.Ioo J.a J.b ⊆ Set.Icc I.a I.b := by
+    have h1 : (Ioo J.a J.b : BoundedInterval) ⊆ I := (J.Ioo_subset).trans hJI
+    have := h1.trans I.subset_Icc; rw [subset_iff] at this; simpa using this
+  have hbounds : I.a ≤ J.a ∧ J.b ≤ I.b := by
+    rcases eq_or_lt_of_le hcd with heq | hlt
+    · rw [Set.mem_Icc] at hxI hxJ
+      have hxa : x = J.a := le_antisymm (heq ▸ hxJ.2) hxJ.1
+      exact ⟨hxa ▸ hxI.1, by rw [← heq, ← hxa]; exact hxI.2⟩
+    · have h1 : Set.Icc J.a J.b ⊆ Set.Icc I.a I.b := by
+        rw [← closure_Ioo hlt.ne]; exact closure_minimal hIoo isClosed_Icc
+      exact (Set.Icc_subset_Icc_iff hlt.le).mp h1
+  obtain ⟨hac, hdb⟩ := hbounds
+  rcases I with ⟨a,b⟩|⟨a,b⟩|⟨a,b⟩|⟨a,b⟩ <;> rcases J with ⟨c,d⟩|⟨c,d⟩|⟨c,d⟩|⟨c,d⟩ <;>
+    simp only [BoundedInterval.a, BoundedInterval.b, set_Ioo, set_Icc, set_Ioc, set_Ico,
+      Set.mem_Ioo, Set.mem_Icc, Set.mem_Ioc, Set.mem_Ico] at hac hdb hcd hx
+  · exact ⟨Ioc a c, Ioo c b, Ico d b, join_Ioc_Ioo hac (by order), join_Ioo_Ico (by order) hdb⟩
+  · have hca : a < c := (Set.mem_Ioo.mp (hsub (Set.mem_Icc.mpr ⟨le_refl c, hcd⟩))).1
+    have hdb' : d < b := (Set.mem_Ioo.mp (hsub (Set.mem_Icc.mpr ⟨hcd, le_refl d⟩))).2
+    exact ⟨Ioo a c, Ico c b, Ioo d b, join_Ioo_Ico hca (by order), join_Icc_Ioo hcd hdb'⟩
+  · have hcd_lt : c < d := by order
+    have hdb' : d < b := (Set.mem_Ioo.mp (hsub (Set.mem_Ioc.mpr ⟨hcd_lt, le_refl d⟩))).2
+    exact ⟨Ioc a c, Ioo c b, Ioo d b, join_Ioc_Ioo hac (by order), join_Ioc_Ioo hcd hdb'⟩
+  · have hcd_lt : c < d := by order
+    have hca : a < c := (Set.mem_Ioo.mp (hsub (Set.mem_Ico.mpr ⟨le_refl c, hcd_lt⟩))).1
+    exact ⟨Ioo a c, Ico c b, Ico d b, join_Ioo_Ico hca (by order), join_Ico_Ico hcd hdb⟩
+  · exact ⟨Icc a c, Ioc c b, Icc d b, join_Icc_Ioc hac (by order), join_Ioo_Icc (by order) hdb⟩
+  · exact ⟨Ico a c, Icc c b, Ioc d b, join_Ico_Icc hac (by order), join_Icc_Ioc hcd hdb⟩
+  · exact ⟨Icc a c, Ioc c b, Ioc d b, join_Icc_Ioc hac (by order), join_Ioc_Ioc hcd hdb⟩
+  · exact ⟨Ico a c, Icc c b, Icc d b, join_Ico_Icc hac (by order), join_Ico_Icc hcd hdb⟩
+  · exact ⟨Ioc a c, Ioc c b, Icc d b, join_Ioc_Ioc hac (by order), join_Ioo_Icc (by order) hdb⟩
+  · have hca : a < c := (Set.mem_Ioc.mp (hsub (Set.mem_Icc.mpr ⟨le_refl c, hcd⟩))).1
+    exact ⟨Ioo a c, Icc c b, Ioc d b, join_Ioo_Icc hca (by order), join_Icc_Ioc hcd hdb⟩
+  · exact ⟨Ioc a c, Ioc c b, Ioc d b, join_Ioc_Ioc hac (by order), join_Ioc_Ioc hcd hdb⟩
+  · have hcd_lt : c < d := by order
+    have hca : a < c := (Set.mem_Ioc.mp (hsub (Set.mem_Ico.mpr ⟨le_refl c, hcd_lt⟩))).1
+    exact ⟨Ioo a c, Icc c b, Icc d b, join_Ioo_Icc hca (by order), join_Ico_Icc hcd hdb⟩
+  · exact ⟨Icc a c, Ioo c b, Ico d b, join_Icc_Ioo hac (by order), join_Ioo_Ico (by order) hdb⟩
+  · have hdb' : d < b := (Set.mem_Ico.mp (hsub (Set.mem_Icc.mpr ⟨hcd, le_refl d⟩))).2
+    exact ⟨Ico a c, Ico c b, Ioo d b, join_Ico_Ico hac (by order), join_Icc_Ioo hcd hdb'⟩
+  · have hcd_lt : c < d := by order
+    have hdb' : d < b := (Set.mem_Ico.mp (hsub (Set.mem_Ioc.mpr ⟨hcd_lt, le_refl d⟩))).2
+    exact ⟨Icc a c, Ioo c b, Ioo d b, join_Icc_Ioo hac (by order), join_Ioc_Ioo hcd hdb'⟩
+  · exact ⟨Ico a c, Ico c b, Ico d b, join_Ico_Ico hac (by order), join_Ico_Ico hcd hdb⟩
+
 @[ext]
 structure Partition (I: BoundedInterval) where
   intervals : Finset BoundedInterval

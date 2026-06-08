@@ -277,25 +277,190 @@ noncomputable abbrev f_11_5_5 : ℝ → ℝ := fun x ↦
   else if x = 2 then 7
   else x^3
 
-example : ¬ ContinuousOn f_11_5_5 (Icc 1 3) := by sorry
+open Topology in
+example : ¬ ContinuousOn f_11_5_5 (Icc 1 3) := by
+  intro h
+  have hmem : (2:ℝ) ∈ (Icc (1:ℝ) 3 : Set ℝ) := by
+    rw [BoundedInterval.set_Icc, Set.mem_Icc]; norm_num
+  have hc := (h 2 hmem).tendsto
+  rw [show f_11_5_5 2 = 7 by norm_num [f_11_5_5]] at hc
+  have hle : 𝓝[<] (2:ℝ) ≤ 𝓝[(Icc (1:ℝ) 3 : Set ℝ)] 2 := by
+    rw [BoundedInterval.set_Icc, nhdsWithin_le_iff]
+    exact nhdsWithin_le_nhds (Icc_mem_nhds (by norm_num) (by norm_num))
+  have hc2 : Filter.Tendsto f_11_5_5 (𝓝[<] (2:ℝ)) (𝓝 7) := hc.mono_left hle
+  have heq : f_11_5_5 =ᶠ[𝓝[<] (2:ℝ)] (fun x => x^2) :=
+    eventually_nhdsWithin_of_forall (fun x hx => by simp [f_11_5_5, show x < 2 from hx])
+  rw [Filter.tendsto_congr' heq] at hc2
+  have hc3 : Filter.Tendsto (fun x:ℝ => x^2) (𝓝[<] (2:ℝ)) (𝓝 ((2:ℝ)^2)) :=
+    ((continuous_pow 2).tendsto 2).mono_left nhdsWithin_le_nhds
+  have := tendsto_nhds_unique hc2 hc3
+  norm_num at this
 
-example : ContinuousOn f_11_5_5 (Ico 1 2) := by sorry
+example : ContinuousOn f_11_5_5 (Ico 1 2) := by
+  have heq : Set.EqOn f_11_5_5 (fun x => x^2) (Ico (1:ℝ) 2 : Set ℝ) := by
+    intro x hx
+    rw [BoundedInterval.set_Ico, Set.mem_Ico] at hx
+    simp [f_11_5_5, hx.2]
+  exact ((continuous_pow 2).continuousOn).congr heq
 
-example : ContinuousOn f_11_5_5 (Icc 2 2) := by sorry
+example : ContinuousOn f_11_5_5 (Icc 2 2) := by
+  rw [BoundedInterval.set_Icc, Set.Icc_self]
+  exact continuousOn_singleton f_11_5_5 2
 
-example : ContinuousOn f_11_5_5 (Ioc 2 3) := by sorry
+example : ContinuousOn f_11_5_5 (Ioc 2 3) := by
+  have heq : Set.EqOn f_11_5_5 (fun x => x^3) (Ioc (2:ℝ) 3 : Set ℝ) := by
+    intro x hx
+    rw [BoundedInterval.set_Ioc, Set.mem_Ioc] at hx
+    have h1 : ¬ x < 2 := by linarith [hx.1]
+    have h2 : x ≠ 2 := ne_of_gt hx.1
+    simp [f_11_5_5, h1, h2]
+  exact ((continuous_pow 3).continuousOn).congr heq
 
-example : PiecewiseContinuousOn f_11_5_5 (Icc 1 3) := by sorry
+example : PiecewiseContinuousOn f_11_5_5 (Icc 1 3) := by
+  have c1 : ContinuousOn f_11_5_5 (Ico 1 2) := by
+    have heq : Set.EqOn f_11_5_5 (fun x => x^2) (Ico (1:ℝ) 2 : Set ℝ) := by
+      intro x hx
+      rw [BoundedInterval.set_Ico, Set.mem_Ico] at hx
+      simp [f_11_5_5, hx.2]
+    exact ((continuous_pow 2).continuousOn).congr heq
+  have c2 : ContinuousOn f_11_5_5 (Icc 2 2) := by
+    rw [BoundedInterval.set_Icc, Set.Icc_self]
+    exact continuousOn_singleton f_11_5_5 2
+  have c3 : ContinuousOn f_11_5_5 (Ioc 2 3) := by
+    have heq : Set.EqOn f_11_5_5 (fun x => x^3) (Ioc (2:ℝ) 3 : Set ℝ) := by
+      intro x hx
+      rw [BoundedInterval.set_Ioc, Set.mem_Ioc] at hx
+      have h1 : ¬ x < 2 := by linarith [hx.1]
+      have h2 : x ≠ 2 := ne_of_gt hx.1
+      simp [f_11_5_5, h1, h2]
+    exact ((continuous_pow 3).continuousOn).congr heq
+  set P1 : Partition (Icc 1 2) :=
+    (⊥ : Partition (Ico 1 2)).join (⊥ : Partition (Icc 2 2)) (join_Ico_Icc (by norm_num) (by norm_num))
+  set P2 : Partition (Icc 1 3) :=
+    P1.join (⊥ : Partition (Ioc 2 3)) (join_Icc_Ioc (by norm_num) (by norm_num))
+  refine ⟨P2, ?_⟩
+  intro J hJ
+  simp only [P2, P1, Partition.intervals_of_bot,
+    Finset.mem_union, Finset.mem_singleton] at hJ
+  rcases hJ with (rfl | rfl) | rfl <;> assumption
 
 /-- Proposition 11.5.6 / Exercise 11.5.1 -/
 theorem integ_of_bdd_piecewise_cts {I: BoundedInterval} {f:ℝ → ℝ}
   (hbound: BddOn f I) (hf: PiecewiseContinuousOn f I) : IntegrableOn f I := by
-  sorry
+  rw [PiecewiseContinuousOn] at hf
+  obtain ⟨P, hP⟩ := hf
+  classical
+  let g : BoundedInterval → (ℝ → ℝ) := fun J ↦ fun x ↦ if x ∈ J then f x else 0
+  let G : ℝ → ℝ := fun x ↦ if h : x ∈ I then g (P.exists_unique x h).choose x else 0
+  have hfG (x : ℝ) (hx : x ∈ I) : f x = G x := by
+    have hxJ : x ∈ (P.exists_unique x hx).choose := ((P.exists_unique x hx).choose_spec).1.2
+    show f x = if h : x ∈ I then g (P.exists_unique x h).choose x else 0
+    rw [dif_pos hx]
+    show f x = if x ∈ (P.exists_unique x hx).choose then f x else 0
+    rw [if_pos hxJ]
+  have hgG (x : ℝ) (hx : x ∈ I) : G x = ∑ J ∈ P.intervals, g J x := by
+    have hspec := (P.exists_unique x hx).choose_spec
+    rw [Finset.sum_eq_single (P.exists_unique x hx).choose]
+    · show (if h : x ∈ I then g (P.exists_unique x h).choose x else 0)
+        = g (P.exists_unique x hx).choose x
+      rw [dif_pos hx]
+    · intro J hJmem hJne
+      have hxJ : x ∉ J := fun h ↦ hJne (hspec.2 J ⟨hJmem, h⟩)
+      show (if x ∈ J then f x else 0) = 0
+      rw [if_neg hxJ]
+    · intro hnotmem; exact absurd hspec.1.1 hnotmem
+  -- On each piece `f` is bounded and continuous, hence integrable on `J` (Prop 11.5.3).
+  have hfint : ∀ J ∈ P.intervals, IntegrableOn f J := by
+    intro J hJ
+    refine integ_of_bdd_cts ?_ (hP J hJ)
+    obtain ⟨M, hM⟩ := hbound
+    exact ⟨M, fun x hx ↦ hM x (P.contains J hJ x hx)⟩
+  -- `g J` is the extension by zero of `f|J` to `I`, hence integrable on `I` (Thm 11.4.1(g)).
+  have hgint : ∀ J ∈ P.intervals, IntegrableOn (g J) I :=
+    fun J hJ ↦ IntegrableOn.of_extend (P.contains J hJ) (hfint J hJ)
+  -- A finite sum of integrable functions is integrable (Thm 11.4.1(a)).
+  have hsum : ∀ s : Finset BoundedInterval, (∀ J ∈ s, IntegrableOn (g J) I) →
+      IntegrableOn (fun x ↦ ∑ J ∈ s, g J x) I := by
+    intro s
+    induction s using Finset.induction with
+    | empty => intro _; simpa using (IntegrableOn.const 0 I).1
+    | insert J s hJs ih =>
+      intro hmem
+      have h1 := hmem J (Finset.mem_insert_self J s)
+      have h2 := ih (fun K hK ↦ hmem K (Finset.mem_insert_of_mem hK))
+      simp only [Finset.sum_insert hJs]
+      exact (IntegrableOn.add h1 h2).1
+  -- `f` agrees on `I` with the integrable sum, so `f` is integrable too.
+  have integrable_congr : ∀ {p q : ℝ → ℝ}, Set.EqOn p q I → IntegrableOn q I → IntegrableOn p I := by
+    intro p q hpq hq
+    obtain ⟨⟨M, hM⟩, heq⟩ := hq
+    exact ⟨⟨M, fun x hx ↦ by rw [hpq hx]; exact hM x hx⟩,
+      by rw [lower_integral_congr hpq, upper_integral_congr hpq]; exact heq⟩
+  exact integrable_congr (fun x hx ↦ (hfG x hx).trans (hgG x hx)) (hsum P.intervals hgint)
 
 /-- Exercise 11.5.2 -/
-theorem integ_zero {a b:ℝ} (hab: a ≤ b) (f: ℝ → ℝ) (hf: ContinuousOn f (Icc a b))
+theorem integ_zero {a b:ℝ} (hab: a < b) (f: ℝ → ℝ) (hf: ContinuousOn f (Icc a b))
   (hnonneg: MajorizesOn f (fun _ ↦ 0) (Icc a b)) (hinteg : integ f (Icc a b) = 0) :
   ∀ x ∈ Icc a b, f x = 0 := by
-    sorry
+  by_contra! h
+  obtain ⟨x, hx, hfx⟩ := h
+  have ⟨hxa, hxb⟩ := hx
+  have hfx' : 0 < f x := lt_of_le_of_ne (hnonneg x hx) (Ne.symm hfx)
+  -- Continuity at `x` pins down a radius `δ` on which `f > f x / 2`.
+  obtain ⟨δ, hδ, hδ'⟩ := (Metric.continuousWithinAt_iff.mp (hf x hx)) (f x / 2) (half_pos hfx')
+  -- A nondegenerate closed subinterval `[c,d] ⊆ [a,b] ∩ (x-δ, x+δ)`.
+  set c := max a (x - δ / 2) with hc_def
+  set d := min b (x + δ / 2) with hd_def
+  have hac : a ≤ c := le_max_left _ _
+  have hc_lb : x - δ / 2 ≤ c := le_max_right _ _
+  have hcx : c ≤ x := max_le hxa (by linarith)
+  have hxd : x ≤ d := le_min hxb (by linarith)
+  have hd_ub : d ≤ x + δ / 2 := min_le_right _ _
+  have hdb : d ≤ b := min_le_left _ _
+  have hcb : c ≤ b := le_trans hcx hxb
+  have hcd : c < d := by
+    show max a (x - δ / 2) < min b (x + δ / 2)
+    rw [max_lt_iff, lt_min_iff, lt_min_iff]
+    refine ⟨⟨hab, ?_⟩, ?_, ?_⟩ <;> linarith
+  -- Split `[a,b] = [a,c) ⊔ [c,d] ⊔ (d,b]` and integrate piecewise.
+  have hf_int : IntegrableOn f (Icc a b) := integ_of_cts hf
+  obtain ⟨hI_left, hI_cb, hsplit1⟩ := IntegrableOn.join (join_Ico_Icc hac hcb) hf_int
+  obtain ⟨hI_cd, hI_right, hsplit2⟩ := IntegrableOn.join (join_Icc_Ioc hcd.le hdb) hI_cb
+  -- The two flanks contribute nonnegatively since `f ≥ 0`.
+  have hnn_left : 0 ≤ integ f (Ico a c) :=
+    IntegrableOn.nonneg hI_left fun y hy ↦ hnonneg y (by
+      simp only [BoundedInterval.mem_iff, BoundedInterval.set_Ico, Set.mem_Ico] at hy
+      rw [BoundedInterval.set_Icc, Set.mem_Icc]
+      exact ⟨hy.1, by linarith [hy.2]⟩)
+  have hnn_right : 0 ≤ integ f (Ioc d b) :=
+    IntegrableOn.nonneg hI_right fun y hy ↦ hnonneg y (by
+      simp only [BoundedInterval.mem_iff, BoundedInterval.set_Ioc, Set.mem_Ioc] at hy
+      rw [BoundedInterval.set_Icc, Set.mem_Icc]
+      exact ⟨by linarith [hy.1], hy.2⟩)
+  -- On `[c,d]`, `f ≥ f x / 2`, so its integral is at least `(f x / 2)·(d - c) > 0`.
+  have hmaj : MajorizesOn f (fun _ ↦ f x / 2) (Icc c d) := by
+    intro y hy
+    simp only [BoundedInterval.set_Icc, Set.mem_Icc] at hy
+    have hyab : y ∈ (Icc a b : Set ℝ) := by
+      rw [BoundedInterval.set_Icc, Set.mem_Icc]
+      exact ⟨by linarith [hy.1], by linarith [hy.2]⟩
+    have hydist : dist y x < δ := by
+      rw [Real.dist_eq, abs_lt]
+      exact ⟨by linarith [hy.1], by linarith [hy.2]⟩
+    have hcont := hδ' hyab hydist
+    rw [Real.dist_eq, abs_lt] at hcont
+    show f x / 2 ≤ f y
+    linarith [hcont.1]
+  have hpos : 0 < integ f (Icc c d) := by
+    have hle := IntegrableOn.mono (IntegrableOn.const (f x / 2) (Icc c d)).1 hI_cd hmaj
+    rw [(IntegrableOn.const (f x / 2) (Icc c d)).2] at hle
+    have hlen : |Icc c d|ₗ = d - c := by
+      show max (d - c) 0 = d - c
+      exact max_eq_left (by linarith [hcd.le])
+    rw [hlen] at hle
+    have hp : 0 < (f x / 2) * (d - c) := mul_pos (by linarith) (by linarith)
+    linarith
+  rw [hsplit1, hsplit2] at hinteg
+  linarith [hnn_left, hnn_right, hpos]
 
 end Chapter11

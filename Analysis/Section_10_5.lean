@@ -27,10 +27,36 @@ theorem _root_.Filter.Tendsto.of_div {X: Set ℝ} {f g: ℝ → ℝ} {x₀ f'x�
   (∃ δ > 0, ∀ x ∈ X \ {x₀} ∩ .Ioo (x₀ - δ) (x₀ + δ), g x ≠ 0) ∧
   (nhdsWithin x₀ (X \ {x₀})).Tendsto (fun x ↦ f x / g x) (nhds (f'x₀ / g'x₀))
   := by
-  sorry
+  constructor
+  . rw [_root_.HasDerivWithinAt.iff_approx_linear] at hg'x₀
+    specialize hg'x₀ (|g'x₀| / 2) (by grind)
+    obtain ⟨δ, hδpos, hδ⟩ := hg'x₀
+    use δ, hδpos
+    intro x hx
+    have : x ≠ x₀ := by
+      by_contra this
+      subst x
+      grind
+    specialize hδ x (by grind) (by grind)
+    by_contra this
+    rw [this, hgx₀] at hδ
+    simp at hδ
+    field_simp at hδ
+    grind
+  . rw [hasDerivWithinAt_iff_tendsto_slope] at hf'x₀ hg'x₀
+    have key := hf'x₀.div hg'x₀ hg_non
+    apply key.congr'
+    filter_upwards [self_mem_nhdsWithin] with x hx
+    simp [Set.mem_diff] at hx
+    simp only [Pi.div_apply]
+    rw [slope_def_field, slope_def_field, hfx₀, hgx₀, sub_zero, sub_zero,
+        div_div_div_cancel_right₀]
+    intro h
+    apply hx.2
+    linarith
 
 /-- Proposition 10.5.2 (L'Hôpital's rule, II) -/
-theorem _root_.Filter.Tendsto.of_div' {a b L:ℝ} (hab: a < b) {f g f' g': ℝ → ℝ}
+theorem _root_.Filter.Tendsto.of_div' {a b L:ℝ} {f g f' g': ℝ → ℝ}
   (hf: DifferentiableOn ℝ f (.Icc a b)) (hg: DifferentiableOn ℝ g (.Icc a b))
   (hf': f' = derivWithin f (.Icc a b)) (hg': g' = derivWithin g (.Icc a b))
   (hfa: f a = 0) (hga: g a = 0) (hgnon: ∀ x ∈ Set.Icc a b, g' x ≠ 0)

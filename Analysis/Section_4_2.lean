@@ -43,13 +43,46 @@ structure PreRat where
   denominator : ℤ
   nonzero : denominator ≠ 0
 
+instance : ToString PreRat where
+  toString q := toString q.numerator ++ " // " ++ toString q.denominator
+
 /-- Exercise 4.2.1 -/
 instance PreRat.instSetoid : Setoid PreRat where
   r a b := a.numerator * b.denominator = b.numerator * a.denominator
   iseqv := {
-    refl := by sorry
-    symm := by sorry
-    trans := by sorry
+    refl := by
+      intro a
+      rfl
+    symm := by
+      intro a b h
+      omega
+    trans := by
+      intro a b c hab hbc
+      have ha := a.nonzero
+      have hb := b.nonzero
+      have hc := c.nonzero
+      have hab' := hab -- stash for later
+      apply_fun (· * c.numerator) at hab
+      rw [mul_assoc] at hab
+      rw [mul_comm _ c.numerator] at hab
+      rw [← hbc] at hab
+      rw [← mul_assoc] at hab
+      rw [mul_comm _ b.numerator] at hab
+      repeat rw [mul_assoc] at hab
+      rw [mul_comm a.denominator] at hab
+      rw [mul_eq_mul_left_iff] at hab
+      cases' hab with h1 h2
+      . exact h1
+      . rw [h2] at hbc
+        simp only [zero_mul, zero_eq_mul] at hbc
+        cases' hbc with h3 h4
+        . rw [h2] at hab'
+          simp only [zero_mul, mul_eq_zero] at hab'
+          cases' hab' with h5 h6
+          . rw [h3, h5]
+            omega
+          . contradiction
+        . contradiction
     }
 
 @[simp]
@@ -81,7 +114,13 @@ theorem Rat.eq_diff (n:Rat) : ∃ a b, b ≠ 0 ∧ n = a // b := by
 
 -/
 instance Rat.decidableEq : DecidableEq Rat := by
-  sorry
+  intro a b
+  have : ∀ (n:PreRat) (m: PreRat),
+      Decidable (Quotient.mk PreRat.instSetoid n = Quotient.mk PreRat.instSetoid m) := by
+    intro ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩
+    rw [Quotient.eq]
+    exact decEq _ _
+  exact Quotient.recOnSubsingleton₂ a b this
 
 /-- Lemma 4.2.3 (Addition well-defined) -/
 instance Rat.add_inst : Add Rat where
@@ -98,7 +137,11 @@ theorem Rat.add_eq (a c:ℤ) {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
 
 /-- Lemma 4.2.3 (Multiplication well-defined) -/
 instance Rat.mul_inst : Mul Rat where
-  mul := Quotient.lift₂ (fun ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ ↦ (a*c) // (b*d)) (by sorry)
+  mul := Quotient.lift₂ (fun ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ ↦ (a*c) // (b*d)) (by
+    intro ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ ⟨ a', b', h1' ⟩ ⟨ c', d', h2' ⟩ h3 h4
+    simp_all [Quotient.eq]
+    linear_combination d' * c * h3 + a' * b * h4
+  )
 
 /-- Definition 4.2.2 (Multiplication of rationals) -/
 theorem Rat.mul_eq (a c:ℤ) {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
@@ -107,7 +150,10 @@ theorem Rat.mul_eq (a c:ℤ) {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
 
 /-- Lemma 4.2.3 (Negation well-defined) -/
 instance Rat.neg_inst : Neg Rat where
-  neg := Quotient.lift (fun ⟨ a, b, h1 ⟩ ↦ (-a) // b) (by sorry)
+  neg := Quotient.lift (fun ⟨ a, b, h1 ⟩ ↦ (-a) // b) (by
+    intro ⟨a, b, h1⟩ ⟨c, d, h2⟩ h
+    simp_all [Quotient.eq]
+  )
 
 /-- Definition 4.2.2 (Negation of rationals) -/
 theorem Rat.neg_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : - (a // b) = (-a) // b := by
@@ -118,30 +164,57 @@ instance Rat.instIntCast : IntCast Rat where
   intCast a := a // 1
 
 instance Rat.instNatCast : NatCast Rat where
-  natCast n := (n:ℤ) // 1
+  natCast n := (n: ℤ) // 1
 
-instance Rat.instOfNat {n:ℕ} : OfNat Rat n where
+instance Rat.instOfNat {n: ℕ} : OfNat Rat n where
   ofNat := (n:ℤ) // 1
 
-theorem Rat.coe_Int_eq (a:ℤ) : (a:Rat) = a // 1 := rfl
+theorem Rat.coe_Int_eq (a: ℤ) : (a:Rat) = a // 1 := rfl
 
-theorem Rat.coe_Nat_eq (n:ℕ) : (n:Rat) = n // 1 := rfl
+theorem Rat.coe_Nat_eq (n: ℕ) : (n:Rat) = n // 1 := rfl
 
-theorem Rat.of_Nat_eq (n:ℕ) : (ofNat(n):Rat) = (ofNat(n):Nat) // 1 := rfl
+theorem Rat.of_Nat_eq (n: ℕ) : (ofNat(n):Rat) = (ofNat(n):Nat) // 1 := rfl
+
+theorem Rat.of_Nat_eq' (n: ℕ) : (ofNat(n):Rat) = n // 1 := rfl
+
+theorem Rat.coe_Nat_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := by
+  simp [coe_Nat_eq]
+  rw [of_Nat_eq]
+  rw [add_eq]
+  rw [eq]
+  repeat omega
 
 /-- natCast distributes over successor -/
-theorem Rat.natCast_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := by sorry
+theorem Rat.natCast_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := coe_Nat_succ n
 
 /-- intCast distributes over addition -/
-lemma Rat.intCast_add (a b:ℤ) : (a:Rat) + (b:Rat) = (a+b:ℤ) := by sorry
+lemma Rat.intCast_add (a b:ℤ) : (a:Rat) + (b:Rat) = (a+b:ℤ) := by
+  repeat rw [Rat.coe_Int_eq]
+  rw [add_eq]
+  rw [eq] <;> omega
+  exact Int.one_ne_zero
+  exact Int.one_ne_zero
 
 /-- intCast distributes over multiplication -/
-lemma Rat.intCast_mul (a b:ℤ) : (a:Rat) * (b:Rat) = (a*b:ℤ) := by sorry
+lemma Rat.intCast_mul (a b:ℤ) : (a:Rat) * (b:Rat) = (a*b:ℤ) := by
+  repeat rw [Rat.coe_Int_eq]
+  rw [mul_eq]
+  rw [eq] <;> omega
+  exact Int.one_ne_zero
+  exact Int.one_ne_zero
 
 /-- intCast commutes with negation -/
 lemma Rat.intCast_neg (a:ℤ) : - (a:Rat) = (-a:ℤ) := rfl
 
-theorem Rat.coe_Int_inj : Function.Injective (fun n:ℤ ↦ (n:Rat)) := by sorry
+theorem Rat.coe_Int_inj : Function.Injective (fun n:ℤ ↦ (n:Rat)) := by
+  intro a b h
+  simp only at h
+  repeat rw [Rat.coe_Int_eq] at h
+  rw [eq] at h
+  simp only [mul_one] at h
+  exact h
+  exact Int.one_ne_zero
+  exact Int.one_ne_zero
 
 /--
   Whereas the book leaves the inverse of 0 undefined, it is more convenient in Lean to assign a
@@ -149,8 +222,18 @@ theorem Rat.coe_Int_inj : Function.Injective (fun n:ℤ ↦ (n:Rat)) := by sorry
 -/
 instance Rat.instInv : Inv Rat where
   inv := Quotient.lift (fun ⟨ a, b, h1 ⟩ ↦ b // a) (by
-    sorry -- hint: split into the `a=0` and `a≠0` cases
-)
+    intro ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ h
+    show b // a = d // c
+    -- h : a * d = c * b (from setoid relation)
+    change a * d = c * b at h
+    by_cases ha : a = 0
+    · have hc : c = 0 := by
+        subst ha; simp at h; exact h.elim id (absurd · h1)
+      simp [formalDiv, ha, hc]
+    · have hc : c ≠ 0 := by
+        intro hc; subst hc; simp at h; exact h.elim (absurd · ha) (absurd · h2)
+      rw [eq b d ha hc]; nlinarith [mul_comm a d, mul_comm c b]
+  )
 
 lemma Rat.inv_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a // b)⁻¹ = b // a := by
   convert Quotient.lift_mk _ _ _ <;> simp [hb]
@@ -173,40 +256,221 @@ AddGroup.ofLeftAxioms (by
       add_eq _ _ hb hdf, ←mul_assoc b, eq _ _ hbdf hbdf]
   ring
 )
- (by sorry) (by sorry)
+ (by
+  intro a
+  obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+  rw [of_Nat_eq']
+  rw [add_eq]
+  rw [eq]
+  . simp only [CharP.cast_eq_zero, zero_mul, one_mul, zero_add]
+  . omega
+  . exact hc
+  . exact Int.one_ne_zero
+  . exact hc
+ ) (by
+  intro a
+  obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+  rw [of_Nat_eq']
+  rw [neg_eq]
+  rw [add_eq]
+  rw [eq]
+  simp only [neg_mul, mul_one, CharP.cast_eq_zero, zero_mul]
+  rw [mul_comm]
+  . omega
+  . intro h; simp only [mul_eq_zero, or_self] at h; exact absurd h hc
+  . exact Int.one_ne_zero
+  . exact hc
+  . exact hc
+  . exact hc
+ )
+
+theorem Rat.sub_eq_quot {a c:ℤ} {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
+    (a // b) - (c // d) = (a*d - b*c) // (b*d) := by
+  change a // b + (-c // d) = _
+  rw [neg_eq]
+  rw [add_eq]
+  rw [eq]
+  . ring
+  . exact Int.mul_ne_zero hb hd
+  . exact Int.mul_ne_zero hb hd
+  . exact hb
+  . exact hd
+  . exact hd
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instAddCommGroup : AddCommGroup Rat where
-  add_comm := by sorry
+  add_comm := by
+    intro a b
+    obtain ⟨ a1, b1, h1, rfl ⟩ := eq_diff a
+    obtain ⟨ a2, b2, h2, rfl ⟩ := eq_diff b
+    rw [add_eq _ _ h1 h2, add_eq _ _ h2 h1]
+    rw [eq]
+    . ring
+    . exact Int.mul_ne_zero h1 h2
+    . exact Int.mul_ne_zero h2 h1
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instCommMonoid : CommMonoid Rat where
-  mul_comm := by sorry
-  mul_assoc := by sorry
-  one_mul := by sorry
-  mul_one := by sorry
+  mul_comm := by
+    intro a b
+    obtain ⟨ a1, b1, h1, rfl ⟩ := eq_diff a
+    obtain ⟨ a2, b2, h2, rfl ⟩ := eq_diff b
+    rw [mul_eq _ _ h1 h2, mul_eq _ _ h2 h1]
+    rw [eq]
+    . ring
+    . exact Int.mul_ne_zero h1 h2
+    . exact Int.mul_ne_zero h2 h1
+  mul_assoc := by
+    intro a b c
+    obtain ⟨ a1, b1, h1, rfl ⟩ := eq_diff a
+    obtain ⟨ a2, b2, h2, rfl ⟩ := eq_diff b
+    obtain ⟨ a3, b3, h3, rfl ⟩ := eq_diff c
+    repeat rw [mul_eq]
+    rw [eq]
+    . ring
+    . exact Int.mul_ne_zero (Int.mul_ne_zero h1 h2) h3
+    . exact Int.mul_ne_zero h1 (Int.mul_ne_zero h2 h3)
+    . exact h1
+    . exact Int.mul_ne_zero h2 h3
+    . exact h2
+    . exact h3
+    . exact Int.mul_ne_zero h1 h2
+    . exact h3
+    . exact h1
+    . exact h2
+  one_mul := by
+    intro a
+    obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+    rw [of_Nat_eq']
+    rw [mul_eq]
+    rw [eq]
+    . simp only [Nat.cast_one, one_mul]
+    . omega
+    . exact hc
+    . exact Int.one_ne_zero
+    . exact hc
+  mul_one := by
+    intro a
+    obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+    rw [of_Nat_eq']
+    rw [mul_eq]
+    rw [eq]
+    . simp only [Nat.cast_one, mul_one]
+    . omega
+    . exact hc
+    . exact hc
+    . exact Int.one_ne_zero
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instCommRing : CommRing Rat where
-  left_distrib := by sorry
-  right_distrib := by sorry
-  zero_mul := by sorry
-  mul_zero := by sorry
-  mul_assoc := by sorry
-  -- Usually CommRing will generate a natCast instance and a proof for this.
-  -- However, we are using a custom natCast for which `natCast_succ` cannot
-  -- be proven automatically by `rfl`. Luckily we have proven it already.
-  natCast_succ := natCast_succ
+  left_distrib := by
+    intro a b c
+    obtain ⟨ a1, b1, h1, rfl ⟩ := eq_diff a
+    obtain ⟨ a2, b2, h2, rfl ⟩ := eq_diff b
+    obtain ⟨ a3, b3, h3, rfl ⟩ := eq_diff c
+    repeat rw [mul_eq]
+    rw [add_eq, mul_eq, add_eq]
+    rw [eq]
+    . ring
+    . exact Int.mul_ne_zero h1 (Int.mul_ne_zero h2 h3)
+    . apply Int.mul_ne_zero
+      . exact Int.mul_ne_zero h1 h2
+      . exact Int.mul_ne_zero h1 h3
+    . exact Int.mul_ne_zero h1 h2
+    . exact Int.mul_ne_zero h1 h3
+    . exact h1
+    . exact Int.mul_ne_zero h2 h3
+    . exact h2
+    . exact h3
+    . exact h1
+    . exact h3
+    . exact h1
+    . exact h2
+  right_distrib := by
+    intro a b c
+    obtain ⟨ a1, b1, h1, rfl ⟩ := eq_diff a
+    obtain ⟨ a2, b2, h2, rfl ⟩ := eq_diff b
+    obtain ⟨ a3, b3, h3, rfl ⟩ := eq_diff c
+    repeat rw [mul_eq]
+    rw [add_eq, mul_eq, add_eq]
+    rw [eq]
+    . ring
+    . exact Int.mul_ne_zero (Int.mul_ne_zero h1 h2) h3
+    . apply Int.mul_ne_zero
+      . exact Int.mul_ne_zero h1 h3
+      . exact Int.mul_ne_zero h2 h3
+    . exact Int.mul_ne_zero h1 h3
+    . exact Int.mul_ne_zero h2 h3
+    . exact Int.mul_ne_zero h1 h2
+    . exact h3
+    . exact h1
+    . exact h2
+    . exact h2
+    . exact h3
+    . exact h1
+    . exact h3
+  zero_mul := by
+    intro a
+    obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+    repeat rw [of_Nat_eq']
+    rw [mul_eq]
+    rw [eq]
+    . simp only [CharP.cast_eq_zero, zero_mul, mul_one, one_mul]
+    . omega
+    . exact Int.one_ne_zero
+    . exact Int.one_ne_zero
+    . exact hc
+  mul_zero := by
+    intro a
+    obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+    repeat rw [of_Nat_eq']
+    rw [mul_eq]
+    rw [eq]
+    . simp only [CharP.cast_eq_zero, mul_zero, mul_one, zero_mul]
+    . omega
+    . exact Int.one_ne_zero
+    . exact hc
+    . exact Int.one_ne_zero
+  mul_assoc := by
+    intro a b c
+    obtain ⟨ a1, b1, h1, rfl ⟩ := eq_diff a
+    obtain ⟨ a2, b2, h2, rfl ⟩ := eq_diff b
+    obtain ⟨ a3, b3, h3, rfl ⟩ := eq_diff c
+    repeat rw [mul_eq]
+    rw [eq]
+    . ring
+    . apply Int.mul_ne_zero
+      . exact Int.mul_ne_zero h1 h2
+      . exact h3
+    . exact Int.mul_ne_zero h1 (Int.mul_ne_zero h2 h3)
+    . exact h1
+    . exact Int.mul_ne_zero h2 h3
+    . exact h2
+    . exact h3
+    . exact Int.mul_ne_zero h1 h2
+    . exact h3
+    . exact h1
+    . exact h2
+  -- if we were using the autogenerated natCast instance this is not needed.
+  -- but since we are using a custom natCast instance, we need to pass a proof for this.
+  natCast_succ := Rat.coe_Nat_succ
 
 instance Rat.instRatCast : RatCast Rat where
   ratCast q := q.num // q.den
 
-theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by sorry
+theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by
+  intro a b h
+  change a.num // ↑a.den = b.num // ↑b.den at h
+  have hda : (↑a.den : ℤ) ≠ 0 := by exact_mod_cast a.den_nz
+  have hdb : (↑b.den : ℤ) ≠ 0 := by exact_mod_cast b.den_nz
+  rw [eq _ _ hda hdb] at h
+  have := (_root_.Rat.divInt_eq_divInt_iff hda hdb).mpr h
+  rwa [_root_.Rat.num_divInt_den, _root_.Rat.num_divInt_den] at this
 
 theorem Rat.coe_Rat_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a/b:ℚ) = a // b := by
   set q := (a/b:ℚ)
-  set num :ℤ := q.num
-  set den :ℤ := (q.den:ℤ)
+  set num: ℤ := q.num
+  set den: ℤ := (q.den:ℤ)
   have hden : den ≠ 0 := by simp [den, q.den_nz]
   change num // den = a // b
   rw [eq _ _ hden hb]
@@ -214,15 +478,69 @@ theorem Rat.coe_Rat_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a/b:ℚ) = a // b := by
   have hq : num / den = q := Rat.num_div_den q
   rwa [div_eq_div_iff] at hq <;> simp [hden, hb]
 
+theorem Rat.coe_Rat_eq' (a:ℤ) {b:ℕ} (hb: b ≠ 0) : (a/b:ℚ) = a // b := by
+  change ((a : ℚ) / ↑b).num // ((a:ℚ) / ↑b).den = _
+  rw [eq]
+  . qify
+    have := Rat.num_div_den ((a:ℚ) / b)
+    rwa [div_eq_div_iff] at this
+    . simp only [ne_eq, Rat.natCast_eq_zero_iff, Rat.den_ne_zero, not_false_eq_true]
+    . exact Nat.cast_ne_zero.mpr hb
+  . simp only [ne_eq, Int.natCast_eq_zero, Rat.den_ne_zero, not_false_eq_true]
+  . exact Int.ofNat_ne_zero.mpr hb
+
+theorem Rat.coe_Rat_inj : Function.Injective (fun (n:ℚ) ↦ (n:Rat)) := by
+  intro p q h
+  simp only at h
+  rw [← Rat.num_div_den p] at h
+  rw [← Rat.num_div_den q] at h
+  repeat rw [coe_Rat_eq'] at h
+  rw [eq] at h
+  exact Rat.eq_iff_mul_eq_mul.mpr h
+  . have := p.den_nz
+    exact Int.ofNat_ne_zero.mpr this
+  . have := q.den_nz
+    exact Int.ofNat_ne_zero.mpr this
+  . exact q.den_nz
+  . exact p.den_nz
+
 /-- Default definition of division -/
 instance Rat.instDivInvMonoid : DivInvMonoid Rat where
 
 theorem Rat.div_eq (q r:Rat) : q/r = q * r⁻¹ := by rfl
 
+
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instField : Field Rat where
-  exists_pair_ne := by sorry
-  mul_inv_cancel := by sorry
+  exists_pair_ne := by
+    use 0
+    use 1
+    apply coe_Int_inj.ne_iff.mpr
+    exact Int.zero_ne_one
+
+  mul_inv_cancel := by
+    intro a ha
+    obtain ⟨ b, c, hc, rfl ⟩ := eq_diff a
+    have hb: b ≠ 0 := by
+      contrapose ha
+      -- ha : b = 0, goal : b // c = 0
+      subst ha
+      rw [of_Nat_eq, eq]
+      . omega
+      . exact hc
+      . exact Int.one_ne_zero
+    rw [inv_eq]
+    rw [mul_eq]
+    rw [of_Nat_eq]
+    rw [eq]
+    . simp only [mul_one, Nat.cast_one, one_mul]
+      rw [mul_comm]
+    . exact Int.mul_ne_zero hc hb
+    . exact Int.one_ne_zero
+    . exact hc
+    . exact hb
+    . exact hc
+
   inv_zero := rfl
   ratCast_def := by
     intro q
@@ -235,7 +553,28 @@ instance Rat.instField : Field Rat where
   qsmul := _
   nnqsmul := _
 
-example : (3//4) / (5//6) = 9 // 10 := by sorry
+example : (3//4) / (5//6) = 9 // 10 := by
+  rw [Rat.div_eq]
+  rw [Rat.inv_eq]
+  rw [Rat.mul_eq]
+  rw [Rat.eq] <;> omega
+  . omega
+  . omega
+  . omega
+
+-- also
+example : (3//4) / (5//6) = 18 // 20 := by
+  rw [Rat.div_eq]
+  rw [Rat.inv_eq]
+  rw [Rat.mul_eq]
+  rw [Rat.eq] <;> omega
+  . omega
+  . omega
+  . omega
+
+-- in built in Q
+example : (3/4) / (5/6) = 9 / 10 := by omega
+example : (3/4) / (5/6) = 18 / 20 := by omega
 
 /-- Definition of subtraction -/
 theorem Rat.sub_eq (a b:Rat) : a - b = a + (-b) := by rfl
@@ -244,8 +583,16 @@ def Rat.coe_int_hom : ℤ →+* Rat where
   toFun n := (n:Rat)
   map_zero' := rfl
   map_one' := rfl
-  map_add' := by sorry
-  map_mul' := by sorry
+  map_add' := by
+    intro a b
+    repeat rw [Rat.coe_Int_eq]
+    rw [add_eq _ _ Int.one_ne_zero Int.one_ne_zero]
+    simp only [mul_one, one_mul]
+  map_mul' := by
+    intro a b
+    repeat rw [Rat.coe_Int_eq]
+    rw [mul_eq _ _ Int.one_ne_zero Int.one_ne_zero]
+    simp only [mul_one]
 
 /-- Definition 4.2.6 (positivity) -/
 def Rat.isPos (q:Rat) : Prop := ∃ a b:ℤ, a > 0 ∧ b > 0 ∧ q = a/b
@@ -254,16 +601,156 @@ def Rat.isPos (q:Rat) : Prop := ∃ a b:ℤ, a > 0 ∧ b > 0 ∧ q = a/b
 def Rat.isNeg (q:Rat) : Prop := ∃ r:Rat, r.isPos ∧ q = -r
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.trichotomous (x:Rat) : x = 0 ∨ x.isPos ∨ x.isNeg := by sorry
+theorem Rat.trichotomous (x:Rat) : x = 0 ∨ x.isPos ∨ x.isNeg := by
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+  have hat := lt_trichotomy a 0
+  have hbt := lt_trichotomy b 0
+  have hbt': b > 0 ∨ b < 0 := by aesop
+  rcases hat with haneg | ha0 | hapos
+  . cases' hbt' with hbpos hbneg
+    . right; right
+      use -a // b
+      constructor
+      . use -a, b
+        constructor
+        . linarith
+        . constructor
+          . exact hbpos
+          . rw [coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq, neg_eq]
+            rw [eq]
+            . simp only [one_mul, neg_mul, mul_one]
+            . exact hb
+            . aesop
+            . exact hb
+            . exact Int.one_ne_zero
+            . exact hb
+            . exact Int.one_ne_zero
+      . simp only [neg_neg]
+    . right; left
+      use -a, -b
+      constructor
+      . omega
+      . constructor
+        . omega
+        . rw [coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq]
+          rw [eq]
+          . simp only [mul_neg, one_mul, mul_one, neg_mul]
+          . exact hb
+          . omega
+          . exact Int.one_ne_zero
+          . omega
+          . exact Int.one_ne_zero
+  . rw [ha0]
+    left
+    rw [of_Nat_eq]
+    rw [eq]
+    . simp only [mul_one, CharP.cast_eq_zero, zero_mul]
+    . exact hb
+    . exact Int.one_ne_zero
+  . cases' hbt' with hbpos hbneg
+    . right; left
+      use a, b
+      constructor
+      . exact hapos
+      . constructor
+        . exact hbpos
+        . rw [coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq]
+          rw [eq]
+          . simp only [one_mul, mul_one]
+          . linarith
+          . simp only [one_mul, ne_eq]
+            omega
+          . exact Int.one_ne_zero
+          . exact hb
+          . exact Int.one_ne_zero
+    . right; right
+      use a // (-b)
+      constructor
+      . use a, -b
+        constructor
+        . exact hapos
+        . constructor
+          . omega
+          . rw [coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq]
+            rw [eq]
+            . simp only [mul_neg, one_mul, mul_one]
+            . omega
+            . omega
+            . exact Int.one_ne_zero
+            . omega
+            . exact Int.one_ne_zero
+      . rw [neg_eq]
+        rw [eq]
+        . simp only [mul_neg, neg_mul]
+        . omega
+        . omega
+        . omega
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.not_zero_and_pos (x:Rat) : ¬(x = 0 ∧ x.isPos) := by sorry
+theorem Rat.not_zero_and_pos (x:Rat) : ¬(x = 0 ∧ x.isPos) := by
+  rintro ⟨ h1, h2 ⟩
+  rw [h1] at h2
+  rw [isPos] at h2
+  obtain ⟨ a, b, ha, hb, h2' ⟩ := h2
+  rw [coe_Int_eq, of_Nat_eq] at h2'
+  rw [coe_Int_eq, div_eq, inv_eq, mul_eq] at h2'
+  rw [eq] at h2'
+  simp at h2'
+  . linarith
+  . exact Int.one_ne_zero
+  . simp only [one_mul, ne_eq]
+    omega
+  . exact Int.one_ne_zero
+  . omega
+  . exact Int.one_ne_zero
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.not_zero_and_neg (x:Rat) : ¬(x = 0 ∧ x.isNeg) := by sorry
+theorem Rat.not_zero_and_neg (x:Rat) : ¬(x = 0 ∧ x.isNeg) := by
+  rintro ⟨h1, h2⟩
+  rw [isNeg] at h2
+  obtain ⟨ r, hr1, hr2 ⟩ := h2
+  rw [isPos] at hr1
+  obtain ⟨ a, b, ha, hb, hr1' ⟩ := hr1
+  rw [h1] at hr2
+  simp only [zero_eq_neg] at hr2
+  subst r
+  rw [coe_Int_eq, coe_Int_eq, of_Nat_eq, div_eq, inv_eq, mul_eq] at hr2
+  rw [eq] at hr2
+  simp at hr2
+  . linarith
+  . simp only [one_mul, ne_eq]
+    exact Int.ne_of_gt hb
+  . exact Int.one_ne_zero
+  . exact Int.one_ne_zero
+  . omega
+  . exact Int.one_ne_zero
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.not_pos_and_neg (x:Rat) : ¬(x.isPos ∧ x.isNeg) := by sorry
+theorem Rat.not_pos_and_neg (x:Rat) : ¬(x.isPos ∧ x.isNeg) := by
+  rintro ⟨ h1, h2 ⟩
+  rw [isNeg] at h2
+  obtain ⟨ r, hr1, hr2 ⟩ := h2
+  rw [isPos] at h1 hr1
+  obtain ⟨ a, b, ha, hb, h1' ⟩ := h1
+  obtain ⟨ c, d, hc, hd, hr1' ⟩ := hr1
+  subst x
+  subst r
+  repeat rw [coe_Int_eq] at h1'
+  rw [div_eq, inv_eq, mul_eq, neg_eq, div_eq, inv_eq, mul_eq] at h1'
+  rw [eq] at h1'
+  . simp only [mul_one, one_mul, neg_mul] at h1'
+    have : a * d > 0 := by exact Int.mul_pos ha hd
+    have : c * b > 0 := by exact Int.mul_pos hc hb
+    linarith
+  . omega
+  . omega
+  . exact Int.one_ne_zero
+  . exact Ne.symm (Int.ne_of_lt hb)
+  . exact Int.one_ne_zero
+  . omega
+  . exact Int.one_ne_zero
+  . exact Ne.symm (Int.ne_of_lt hd)
+  . exact Int.one_ne_zero
 
 /-- Definition 4.2.8 (Ordering of the rationals) -/
 instance Rat.instLT : LT Rat where
@@ -276,32 +763,181 @@ instance Rat.instLE : LE Rat where
 theorem Rat.lt_iff (x y:Rat) : x < y ↔ (x-y).isNeg := by rfl
 theorem Rat.le_iff (x y:Rat) : x ≤ y ↔ (x < y) ∨ (x = y) := by rfl
 
-theorem Rat.gt_iff (x y:Rat) : x > y ↔ (x-y).isPos := by sorry
-theorem Rat.ge_iff (x y:Rat) : x ≥ y ↔ (x > y) ∨ (x = y) := by sorry
+theorem Rat.gt_iff (x y:Rat) : x > y ↔ (x-y).isPos := by
+  constructor
+  . intro h
+    simp only [gt_iff_lt] at h
+    rw [lt_iff] at h
+    rw [isNeg] at h
+    obtain ⟨ r, hr1, hr2 ⟩ := h
+    have : (x - y) = r := by
+      have := by exact congrArg ((-1) * .) hr2
+      simp only [neg_mul, one_mul, neg_sub, mul_neg, neg_neg] at this
+      exact this
+    rw [this]
+    exact hr1
+  . intro h
+    simp only [gt_iff_lt]
+    rw [lt_iff]
+    rw [isNeg]
+    use (x - y)
+    constructor
+    . exact h
+    . ring
+
+theorem Rat.ge_iff (x y:Rat) : x ≥ y ↔ (x > y) ∨ (x = y) := by
+  constructor
+  . intro h
+    simp only [ge_iff_le, gt_iff_lt] at h ⊢
+    rw [le_iff] at h
+    cases' h with h1 h2
+    . left; exact h1
+    . right; exact h2.symm
+  . intro h
+    simp only [gt_iff_lt, ge_iff_le] at h ⊢
+    rw [le_iff]
+    cases' h with h1 h2
+    . left; exact h1
+    . right; exact h2.symm
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.trichotomous' (x y:Rat) : x > y ∨ x < y ∨ x = y := by sorry
+theorem Rat.trichotomous' (x y:Rat) : x > y ∨ x < y ∨ x = y := by
+  have := Rat.trichotomous (x - y)
+  rcases this with hzero | hpos | hneg
+  . right; right
+    have : x - y + y = 0 + y := by exact congrArg (. + y) hzero
+    simp only [sub_add_cancel, zero_add] at this
+    exact this
+  . left
+    rw [gt_iff]
+    exact hpos
+  . right; left
+    rw [lt_iff]
+    exact hneg
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.not_gt_and_lt (x y:Rat) : ¬ (x > y ∧ x < y):= by sorry
+theorem Rat.not_gt_and_lt (x y:Rat) : ¬ (x > y ∧ x < y):= by
+  rintro ⟨ h1, h2 ⟩
+  rw [gt_iff] at h1
+  rw [lt_iff] at h2
+  exact Rat.not_pos_and_neg (x - y) ⟨ h1, h2 ⟩
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.not_gt_and_eq (x y:Rat) : ¬ (x > y ∧ x = y):= by sorry
+theorem Rat.not_gt_and_eq (x y:Rat) : ¬ (x > y ∧ x = y):= by
+  rintro ⟨ h1, h2 ⟩
+  rw [gt_iff] at h1
+  have : (x - y) = 0 := by rw [h2]; ring
+  exact Rat.not_zero_and_pos (x - y) ⟨this, h1⟩
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.not_lt_and_eq (x y:Rat) : ¬ (x < y ∧ x = y):= by sorry
+theorem Rat.not_lt_and_eq (x y:Rat) : ¬ (x < y ∧ x = y):= by
+  rintro ⟨ h1, h2 ⟩
+  rw [lt_iff] at h1
+  have : (x - y) = 0 := by rw [h2]; ring
+  exact Rat.not_zero_and_neg (x - y) ⟨this, h1⟩
 
 /-- Proposition 4.2.9(b) (order is anti-symmetric) / Exercise 4.2.5 -/
-theorem Rat.antisymm (x y:Rat) : x < y ↔ y > x := by sorry
+theorem Rat.antisymm (x y:Rat) : x < y ↔ (y - x).isPos := by exact gt_iff y x
+
+-- why not? because rfl solves it? I guess definition of `>` differs from book
+theorem Rat.antisymm' (x y:Rat) : x < y ↔ y > x := by rfl
 
 /-- Proposition 4.2.9(c) (order is transitive) / Exercise 4.2.5 -/
-theorem Rat.lt_trans {x y z:Rat} (hxy: x < y) (hyz: y < z) : x < z := by sorry
+theorem Rat.lt_trans {x y z:Rat} (hxy: x < y) (hyz: y < z) : x < z := by
+  -- working with isPos is easier
+  rw [← gt_iff_lt] at hxy hyz ⊢
+  rw [gt_iff] at hxy hyz ⊢
+  rw [isPos] at hxy hyz ⊢
+  obtain ⟨ a, b, ha, hb, hxy' ⟩ := hxy
+  obtain ⟨ c, d, hc, hd, hyz' ⟩ := hyz
+  use a * d + b * c, b * d
+  constructor
+  -- why can't linarith do this automatically?
+  . have : a * d > 0 := by exact Int.mul_pos ha hd
+    have : b * c > 0 := by exact Int.mul_pos hb hc
+    linarith
+  . constructor
+    . exact Int.mul_pos hb hd
+    . have : z - x = (z - y) + (y - x) := by ring
+      rw [this]
+      rw [hxy', hyz']
+      simp only [Int.cast_add, Int.cast_mul]
+      repeat rw [coe_Int_eq]
+      repeat rw [div_eq, inv_eq, mul_eq]
+      repeat rw [add_eq]
+      rw [div_eq, mul_eq, mul_eq, mul_eq, inv_eq]
+      rw [add_eq, mul_eq]
+      rw [eq]
+      . ring
+      -- is there a better way to use omega and friends on all possible goals
+      . simp only [one_mul, ne_eq, mul_eq_zero, not_or]
+        omega
+      . simp only [mul_one, one_mul, ne_eq, mul_eq_zero, not_or]
+        omega
+      . omega
+      . have bneq : b ≠ 0 := by exact Ne.symm (Int.ne_of_lt hb)
+        have dneq : d ≠ 0 := by exact Ne.symm (Int.ne_of_lt hd)
+        exact Int.mul_ne_zero bneq dneq
+      repeat omega
 
 /-- Proposition 4.2.9(d) (addition preserves order) / Exercise 4.2.5 -/
-theorem Rat.add_lt_add_right {x y:Rat} (z:Rat) (hxy: x < y) : x + z < y + z := by sorry
+theorem Rat.add_lt_add_right {x y:Rat} (z:Rat) (hxy: x < y) : x + z < y + z := by
+  rw [← gt_iff_lt] at hxy ⊢
+  rw [gt_iff] at hxy ⊢
+  simp only [add_sub_add_right_eq_sub]
+  exact hxy
 
 /-- Proposition 4.2.9(e) (positive multiplication preserves order) / Exercise 4.2.5 -/
-theorem Rat.mul_lt_mul_right {x y z:Rat} (hxy: x < y) (hz: z.isPos) : x * z < y * z := by sorry
+theorem Rat.mul_lt_mul_right {x y z:Rat} (hxy: x < y) (hz: z.isPos) : x * z < y * z := by
+  rw [← gt_iff_lt] at hxy ⊢
+  rw [gt_iff] at hxy ⊢
+  have : (y * z - x * z) = (y - x) * z := by ring
+  rw [this]
+  rw [isPos] at hz hxy ⊢
+  obtain ⟨ a, b, ha, hb, hxy' ⟩ := hxy
+  obtain ⟨ c, d, hc, hd, hz' ⟩ := hz
+  use a * c, b * d
+  constructor
+  . exact Int.mul_pos ha hc
+  . constructor
+    . exact Int.mul_pos hb hd
+    . rw [hxy']
+      rw [hz']
+      repeat rw [coe_Int_eq]
+      repeat rw [div_eq, inv_eq, mul_eq]
+      rw [mul_eq]
+      rw [eq]
+      . ring
+      . simp only [one_mul, ne_eq, mul_eq_zero, not_or]
+        omega
+      . simp only [one_mul, ne_eq, mul_eq_zero, not_or]
+        omega
+      . omega
+      . have bneq : b ≠ 0 := by exact Ne.symm (Int.ne_of_lt hb)
+        have dneq : d ≠ 0 := by exact Ne.symm (Int.ne_of_lt hd)
+        exact Int.mul_ne_zero bneq dneq
+      repeat omega
+
+theorem Rat.gt_of_neq_le (a b: Rat): (¬ a ≤ b) ↔ a > b := by
+  constructor
+  . intro h
+    rw [le_iff] at h
+    push_neg at h
+    have := Rat.trichotomous' a b
+    tauto
+  . intro h
+    rw [le_iff]
+    push_neg
+    constructor
+    . by_contra h2
+      exact Rat.not_gt_and_lt _ _ ⟨h, h2⟩
+    . by_contra h2
+      have := And.intro h h2
+      exact Rat.not_gt_and_eq _ _ this
+
+theorem Rat.formalDiv_eq (a b: ℤ) (hb: b ≠ 0): ⟦{ numerator := a, denominator := b, nonzero := hb }⟧ = a // b := by
+  rw [formalDiv]
+  simp [hb]
 
 /-- (Not from textbook) Establish the decidability of this order. -/
 instance Rat.decidableRel : DecidableRel (· ≤ · : Rat → Rat → Prop) := by
@@ -317,42 +953,272 @@ instance Rat.decidableRel : DecidableRel (· ≤ · : Rat → Rat → Prop) := b
         cases (a * d).decLe (b * c) with
           | isTrue h =>
             apply isTrue
-            sorry
+            rw [le_iff_eq_or_lt] at h
+            rw [← ge_iff_le] at ⊢
+            rw [ge_iff]
+            rw [gt_iff]
+            cases' h with hlt heq
+            . right
+              simp only [Quotient.eq]
+              rw [mul_comm b] at hlt
+              symm
+              exact hlt
+            . left
+              rw [isPos]
+              use c * b - a * d, b * d
+              constructor
+              . rw [mul_comm c]
+                exact Int.sub_pos_of_lt heq
+              . constructor
+                . simp only [gt_iff_lt]
+                  have : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
+                  exact lt_of_le_of_ne hbd (id (Ne.symm this))
+                . repeat rw [formalDiv_eq]
+                  rw [sub_eq_quot (hb := hd) (hd := hb), coe_Int_eq, coe_Int_eq,
+                    div_eq, inv_eq, mul_eq]
+                  rw [eq]
+                  · ring
+                  · exact Int.mul_ne_zero hd hb
+                  · exact Int.mul_ne_zero (by omega) (by exact Int.mul_ne_zero hb hd)
+                  · omega
+                  · exact Int.mul_ne_zero hb hd
+                  repeat omega
           | isFalse h =>
             apply isFalse
-            sorry
+            simp only [not_le] at h
+            rw [gt_of_neq_le]
+            rw [gt_iff]
+            use a * d - b * c, b * d
+            constructor
+            . exact Int.sub_pos_of_lt h
+            . constructor
+              . have : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
+                exact lt_of_le_of_ne hbd (id (Ne.symm this))
+              . repeat rw [formalDiv_eq]
+                rw [sub_eq_quot (hb := hb) (hd := hd), coe_Int_eq, coe_Int_eq,
+                  div_eq, inv_eq, mul_eq]
+                rw [eq]
+                · ring
+                · exact Int.mul_ne_zero (by omega) hd
+                · exact Int.mul_ne_zero (by omega) (by exact Int.mul_ne_zero hb hd)
+                · omega
+                · exact Int.mul_ne_zero hb hd
+                repeat omega
       | isFalse hbd =>
         cases (b * c).decLe (a * d) with
           | isTrue h =>
             apply isTrue
-            sorry
+            simp only [not_le] at hbd
+            rw [le_iff_eq_or_lt] at h
+            rw [← ge_iff_le] at ⊢
+            rw [ge_iff]
+            rw [gt_iff]
+            cases' h with hlt heq
+            . right
+              simp only [Quotient.eq]
+              rw [mul_comm b] at hlt
+              exact hlt
+            . left
+              use a * d - b * c, (-b) * d
+              constructor
+              . omega
+              . constructor
+                . simp only [neg_mul, Int.neg_pos]
+                  exact hbd
+                . repeat rw [formalDiv_eq]
+                  rw [sub_eq_quot, coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq]
+                  rw [eq]
+                  . ring
+                  . exact Int.mul_ne_zero hd hb
+                  . simp only [neg_mul, mul_neg, one_mul, ne_eq, neg_eq_zero, mul_eq_zero, not_or]
+                    omega
+                  . omega
+                  . simp only [neg_mul, ne_eq, neg_eq_zero, mul_eq_zero, not_or]
+                    omega
+                  repeat omega
           | isFalse h =>
             apply isFalse
-            sorry
+            simp only [not_le] at hbd
+            simp only [not_le] at h
+            rw [gt_of_neq_le]
+            rw [gt_iff]
+            use b * c - a * d, (-b) * d
+            constructor
+            . omega
+            . constructor
+              simp only [neg_mul, Int.neg_pos]
+              exact hbd
+              . repeat rw [formalDiv_eq]
+                rw [sub_eq_quot, coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq]
+                rw [eq]
+                . ring
+                . exact Int.mul_ne_zero hb hd
+                . simp only [neg_mul, mul_neg, one_mul, ne_eq, neg_eq_zero, mul_eq_zero, not_or]
+                  omega
+                . omega
+                . simp only [neg_mul, ne_eq, neg_eq_zero, mul_eq_zero, not_or]
+                  omega
+                repeat omega
   exact Quotient.recOnSubsingleton₂ n m this
 
 /-- (Not from textbook) Rat has the structure of a linear ordering. -/
 instance Rat.instLinearOrder : LinearOrder Rat where
-  le_refl := sorry
-  le_trans := sorry
-  lt_iff_le_not_ge := sorry
-  le_antisymm := sorry
-  le_total := sorry
+  le_refl := by
+    intro a
+    rw [le_iff]
+    right
+    rfl
+  le_trans := by
+    intro a b c ha hb
+    rw [le_iff] at ha hb ⊢
+    cases' ha with h1 h2
+    . cases' hb with h3 h4
+      . left
+        exact lt_trans h1 h3
+      . left
+        rwa [h4] at h1
+    . cases' hb with h3 h4
+      . rw [← h2] at h3
+        left
+        exact h3
+      . rw [← h2] at h4
+        right
+        exact h4
+  lt_iff_le_not_ge := by
+    intro a b
+    repeat rw [le_iff]
+    push_neg
+    constructor
+    . intro h
+      constructor
+      . left; exact h
+      . constructor
+        . have := Rat.not_gt_and_lt a b
+          tauto
+        . have := Rat.not_lt_and_eq a b
+          tauto
+    . rintro ⟨h1, h2⟩
+      tauto
+  le_antisymm := by
+    intro a b h1 h2
+    rw [le_iff] at h1 h2
+    by_contra heq
+    have := Rat.not_gt_and_lt a b
+    tauto
+  le_total := by
+    intro a b
+    by_cases h: a = b
+    . rw [h]
+      tauto
+    . repeat rw [le_iff]
+      simp [h]
+      have : b ≠ a := by tauto
+      simp [this]
+      have := Rat.trichotomous' a b
+      simp [h] at this
+      tauto
   toDecidableLE := decidableRel
+
+theorem Rat.add_le_add_left : ∀ (a b : Rat), a ≤ b → ∀ (c : Rat), c + a ≤ c + b := by
+  intro p q h c
+  rw [le_iff] at h ⊢
+  cases' h with h1 h2
+  . left
+    rw [← gt_iff_lt] at h1 ⊢
+    rw [gt_iff] at h1 ⊢
+    rw [isPos] at h1 ⊢
+    obtain ⟨a, b, ha, hb, hab⟩ := h1
+    use a, b
+    constructor
+    . exact ha
+    . constructor
+      . exact hb
+      . simp only [add_sub_add_left_eq_sub]
+        exact hab
+  . right
+    rw [h2]
+
+/-- If I don't extract them I get a non-termination error -/
+theorem Rat.mul_lt_mul_of_pos_left :  ∀ (a b c : Rat), a < b → 0 < c → c * a < c * b := by
+  intro p q r h hr
+  rw [← gt_iff_lt] at h ⊢
+  rw [gt_iff] at h ⊢
+  rw [isPos] at h ⊢
+  obtain ⟨a, b, ha, hb, hab⟩ := h
+  rw [lt_iff] at hr
+  simp only [zero_sub] at hr
+  rw [isNeg] at hr
+  simp only [neg_inj, exists_eq_right'] at hr
+  rw [isPos] at hr
+  obtain ⟨c, d, hc, hd, hcd⟩ := hr
+  use a * c, b * d
+  constructor
+  . exact Int.mul_pos ha hc
+  . constructor
+    . exact Int.mul_pos hb hd
+    . have : r * q - r * p = r * (q - p) := by exact Eq.symm (mul_sub_left_distrib r q p)
+      rw [this]
+      rw [hab, hcd]
+      repeat rw [div_eq]
+      repeat rw [coe_Int_eq]
+      repeat rw [inv_eq]
+      repeat rw [mul_eq]
+      rw [eq]
+      . ring
+      . simp only [one_mul, ne_eq, mul_eq_zero, not_or]
+        omega
+      . simp only [one_mul, ne_eq, mul_eq_zero, not_or]
+        omega
+      . omega
+      . have bne : b ≠ 0 := by exact Ne.symm (Int.ne_of_lt hb)
+        have dne : d ≠ 0 := by exact Ne.symm (Int.ne_of_lt hd)
+        exact Int.mul_ne_zero bne dne
+      . omega
+      repeat omega
 
 /-- (Not from textbook) Rat has the structure of a strict ordered ring. -/
 instance Rat.instIsStrictOrderedRing : IsStrictOrderedRing Rat where
-  add_le_add_left := by sorry
-  add_le_add_right := by sorry
-  mul_lt_mul_of_pos_left := by sorry
-  mul_lt_mul_of_pos_right := by sorry
-  le_of_add_le_add_left := by sorry
-  zero_le_one := by sorry
+  add_le_add_left := by
+    intro a b hab c
+    have := Rat.add_le_add_left a b hab c
+    rwa [add_comm c a, add_comm c b] at this
+  mul_lt_mul_of_pos_left := by
+    intro a ha b c hbc
+    exact Rat.mul_lt_mul_of_pos_left b c a hbc ha
+  mul_lt_mul_of_pos_right := by
+    intro a ha b c hbc
+    have := Rat.mul_lt_mul_of_pos_left b c a hbc ha
+    rwa [mul_comm a b, mul_comm a c] at this
+  le_of_add_le_add_left := by
+    intro p q r h
+    rw [le_iff] at h ⊢
+    rcases h with h1 | h2
+    . left
+      rw [← gt_iff_lt] at h1 ⊢
+      rw [gt_iff] at h1 ⊢
+      rw [isPos] at h1 ⊢
+      obtain ⟨a, b, ha, hb, hab⟩ := h1
+      use a, b
+      simp_all
+    . simp only [add_right_inj] at h2
+      right
+      exact h2
+  zero_le_one := by
+    rw [le_iff]
+    simp only [zero_ne_one, or_false]
+    rw [← gt_iff_lt]
+    rw [gt_iff]
+    rw [isPos]
+    use 1, 1
+    simp_all
 
 /-- Exercise 4.2.6 -/
 theorem Rat.mul_lt_mul_right_of_neg (x y z:Rat) (hxy: x < y) (hz: z.isNeg) : x * z > y * z := by
-  sorry
-
+  rw [isNeg] at hz
+  obtain ⟨r, hr, hqr⟩ := hz
+  subst z
+  simp only [mul_neg, gt_iff_lt, neg_lt_neg_iff]
+  exact mul_lt_mul_right hxy hr
 
 /--
   Not in textbook: create an equivalence between Rat and ℚ. This requires some familiarity with
@@ -360,21 +1226,227 @@ theorem Rat.mul_lt_mul_right_of_neg (x y z:Rat) (hxy: x < y) (hz: z.isNeg) : x *
 -/
 abbrev Rat.equivRat : Rat ≃ ℚ where
   toFun := Quotient.lift (fun ⟨ a, b, h ⟩ ↦ a / b) (by
-    sorry)
-  invFun := fun n: ℚ ↦ (n:Rat)
-  left_inv n := sorry
-  right_inv n := sorry
+    intro a b h
+    simp only
+    rw [PreRat.eq] at h
+    suffices h: (a.numerator : ℚ) * ↑b.denominator = ↑b.numerator * ↑a.denominator by
+      have ha' := a.nonzero
+      have hb' := b.nonzero
+      field_simp; linarith
+    have := congrArg (@Int.cast ℚ _root_.Rat.instIntCast .) h
+    simp at this
+    exact this
+    )
+  invFun := fun n ↦ (n: Rat)
+  left_inv n := by
+    simp only
+    obtain ⟨a, b, hb, hab⟩ := eq_diff n
+    subst n
+    simp [hb]
+    repeat rw [coe_Int_eq]
+    rw [div_eq, inv_eq, mul_eq]
+    rw [eq]
+    . ring
+    repeat omega
+
+  right_inv n := by
+    simp only
+    obtain ⟨a, b, hb, hab⟩ := eq_diff n
+    rw [hab]
+    simp [hb]
+    rw [← coe_Rat_eq] at hab
+    apply coe_Rat_inj at hab
+    . exact hab.symm
+    . exact hb
+
+lemma div_lt_div_iff_same_sign {a b c d: ℚ} (hbd : 0 < b * d) : a / b < c / d ↔ a * d < c * b := by
+  have hbn : b ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  have hdn : d ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  by_cases hb : b > 0
+  . have hd : d > 0 := by exact (pos_iff_pos_of_mul_pos hbd).mp hb
+    exact div_lt_div_iff₀ hb hd
+  . simp at hb
+    rw [le_iff_lt_or_eq] at hb
+    simp [hbn] at hb
+    have hd: d < 0 := by exact (neg_iff_neg_of_mul_pos hbd).mp hb
+    have := div_lt_div_iff₀ (a:=c) (b:=-d) (c:=a) (d:=-b)
+    simp at this
+    have := this hd hb
+    rw [← this]
+    have h' : c / (-d) < a / (-b) ↔ c / d > a / b := by
+      rw [div_neg, div_neg, neg_lt_neg_iff]
+    rw [h']
+
+lemma div_lt_div_iff_diff_sign {a b c d: ℚ} (hbd : 0 > b * d) : a / b < c / d ↔ a * d > c * b := by
+  have hbn : b ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  have hdn : d ≠ 0 := by
+    by_contra h
+    rw [h] at hbd
+    linarith
+  by_cases hb : b > 0
+  . have hd : d < 0 := by exact (pos_iff_neg_of_mul_neg hbd).mp hb
+    have := div_lt_div_iff₀ (a:=a) (b:=b) (c:=-c) (d:=-d)
+    simp at this
+    have := this hb hd
+    rw [this]
+  . simp at hb
+    rw [le_iff_lt_or_eq] at hb
+    simp [hbn] at hb
+    have hd : d > 0 := by exact (neg_iff_pos_of_mul_neg hbd).mp hb
+    have := div_lt_div_iff₀ (a:=-a) (b:=-b) (c:=c) (d:=d)
+    simp at this
+    have := this hb hd
+    rw [this]
 
 /-- Not in textbook: equivalence preserves order -/
 abbrev Rat.equivRat_order : Rat ≃o ℚ where
   toEquiv := equivRat
-  map_rel_iff' := by sorry
+  map_rel_iff' := by
+    intro p q
+    obtain ⟨a, b, hb, rfl⟩ := eq_diff p
+    obtain ⟨c, d, hd, rfl⟩ := eq_diff q
+    simp [hb, hd]
+    rw [le_iff_lt_or_eq]
+    rw [← ge_iff_le]
+    rw [ge_iff]
+    rw [gt_iff]
+    constructor
+    . intro h
+      cases' h with h1 h2
+      . left
+        rw [isPos]
+        by_cases hbd : b * d > 0
+        . use b * c - a * d, b * d
+          constructor
+          . rw [div_lt_div_iff_same_sign] at h1
+            . norm_cast at h1
+              linarith
+            . exact_mod_cast hbd
+          . constructor
+            . exact hbd
+            . repeat rw [coe_Int_eq]
+              rw [div_eq, inv_eq, mul_eq]
+              rw [sub_eq_quot]
+              rw [eq]
+              . ring
+              . exact Int.mul_ne_zero hd hb
+              . simp only [one_mul, ne_eq, mul_eq_zero, not_or]
+                omega
+              repeat omega
+        . have hbdneq : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
+          simp only [gt_iff_lt, not_lt] at hbd
+          rw [le_iff_lt_or_eq] at hbd
+          simp [hbdneq] at hbd
+          use -b * c + a * d, -b * d
+          constructor
+          . rw [div_lt_div_iff_diff_sign] at h1
+            . norm_cast at h1
+              linarith
+            . exact_mod_cast hbd
+          . constructor
+            . linarith
+            . repeat rw [coe_Int_eq]
+              rw [div_eq, inv_eq, mul_eq]
+              rw [sub_eq_quot]
+              rw [eq]
+              . ring
+              . exact Int.mul_ne_zero hd hb
+              . simp only [neg_mul, mul_neg, one_mul, ne_eq, neg_eq_zero, mul_eq_zero, not_or]
+                omega
+              . omega
+              . omega
+              . omega
+              . simp only [neg_mul, ne_eq, neg_eq_zero, mul_eq_zero, not_or]
+                omega
+              repeat omega
+      . right
+        rw [eq]
+        . field_simp at h2
+          norm_cast at h2
+          linarith
+        . exact hd
+        . exact hb
+    . intro h
+      cases' h with h1 h2
+      . rw [isPos] at h1
+        obtain ⟨x, y, hx, hy, hxy⟩ := h1
+        left
+        rw [sub_eq_quot] at hxy
+        rw [coe_Int_eq, coe_Int_eq, div_eq, inv_eq, mul_eq] at hxy
+        rw [eq] at hxy
+        simp at hxy
+        . by_cases hbd : b * d > 0
+          . rw [div_lt_div_iff_same_sign]
+            . norm_cast
+              have : (c * b - d * a) > 0 := by
+                suffices h': (c * b - d * a) * y > 0 by
+                  exact (pos_iff_pos_of_mul_pos h').mpr hy
+                rw [hxy]
+                -- needed to flip a bunch of < before linarith works
+                simp_all
+                linarith
+              linarith
+            . norm_cast
+          . simp only [gt_iff_lt, not_lt] at hbd
+            have hbdneq : b * d ≠ 0 := by exact Int.mul_ne_zero hb hd
+            rw [le_iff_lt_or_eq] at hbd
+            simp only [hbdneq, or_false] at hbd
+            rw [div_lt_div_iff_diff_sign]
+            . norm_cast
+              have : (c * b - d * a) < 0 := by
+                suffices h': (c * b - d * a) * y < 0 by
+                  exact (neg_iff_pos_of_mul_neg h').mpr hy
+                rw [hxy]
+                -- needed to flip a bunch of < before linarith works
+                simp_all
+                rw [mul_comm d]
+                -- still can't linarith
+                exact Int.mul_neg_of_pos_of_neg hx hbd
+              linarith
+            . norm_cast
+        . exact Int.mul_ne_zero hd hb
+        repeat omega
+      . right
+        rw [eq] at h2
+        . field_simp
+          norm_cast
+          linarith
+        . exact hd
+        . exact hb
 
 /-- Not in textbook: equivalence preserves ring operations -/
 abbrev Rat.equivRat_ring : Rat ≃+* ℚ where
   toEquiv := equivRat
-  map_add' := by sorry
-  map_mul' := by sorry
+  map_add' := by
+    intro p q
+    obtain ⟨a, b, hb, rfl⟩ := eq_diff p
+    obtain ⟨c, d, hd, rfl⟩ := eq_diff q
+    simp [hb, hd]
+    rw [add_eq _ _ hb hd]
+    simp [Int.mul_ne_zero hb hd]; field_simp
+  map_mul' := by
+    intro p q
+    obtain ⟨a, b, hb, rfl⟩ := eq_diff p
+    obtain ⟨c, d, hd, rfl⟩ := eq_diff q
+    simp [hb, hd]
+    rw [mul_eq _ _ hb hd]
+    simp [Int.mul_ne_zero hb hd]; field_simp
+
+/--
+  Moved from earlier in original text.
+
+  (Not from textbook) The textbook rationals are isomorphic (as a field) to the Mathlib rationals.
+-/
+def Rat.equiv_rat : ℚ ≃+* Rat := Rat.equivRat_ring.symm
 
 /--
   (Not from textbook) The textbook rationals are isomorphic (as a field) to the Mathlib rationals.

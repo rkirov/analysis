@@ -18,7 +18,12 @@ example : ∀ ε > (0:ℝ), ∃ δ > 0, 2 * δ < ε := by
   . linarith
 
 example : ¬ ∃ δ > 0, ∀ ε > (0:ℝ), 2 * δ < ε := by
-  sorry
+  push_neg
+  intro δ hδ
+  use 2 * δ
+  constructor
+  . positivity
+  . rfl
 
 open Real in
 /-- Proposition A.6.2.  The proof below is somewhat non-idiomatic for Lean, but illustrates how to implement a "let ε be a quantity to be chosen later" type of proof. -/

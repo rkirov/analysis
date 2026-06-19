@@ -506,7 +506,7 @@ atTop.Tendsto f l ↔ atTop.Tendsto (f ∘ Nat.cast) l := by
   simp [←eventually_atTop]
   convert Eventually.int_natCast_atTop _
 
-/-- Connection with Mathlib's `tsum` (or `Σ'`) operation -/
+/-- Connection with Mathlib's {name}`tsum` (or {lit}`Σ'`) operation -/
 theorem Sum'.eq_tsum {X:Type} (f:X → ℝ) (h: AbsConvergent' f) :
   Sum' f = ∑' x, f x := by
   set E := {x | f x ≠ 0}
@@ -898,7 +898,7 @@ private theorem cover_of_min_injective {S : Set ℕ} {n' : ℕ → ℕ} {J : ℕ
     (fun j : (Set.Ici J : Set ℕ) ↦ (⟨n' j, this j j.2⟩ : Set.Iic m))
     (fun ⟨j₁, _⟩ ⟨j₂, _⟩ h ↦ Subtype.ext (hn'_inj (Subtype.mk.inj h)))
 
-/-- Bridge between ℤ-indexed `Series.convergesTo` and ℕ-indexed `Fin` partial sums. -/
+/-- Bridge between ℤ-indexed {name}`Series.convergesTo` and ℕ-indexed {name}`Fin` partial sums. -/
 private theorem Series.convergesTo_iff_tendsto_fin (b : ℕ → ℝ) (L : ℝ) :
     (b : Series).convergesTo L ↔ atTop.Tendsto (fun j ↦ ∑ i : Fin j, b i) (nhds L) := by
   have heq : (b : Series).partial ∘ (Nat.cast : ℕ → ℤ) =

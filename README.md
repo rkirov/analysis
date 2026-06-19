@@ -5,6 +5,8 @@ a retro on my [blog](https://rkirov.github.io/).
 
 Currently, I am not optimizing for readability or style of the proofs, but rather completing as many of the exercises.
 
+Chapters 2 through 6 were done entirely by hand. From Chapter 7 onward I used AI assistance (Claude Code) to help draft solutions, but every solution was read and reviewed by me.
+
 Completed
 - Chapter 2 - all 
 - Chapter 3 - all

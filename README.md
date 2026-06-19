@@ -8,14 +8,16 @@ Currently, I am not optimizing for readability or style of the proofs, but rathe
 Chapters 2 through 6 were done entirely by hand. From Chapter 7 onward I used AI assistance (Claude Code) to help draft solutions, but every solution was read and reviewed by me.
 
 Completed
-- Chapter 2 - all 
+- Chapter 2 - all
 - Chapter 3 - all
 - Chapter 4 - all
 - Chapter 5 - all
 - Chapter 6 - all
 - Chapter 7 - all
 - Chapter 8 - all
-- Chapter 9 - 1,2,3,4,5
+- Chapter 9 - all except Exercises 9.1.5 and 9.1.6
+- Chapter 10 - all
+- Chapter 11 - all
 
 # Lean formalization of _Analysis I_
 

@@ -129,10 +129,37 @@ theorem integ_congr {f g:ℝ → ℝ} {I: BoundedInterval} (h: Set.EqOn f g I) :
 noncomputable abbrev IntegrableOn (f:ℝ → ℝ) (I: BoundedInterval) : Prop :=
   BddOn f I ∧ lower_integral f I = upper_integral f I
 
+theorem bounded_of_piecewise_constant {I : BoundedInterval} {f : ℝ → ℝ} (hf: PiecewiseConstantOn f I) : BddOn f I := by
+  obtain ⟨ P, hP ⟩ := hf
+  refine BddOn.of_bounded (M := ∑ J ∈ P.intervals, |constant_value_on f (J:Set ℝ)|) ?_
+  intro x hx
+  obtain ⟨ J, ⟨ hJ, hxJ ⟩, _ ⟩ := P.exists_unique x hx
+  rw [ConstantOn.eq (hP J hJ) hxJ]
+  exact Finset.single_le_sum
+    (f := fun J : BoundedInterval => |constant_value_on f (J:Set ℝ)|)
+    (fun _ _ => abs_nonneg _) hJ
+
+theorem self_majorizes {I : BoundedInterval} {f : ℝ → ℝ} : MajorizesOn f f I := by
+  intro x hx
+  rfl
+
+theorem self_minorizes {I : BoundedInterval} {f : ℝ → ℝ} : MinorizesOn f f I := by
+  intro x hx
+  rfl
+
 /-- Lemma 11.3.7 / Exercise 11.3.3 -/
 theorem integ_of_piecewise_const {f:ℝ → ℝ} {I: BoundedInterval} (hf: PiecewiseConstantOn f I) :
   IntegrableOn f I ∧ integ f I = hf.integ' := by
-  sorry
+  have h1 := upper_integral_le_integ (bounded_of_piecewise_constant hf) (self_majorizes) hf
+  have h2 := integ_le_lower_integral (bounded_of_piecewise_constant hf) (self_minorizes) hf
+  have h3 := lower_integral_le_upper (bounded_of_piecewise_constant hf)
+  constructor
+  . rw [IntegrableOn]
+    constructor
+    . exact bounded_of_piecewise_constant hf
+    . linarith
+  . rw [integ]
+    linarith
 
 /-- Remark 11.3.8 -/
 theorem integ_on_subsingleton {f:ℝ → ℝ} {I: BoundedInterval} (hI: |I|ₗ = 0) :
@@ -151,57 +178,211 @@ noncomputable abbrev lower_riemann_sum (f:ℝ → ℝ) {I: BoundedInterval} (P: 
 
 /-- Lemma 11.3.11 / Exercise 11.3.4 -/
 theorem upper_riemann_sum_le {f g: ℝ → ℝ} {I:BoundedInterval} (P: Partition I)
-  (hgf: MajorizesOn g f I) (hg: PiecewiseConstantWith g P) :
-  upper_riemann_sum f P ≤ integ g I := by
-   sorry
+    (hgf: MajorizesOn g f I) (hg: PiecewiseConstantWith g P) :
+    upper_riemann_sum f P ≤ integ g I := by
+  have hg' : PiecewiseConstantOn g I := ⟨P, hg⟩
+  rw [(integ_of_piecewise_const hg').2.trans (PiecewiseConstantOn.integ_def hg)]
+  apply Finset.sum_le_sum
+  intros J hJ
+  rcases Set.eq_empty_or_nonempty (J:Set ℝ) with hJe | hJne
+  · rw [BoundedInterval.length_of_empty hJe, mul_zero, mul_zero]
+  · refine mul_le_mul_of_nonneg_right ?_ (BoundedInterval.length_nonneg J)
+    refine csSup_le (hJne.image f) ?_
+    rintro _ ⟨x, hxJ, rfl⟩
+    rw [← ConstantOn.eq (hg J hJ) hxJ]
+    exact hgf x (P.contains J hJ x hxJ)
 
 theorem lower_riemann_sum_ge {f h: ℝ → ℝ} {I:BoundedInterval} (P: Partition I)
-  (hfh: MinorizesOn h f I) (hg: PiecewiseConstantWith h P) :
-  integ h I ≤ lower_riemann_sum f P := by
-   sorry
+    (hfh: MinorizesOn h f I) (hg: PiecewiseConstantWith h P) :
+    integ h I ≤ lower_riemann_sum f P := by
+  have hg' : PiecewiseConstantOn h I := ⟨P, hg⟩
+  rw [(integ_of_piecewise_const hg').2.trans (PiecewiseConstantOn.integ_def hg)]
+  apply Finset.sum_le_sum
+  intros J hJ
+  rcases Set.eq_empty_or_nonempty (J:Set ℝ) with hJe | hJne
+  · rw [BoundedInterval.length_of_empty hJe, mul_zero, mul_zero]
+  · refine mul_le_mul_of_nonneg_right ?_ (BoundedInterval.length_nonneg J)
+    refine le_csInf (hJne.image f) ?_
+    rintro _ ⟨x, hxJ, rfl⟩
+    rw [← ConstantOn.eq (hg J hJ) hxJ]
+    exact hfh x (P.contains J hJ x hxJ)
 
 /-- Proposition 11.3.12 / Exercise 11.3.5 -/
 theorem upper_integ_le_upper_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I)
-  (P: Partition I): upper_integral f I ≤ upper_riemann_sum f P := by
-  sorry
+    (P: Partition I): upper_integral f I ≤ upper_riemann_sum f P := by
+  classical
+  set f' : ℝ → ℝ :=
+    fun x => ∑ J ∈ P.intervals, if x ∈ J then sSup (f '' (J:Set ℝ)) else 0
+  have hf'_eq : ∀ J ∈ P.intervals, ∀ x ∈ (J:Set ℝ), f' x = sSup (f '' (J:Set ℝ)) := by
+    intros J hJ x hx
+    show (∑ K ∈ P.intervals, if x ∈ K then sSup (f '' (K:Set ℝ)) else 0) = sSup (f '' (J:Set ℝ))
+    rw [Finset.sum_eq_single J]
+    · exact if_pos hx
+    · intros K hK hKne
+      refine if_neg ?_
+      intro hxK
+      have hxI : x ∈ (I:Set ℝ) := P.contains J hJ x hx
+      exact hKne ((P.exists_unique x hxI).unique ⟨hK, hxK⟩ ⟨hJ, hx⟩)
+    · intro h; exact absurd hJ h
+  have hf'P : PiecewiseConstantWith f' P := fun J hJ =>
+    ConstantOn.of_const (c := sSup (f '' (J:Set ℝ))) (hf'_eq J hJ)
+  have hf'C : PiecewiseConstantOn f' I := ⟨P, hf'P⟩
+  have hf' : MajorizesOn f' f I := by
+    intro x hx
+    obtain ⟨ J, ⟨ hJ, hxJ ⟩, _ ⟩ := P.exists_unique x hx
+    rw [hf'_eq J hJ x hxJ]
+    refine le_csSup ?_ (Set.mem_image_of_mem f hxJ)
+    obtain ⟨M, hM⟩ := hf
+    exact ⟨M, by rintro _ ⟨z, hz, rfl⟩; exact (abs_le.mp (hM z (P.contains J hJ z hz))).2⟩
+  refine (upper_integral_le_integ hf hf' hf'C).trans ?_
+  show PiecewiseConstantOn.integ f' I ≤ ∑ J ∈ P.intervals, sSup (f '' (J:Set ℝ)) * |J|ₗ
+  rw [PiecewiseConstantOn.integ_def hf'P]
+  apply Finset.sum_le_sum
+  intros J hJ
+  rcases Set.eq_empty_or_nonempty (J:Set ℝ) with hJe | hJne
+  · rw [BoundedInterval.length_of_empty hJe, mul_zero, mul_zero]
+  · exact mul_le_mul_of_nonneg_right
+      (ConstantOn.const_eq hJne (hf'_eq J hJ)).le (BoundedInterval.length_nonneg J)
 
 theorem upper_integ_eq_inf_upper_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I) :
   upper_integral f I = sInf (.range (fun P : Partition I ↦ upper_riemann_sum f P)) := by
-  sorry
+  have hbdd : BddBelow (Set.range (fun P : Partition I ↦ upper_riemann_sum f P)) :=
+    ⟨upper_integral f I, by rintro _ ⟨P, rfl⟩; exact upper_integ_le_upper_sum hf P⟩
+  apply le_antisymm
+  · refine le_csInf ?_ ?_
+    · exact ⟨upper_riemann_sum f (⊥ : Partition I), (⊥ : Partition I), rfl⟩
+    · rintro _ ⟨P, rfl⟩
+      exact upper_integ_le_upper_sum hf P
+  · apply le_csInf (integral_bound_upper_nonempty hf)
+    rintro _ ⟨g, ⟨hgf, hgC⟩, rfl⟩
+    obtain ⟨P, hP⟩ := hgC
+    calc sInf _ ≤ upper_riemann_sum f P := csInf_le hbdd ⟨P, rfl⟩
+      _ ≤ integ g I := upper_riemann_sum_le P hgf hP
+      _ = PiecewiseConstantOn.integ g I := (integ_of_piecewise_const ⟨P, hP⟩).2
 
 theorem lower_integ_ge_lower_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I)
-  (P: Partition I): lower_riemann_sum f P ≤ lower_integral f I := by
-  sorry
+    (P: Partition I): lower_riemann_sum f P ≤ lower_integral f I := by
+  classical
+  set h' : ℝ → ℝ :=
+    fun x => ∑ J ∈ P.intervals, if x ∈ J then sInf (f '' (J:Set ℝ)) else 0
+  have hh'_eq : ∀ J ∈ P.intervals, ∀ x ∈ (J:Set ℝ), h' x = sInf (f '' (J:Set ℝ)) := by
+    intros J hJ x hx
+    show (∑ K ∈ P.intervals, if x ∈ K then sInf (f '' (K:Set ℝ)) else 0) = sInf (f '' (J:Set ℝ))
+    rw [Finset.sum_eq_single J]
+    · exact if_pos hx
+    · intros K hK hKne
+      refine if_neg ?_
+      intro hxK
+      have hxI : x ∈ (I:Set ℝ) := P.contains J hJ x hx
+      exact hKne ((P.exists_unique x hxI).unique ⟨hK, hxK⟩ ⟨hJ, hx⟩)
+    · intro h; exact absurd hJ h
+  have hh'P : PiecewiseConstantWith h' P := fun J hJ =>
+    ConstantOn.of_const (c := sInf (f '' (J:Set ℝ))) (hh'_eq J hJ)
+  have hh'C : PiecewiseConstantOn h' I := ⟨P, hh'P⟩
+  have hh' : MinorizesOn h' f I := by
+    intro x hx
+    obtain ⟨ J, ⟨ hJ, hxJ ⟩, _ ⟩ := P.exists_unique x hx
+    rw [hh'_eq J hJ x hxJ]
+    refine csInf_le ?_ (Set.mem_image_of_mem f hxJ)
+    obtain ⟨M, hM⟩ := hf
+    exact ⟨-M, by rintro _ ⟨z, hz, rfl⟩; exact (abs_le.mp (hM z (P.contains J hJ z hz))).1⟩
+  refine le_trans ?_ (integ_le_lower_integral hf hh' hh'C)
+  show ∑ J ∈ P.intervals, sInf (f '' (J:Set ℝ)) * |J|ₗ ≤ PiecewiseConstantOn.integ h' I
+  rw [PiecewiseConstantOn.integ_def hh'P]
+  apply Finset.sum_le_sum
+  intros J hJ
+  rcases Set.eq_empty_or_nonempty (J:Set ℝ) with hJe | hJne
+  · rw [BoundedInterval.length_of_empty hJe, mul_zero, mul_zero]
+  · exact mul_le_mul_of_nonneg_right
+      (ConstantOn.const_eq hJne (hh'_eq J hJ)).ge (BoundedInterval.length_nonneg J)
 
 theorem lower_integ_eq_sup_lower_sum {f:ℝ → ℝ} {I:BoundedInterval} (hf: BddOn f I) :
   lower_integral f I = sSup (.range (fun P : Partition I ↦ lower_riemann_sum f P)) := by
-  sorry
+  have hbdd : BddAbove (Set.range (fun P : Partition I ↦ lower_riemann_sum f P)) :=
+    ⟨lower_integral f I, by rintro _ ⟨P, rfl⟩; exact lower_integ_ge_lower_sum hf P⟩
+  apply le_antisymm
+  · refine csSup_le (integral_bound_lower_nonempty hf) ?_
+    rintro _ ⟨h, ⟨hhf, hhC⟩, rfl⟩
+    obtain ⟨P, hP⟩ := hhC
+    calc PiecewiseConstantOn.integ h I
+        = integ h I := ((integ_of_piecewise_const ⟨P, hP⟩).2).symm
+      _ ≤ lower_riemann_sum f P := lower_riemann_sum_ge P hhf hP
+      _ ≤ sSup _ := le_csSup hbdd ⟨P, rfl⟩
+  · refine csSup_le ?_ ?_
+    · exact ⟨lower_riemann_sum f (⊥ : Partition I), (⊥ : Partition I), rfl⟩
+    · rintro _ ⟨P, rfl⟩
+      exact lower_integ_ge_lower_sum hf P
 
 /-- Exercise 11.3.1 -/
 theorem MajorizesOn.trans {f g h: ℝ → ℝ} {I: BoundedInterval}
   (hfg: MajorizesOn f g I) (hgh: MajorizesOn g h I) : MajorizesOn f h I := by
-  sorry
+  rw [MajorizesOn] at hfg hgh ⊢
+  intro x hx
+  specialize hfg x hx
+  specialize hgh x hx
+  linarith
 
 /-- Exercise 11.3.1 -/
 theorem MajorizesOn.anti_symm {f g: ℝ → ℝ} {I: BoundedInterval}:
   (∀ x ∈ (I:Set ℝ), f x = g x) ↔ MajorizesOn f g I ∧ MajorizesOn g f I := by
-  sorry
+  constructor
+  . intro h
+    repeat rw [MajorizesOn]
+    constructor
+    . intro x hx
+      specialize h x hx
+      rw [h]
+    . intro x hx
+      specialize h x hx
+      rw [h]
+  . rintro ⟨hfg, hgf⟩
+    rw [MajorizesOn] at hfg hgf
+    intro x hx
+    specialize hfg x hx
+    specialize hgf x hx
+    linarith
 
 /-- Exercise 11.3.2 -/
-def MajorizesOn.of_add : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (hfg: MajorizesOn f g I),
+def MajorizesOn.of_add : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (_: MajorizesOn f g I),
  MajorizesOn (f+h) (g+h) I) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intros f g h I hfg x hx
+  rw [MajorizesOn] at hfg
+  specialize hfg x hx
+  simp only [Pi.add_apply, add_le_add_iff_right]
+  exact hfg
 
-def MajorizesOn.of_mul : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (hfg: MajorizesOn f g I),
+def MajorizesOn.of_mul : Decidable ( ∀ (f g h:ℝ → ℝ) (I:BoundedInterval) (_: MajorizesOn f g I),
  MajorizesOn (f*h) (g*h) I) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push Not
+  use fun _ => 1
+  use fun _ => 0
+  use fun _ => -1
+  use BoundedInterval.Icc 0 1
+  simp
+  constructor
+  . rw [MajorizesOn]
+    intro x hx
+    norm_num
+  . use 0
+    simp
 
-def MajorizesOn.of_smul : Decidable ( ∀ (f g:ℝ → ℝ) (c:ℝ) (I:BoundedInterval) (hfg: MajorizesOn f g I),
+def MajorizesOn.of_smul : Decidable ( ∀ (f g:ℝ → ℝ) (c:ℝ) (I:BoundedInterval) (_: MajorizesOn f g I),
  MajorizesOn (c • f) (c • g) I) := by
-  -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
-
+  apply isFalse
+  push Not
+  use fun _ => 1
+  use fun _ => 0
+  use -1
+  use BoundedInterval.Icc 0 1
+  simp
+  constructor
+  . rw [MajorizesOn]
+    intro x hx
+    norm_num
+  . use 0
+    norm_num
 
 end Chapter11

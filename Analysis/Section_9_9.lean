@@ -1,7 +1,9 @@
 import Mathlib.Tactic
 import Analysis.Section_6_1
+import Analysis.Section_6_epilogue
 import Mathlib.Data.Nat.Nth
 import Analysis.Section_9_6
+
 /-!
 # Analysis I, Section 9.9: Uniform continuity
 
@@ -22,10 +24,25 @@ open Chapter6 Filter
 namespace Chapter9
 
 example : ContinuousOn (fun x:ℝ ↦ 1/x) (.Ioo 0 2) := by
-  sorry
+  intro x hx
+  simp only [Set.mem_Ioo] at hx
+  have hxne : x ≠ 0 := ne_of_gt hx.1
+  exact ((continuousAt_const (y := (1:ℝ))).div continuousAt_id hxne).continuousWithinAt
 
 example : ¬ BddOn (fun x:ℝ ↦ 1/x) (.Ioo 0 2) := by
-  sorry
+  rw [BddOn]
+  push_neg
+  intro M
+  use 1 / max (|M| + 1) 2
+  simp
+  constructor
+  . have h2 : (2:ℝ) ≤ max (|M| + 1) 2 := le_max_right _ _
+    calc (max (|M| + 1) 2)⁻¹ ≤ (2:ℝ)⁻¹ := inv_anti₀ (by norm_num) h2
+      _ < 2 := by norm_num
+  . calc _ ≤ |M| := le_abs_self M
+      _ < |M| + 1 := by linarith
+      _ ≤ max (|M| + 1) 2 := le_max_left _ _
+      _ ≤ |max (|M| + 1) 2| := le_abs_self _
 
 /-- Example 9.9.1 -/
 example (x : ℝ) :
@@ -35,7 +52,15 @@ example (x : ℝ) :
   let δ : ℝ := 1/11
   |x-x₀| ≤ δ → |f x - f x₀| ≤ ε := by
   extract_lets f ε x₀ δ
-  sorry
+  intro h
+  unfold f x₀ ε
+  unfold x₀ δ at h
+  norm_num
+  have hxpos : x > 0 := by rw [abs_le] at h; linarith [h.1]
+  rw [show (x⁻¹ - 1 : ℝ) = (1 - x) / x by field_simp]
+  rw [abs_div, abs_of_pos hxpos, abs_sub_comm]
+  rw [div_le_iff₀ hxpos]
+  nlinarith [abs_le.mp h]
 
 example (x:ℝ) :
   let f : ℝ → ℝ := fun x ↦ 1/x
@@ -43,8 +68,15 @@ example (x:ℝ) :
   let x₀ : ℝ := 0.1
   let δ : ℝ := 1/1010
   |x-x₀| ≤ δ → |f x - f x₀| ≤ ε := by
-  extract_lets -merge f ε x₀ δ -- need the `-merge` flag due to the collision of `ε` and `x₀`
-  sorry
+  extract_lets -merge f ε x₀ δ
+  intro h
+  unfold f x₀ ε
+  unfold x₀ δ at h
+  have hxpos : x > 0 := by rw [abs_le] at h; linarith [h.1]
+  rw [show (1/x - 1/0.1 : ℝ) = (0.1 - x) / (0.1 * x) by field_simp]
+  rw [abs_div, abs_of_pos (by positivity : (0.1 * x : ℝ) > 0), abs_sub_comm]
+  rw [div_le_iff₀ (by positivity : (0.1 * x : ℝ) > 0)]
+  nlinarith [abs_le.mp h]
 
 example (x:ℝ) :
   let g : ℝ → ℝ := fun x ↦ 2*x
@@ -53,7 +85,11 @@ example (x:ℝ) :
   let δ : ℝ := 0.05
   |x-x₀| ≤ δ → |g x - g x₀| ≤ ε := by
   extract_lets g ε x₀ δ
-  sorry
+  intro h
+  unfold g ε x₀
+  unfold x₀ δ at h
+  rw [show (2*x - 2*1 : ℝ) = 2 * (x - 1) by ring, abs_mul]
+  nlinarith [abs_nonneg (x - 1)]
 
 example (x₀ x : ℝ) :
   let g : ℝ → ℝ := fun x ↦ 2*x
@@ -61,9 +97,14 @@ example (x₀ x : ℝ) :
   let δ : ℝ := 0.05
   |x-x₀| ≤ δ → |g x - g x₀| ≤ ε := by
   extract_lets g ε δ
-  sorry
+  intro h
+  unfold g ε
+  unfold δ at h
+  rw [show (2*x - 2*x₀ : ℝ) = 2 * (x - x₀) by ring, abs_mul]
+  nlinarith [abs_nonneg (x - x₀)]
 
-/-- Definition 9.9.2.  Here we use the Mathlib term {name}`UniformContinuousOn` -/
+/-- Definition 9.9.2.  Here we use the Mathlib term
+{name}`UniformContinuousOn` -/
 theorem UniformContinuousOn.iff (f: ℝ → ℝ) (X:Set ℝ) : UniformContinuousOn f X  ↔
   ∀ ε > (0:ℝ), ∃ δ > (0:ℝ), ∀ x₀ ∈ X, ∀ x ∈ X, δ.Close x x₀ → ε.Close (f x) (f x₀) := by
   simp_rw [Metric.uniformContinuousOn_iff_le, Real.Close]
@@ -71,10 +112,35 @@ theorem UniformContinuousOn.iff (f: ℝ → ℝ) (X:Set ℝ) : UniformContinuous
 
 theorem ContinuousOn.ofUniformContinuousOn {X:Set ℝ} (f: ℝ → ℝ) (hf: UniformContinuousOn f X) :
   ContinuousOn f X := by
-  sorry
+  intro x hx
+  have hiff := (ContinuousWithinAt.tfae X f x).out 0 3
+  rw [hiff]
+  rw [UniformContinuousOn.iff] at hf
+  intro ε hε
+  obtain ⟨δ, hδ, hf⟩ := hf ε hε
+  refine ⟨δ, hδ, fun x' hx' hd => ?_⟩
+  specialize hf x hx x' hx'
+  simp only [Real.Close, Real.dist_eq] at hf
+  exact hf hd
 
-example : ¬ UniformContinuousOn (fun x:ℝ ↦ 1/x) (Set.Ioo 0 2) := by
-  sorry
+example : ¬ UniformContinuousOn (fun x:ℝ ↦ 1/x) (Set.Icc 0 2) := by
+  rw [UniformContinuousOn.iff]
+  push_neg
+  use 0.1
+  norm_num
+  intro δ hδ
+  set x₀ : ℝ := min δ (1/10) with hx₀_def
+  have hx₀_pos : x₀ > 0 := lt_min hδ (by norm_num)
+  have hx₀_le : x₀ ≤ 1/10 := min_le_right _ _
+  have hx₀_le_δ : x₀ ≤ δ := min_le_left _ _
+  refine ⟨x₀, ⟨hx₀_pos.le, by linarith⟩, x₀/2, ⟨by linarith, by linarith⟩, ?_, ?_⟩
+  · rw [Real.dist_eq]
+    rw [show (x₀/2 - x₀ : ℝ) = -(x₀/2) by ring, abs_neg, abs_of_pos (by linarith)]
+    linarith
+  · rw [Real.dist_eq, show ((x₀/2)⁻¹ - x₀⁻¹ : ℝ) = x₀⁻¹ by field_simp; ring]
+    rw [abs_of_pos (by positivity)]
+    rw [lt_inv_comm₀ (by norm_num) hx₀_pos]
+    linarith
 
 end Chapter9
 
@@ -91,19 +157,78 @@ abbrev Real.EventuallyCloseSeqs (ε:ℝ) (a b: Chapter6.Sequence) : Prop :=
 abbrev Chapter6.Sequence.equiv (a b: Sequence) : Prop :=
   ∀ ε > (0:ℝ), ε.EventuallyCloseSeqs a b
 
+theorem EventuallyCloseSeqs.mono {ε₁ ε₂:ℝ} {a b: Sequence} (h: ε₁ ≤ ε₂) :
+  ε₁.EventuallyCloseSeqs a b → ε₂.EventuallyCloseSeqs a b := by
+  rintro ⟨N, hN, hm, hclose⟩
+  exact ⟨N, hN, hm, λ n hn => le_trans (hclose n hn) h⟩
+
 /-- Remark 9.9.6 -/
 theorem Chapter6.Sequence.equiv_iff_rat (a b: Sequence) :
   a.equiv b ↔ ∀ ε > (0:ℚ), (ε:ℝ).EventuallyCloseSeqs a b := by
-  sorry
+  constructor
+  . intro h ε hε
+    rw [equiv] at h
+    have h' : ε > (0:ℝ) := by exact_mod_cast hε
+    specialize h ε h'
+    exact h
+  . intro h
+    rw [equiv]
+    intro ε hε
+    obtain ⟨ε', hε', hclose⟩ := exists_rat_btwn hε
+    have hε'' : ε' > 0 := by exact_mod_cast hε'
+    specialize h ε' hε''
+    exact EventuallyCloseSeqs.mono hclose.le h
 
 /-- Lemma 9.9.7 / Exercise 9.9.1 -/
 theorem Chapter6.Sequence.equiv_iff (a b: Sequence) :
   a.equiv b ↔ atTop.Tendsto (fun n ↦ a n - b n) (nhds 0) := by
-  sorry
-
+  constructor
+  . intro h
+    rw [equiv] at h
+    rw [Metric.tendsto_nhds]
+    intro ε hε
+    specialize h (ε/2) (by linarith)
+    rw [Real.EventuallyCloseSeqs] at h
+    obtain ⟨N, hN, hclose⟩ := h
+    rw [Filter.eventually_atTop]
+    use N
+    intro n hn
+    rw [Real.CloseSeqs] at hclose
+    obtain ⟨hm, hclose'⟩ := hclose
+    specialize hclose' n
+    have hmem : n ≥ (a.from N).m := by simp; omega
+    specialize hclose' hmem
+    rw [Real.Close, Real.dist_eq] at hclose'
+    rw [Real.dist_eq]
+    simp only [sub_zero]
+    rw [Sequence.from_eval _ hn, Sequence.from_eval _ hn] at hclose'
+    linarith
+  . intro h
+    rw [equiv]
+    rw [Metric.tendsto_nhds] at h
+    intro ε hε
+    specialize h ε hε
+    rw [Filter.eventually_atTop] at h
+    rw [Real.EventuallyCloseSeqs]
+    obtain ⟨N, hN⟩ := h
+    use max (max N a.m) b.m
+    constructor
+    . simp
+    . rw [Real.CloseSeqs]
+      simp
+      intro n hn hna hnb
+      simp [hn, hna, hnb]
+      specialize hN n hn
+      rw [Real.dist_eq] at hN ⊢
+      simp at hN
+      exact hN.le
 
 namespace Chapter9
 
+theorem Real.dist_symm (x y: ℝ) : dist x y = dist y x := by
+  rw [Real.dist_eq]
+  rw [Real.dist_eq]
+  rw [abs_sub_comm]
 
 /-- Proposition 9.9.8 / Exercise 9.9.2 -/
 theorem UniformContinuousOn.iff_preserves_equiv {X:Set ℝ} (f: ℝ → ℝ) :
@@ -111,69 +236,373 @@ theorem UniformContinuousOn.iff_preserves_equiv {X:Set ℝ} (f: ℝ → ℝ) :
   ∀ x y: ℕ → ℝ, (∀ n, x n ∈ X) → (∀ n, y n ∈ X) →
   (x:Sequence).equiv (y:Sequence) →
   (f ∘ x:Sequence).equiv (f ∘ y:Sequence) := by
-  sorry
+  constructor
+  . intro h x y hx hy h'
+    rw [Chapter6.Sequence.equiv] at h' ⊢
+    intro ε hε
+    rw [UniformContinuousOn.iff] at h
+    specialize h ε hε
+    obtain ⟨δ, hδ, hf⟩ := h
+    specialize h' δ hδ
+    rw [Real.EventuallyCloseSeqs] at h' ⊢
+    obtain ⟨N, hN, hclose⟩ := h'
+    use N
+    constructor
+    . simp at hN
+      linarith
+    . rw [Real.CloseSeqs] at hclose ⊢
+      simp at hclose ⊢
+      intro n hn hN'
+      specialize hclose n hn hN'
+      simp [hn, hN'] at hclose ⊢
+      specialize hf (x n.toNat) (hx n.toNat) (y n.toNat) (hy n.toNat)
+      have : δ.Close (y n.toNat) (x n.toNat) := by
+        rw [Real.Close, Real.dist_symm]
+        exact hclose
+      specialize hf this
+      rw [Real.Close] at hf
+      rw [Real.dist_symm] at hf
+      exact hf
+  . intro h
+    rw [UniformContinuousOn.iff]
+    intro ε hε
+    by_contra h'
+    push_neg at h'
+    -- for every n, specialize h' at 1/(n+1) to find two points in X
+    choose x₀ hx₀ x hx hclose hgap using
+      (fun n : ℕ => h' (1/(n+1:ℝ)) (by positivity))
+    -- x and x₀ are equiv as ℕ-sequences (using the def directly, no equiv_iff needed)
+    have hequiv : (x:Sequence).equiv (x₀:Sequence) := by
+      intro η hη
+      obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+        |>.eventually_lt_const hη |> Filter.eventually_atTop.mp)
+      refine ⟨N, by simp, ?_, ?_⟩
+      · simp
+      · intro n hn
+        have hn_nat : n ≥ (N : ℤ) := by simp at hn; omega
+        rw [Sequence.from_eval _ hn_nat, Sequence.from_eval _ hn_nat]
+        obtain ⟨k, rfl⟩ : ∃ k : ℕ, (k : ℤ) = n := ⟨n.toNat, by omega⟩
+        rw [Sequence.eval_coe, Sequence.eval_coe]
+        have hk_ge : k ≥ N := by exact_mod_cast hn_nat
+        have hk_lt : (1/((k:ℝ)+1)) < η := hN k hk_ge
+        have := hclose k
+        rw [Real.Close] at this ⊢
+        linarith
+    -- by h, f x and f x₀ are equiv
+    specialize h x x₀ hx hx₀ hequiv
+    rw [Chapter6.Sequence.equiv] at h
+    obtain ⟨N, hN_ge, _, hfclose⟩ := h ε hε
+    -- pick a large enough natural index k
+    have hN_nonneg : N ≥ 0 := by
+      have : ((↑(f ∘ x) : Sequence)).m = 0 := rfl
+      omega
+    set k := N.toNat with hk_def
+    have hkN : (k : ℤ) ≥ N := by simp [hk_def, Int.toNat_of_nonneg hN_nonneg]
+    have hk_in_from : (k : ℤ) ≥ ((↑(f ∘ x) : Sequence).from N).m := by
+      have hm : ((↑(f ∘ x) : Sequence)).m = 0 := rfl
+      simp only
+      omega
+    specialize hfclose k hk_in_from
+    rw [Sequence.from_eval _ hkN, Sequence.from_eval _ hkN] at hfclose
+    rw [Sequence.eval_coe, Sequence.eval_coe] at hfclose
+    rw [Real.Close, Function.comp_apply, Function.comp_apply] at hfclose
+    linarith [hgap k]
+
+/-- Mathlib-flavored variant of {name}`UniformContinuousOn.iff_preserves_equiv`:
+if {lit}`x n, y n ∈ X` eventually and {lit}`x n - y n → 0`, then {lit}`f (x n) - f (y n) → 0`. -/
+theorem UniformContinuousOn.tendsto_sub_zero {X:Set ℝ} {f: ℝ → ℝ}
+  (hf: UniformContinuousOn f X) {x y: ℕ → ℝ}
+  (hx: ∀ᶠ n in atTop, x n ∈ X) (hy: ∀ᶠ n in atTop, y n ∈ X)
+  (hxy: Tendsto (fun n => x n - y n) atTop (nhds 0)) :
+  Tendsto (fun n => f (x n) - f (y n)) atTop (nhds 0) := by
+  rw [Metric.tendsto_nhds]
+  rw [UniformContinuousOn.iff] at hf
+  intro ε hε
+  obtain ⟨δ, hδ, hδf⟩ := hf (ε/2) (by linarith)
+  have habs : Tendsto (fun n => |x n - y n|) atTop (nhds 0) := by simpa using hxy.abs
+  filter_upwards [habs.eventually_lt_const hδ, hx, hy] with n hn hxn hyn
+  have hclose : δ.Close (x n) (y n) := show dist (x n) (y n) ≤ δ by
+    rw [Real.dist_eq]; exact hn.le
+  have := hδf (x n) hxn (y n) hyn (by rwa [Real.Close, dist_comm] at hclose)
+  rw [Real.Close, Real.dist_eq, abs_sub_comm] at this
+  rw [dist_zero_right, Real.norm_eq_abs]
+  linarith
 
 /-- Remark 9.9.9 -/
 theorem Chapter6.Sequence.equiv_const (x₀: ℝ) (x:ℕ → ℝ) : atTop.Tendsto x (nhds x₀) ↔
-  (x:Sequence).equiv (fun n:ℕ ↦ x₀:Sequence) := by
-  sorry
+  (x:Sequence).equiv (fun _:ℕ ↦ x₀:Sequence) := by
+  rw [Sequence.equiv_iff]
+  repeat rw [Metric.tendsto_nhds]
+  simp
+  constructor
+  . intro h ε hε
+    specialize h ε hε
+    obtain ⟨N, hN⟩ := h
+    use N
+    intro n hn
+    have : n ≥ 0 := by linarith
+    lift n to ℕ using this
+    specialize hN n (by exact_mod_cast hn)
+    simp
+    exact hN
+  . intro h ε hε
+    specialize h ε hε
+    obtain ⟨N, hN⟩ := h
+    use N.toNat
+    intro b hb
+    have hbZ : (N : ℤ) ≤ (b : ℤ) := by
+      have : (N.toNat : ℤ) ≤ (b : ℤ) := by exact_mod_cast hb
+      omega
+    specialize hN b hbZ
+    simp at hN
+    rw [Real.dist_eq]
+    exact hN
 
 /-- Example 9.9.10 -/
 noncomputable abbrev f_9_9_10 : ℝ → ℝ := fun x ↦ 1/x
 
-example : (fun n:ℕ ↦ 1/(n+1:ℝ):Sequence).equiv (fun n:ℕ ↦ 1/(2*(n+1):ℝ):Sequence) := by sorry
+theorem seqA_eq_seqB : (fun n:ℕ ↦ 1/(n+1:ℝ):Sequence).equiv (fun n:ℕ ↦ 1/(2*(n+1):ℝ):Sequence) := by
+  rw [Chapter6.Sequence.equiv_iff]
+  rw [Metric.tendsto_nhds]
+  intro ε hε
+  rw [Filter.eventually_atTop]
+  obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+    |>.eventually_lt_const hε |> Filter.eventually_atTop.mp)
+  use N
+  intro b hb
+  have hb_nonneg : b ≥ 0 := le_trans (by simp) hb
+  obtain ⟨k, rfl⟩ : ∃ k : ℕ, (k : ℤ) = b := ⟨b.toNat, by omega⟩
+  rw [Sequence.eval_coe, Sequence.eval_coe]
+  have hk_ge : k ≥ N := by exact_mod_cast hb
+  have hk_lt : (1/((k:ℝ)+1)) < ε := hN k hk_ge
+  have hkpos : (0:ℝ) < (k:ℝ) + 1 := by positivity
+  rw [Real.dist_eq, sub_zero,
+    show (1/((k:ℝ)+1) - 1/(2*((k:ℝ)+1)) : ℝ) = 1/(2*((k:ℝ)+1)) by field_simp; ring]
+  rw [abs_of_pos (by positivity)]
+  have : 1/(2*((k:ℝ)+1)) ≤ 1/((k:ℝ)+1) := by
+    apply one_div_le_one_div_of_le hkpos; linarith
+  linarith
 
-example (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by sorry
+theorem seqA_in_ioo02 (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by
+  simp only [one_div, Set.mem_Ioo, inv_pos]
+  refine ⟨by positivity, ?_⟩
+  rw [inv_lt_comm₀ (by positivity) (by norm_num)]
+  have : (n:ℝ) ≥ 0 := by positivity
+  linarith
 
-example (n:ℕ) : 1/(2*(n+1):ℝ) ∈ Set.Ioo 0 2 := by sorry
+theorem seqB_in_ioo02 (n:ℕ) : 1/(2*(n+1):ℝ) ∈ Set.Ioo 0 2 := by
+  simp only [one_div, Set.mem_Ioo, inv_pos]
+  refine ⟨by positivity, ?_⟩
+  rw [inv_lt_comm₀ (by positivity) (by norm_num)]
+  have : (n:ℝ) ≥ 0 := by positivity
+  linarith
 
-example : ¬ (fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ)):Sequence).equiv (fun n:ℕ ↦ f_9_9_10 (1/(2*(n+1):ℝ)):Sequence) := by sorry
+theorem fseqA_ne_fseqB : ¬ (fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ)):Sequence).equiv
+    (fun n:ℕ ↦ f_9_9_10 (1/(2*(n+1):ℝ)):Sequence) := by
+  intro h
+  obtain ⟨N, hN_ge, _, hclose⟩ := h 1 (by norm_num)
+  -- pick a natural index k large enough that the gap > 1
+  set k : ℤ := max N 1 with hk_def
+  have hk_ge : k ≥ N := le_max_left _ _
+  have hk_pos : k ≥ 1 := le_max_right _ _
+  have hk_in : k ≥ ((↑(fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence).from N).m := by
+    have hm : (((↑(fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence)).m : ℤ) = 0 := rfl
+    simp only
+    omega
+  specialize hclose k hk_in
+  rw [Sequence.from_eval _ hk_ge, Sequence.from_eval _ hk_ge] at hclose
+  set m : ℕ := k.toNat with hm_def
+  have hmk : (m : ℤ) = k := by simp [hm_def]; omega
+  rw [show k = ((m:ℕ) : ℤ) from hmk.symm] at hclose
+  rw [Sequence.eval_coe, Sequence.eval_coe] at hclose
+  have hm_pos : m ≥ 1 := by have : (m:ℤ) ≥ 1 := by rw [hmk]; exact hk_pos
+                            exact_mod_cast this
+  unfold f_9_9_10 at hclose
+  rw [Real.Close, Real.dist_eq] at hclose
+  have hmpos : (0:ℝ) < (m:ℝ) + 1 := by positivity
+  have h1 : 1 / (1/((m:ℝ)+1)) = (m:ℝ) + 1 := by field_simp
+  have h2 : 1 / (1/(2*((m:ℝ)+1))) = 2*((m:ℝ) + 1) := by field_simp
+  rw [h1, h2] at hclose
+  have hmR : (m:ℝ) ≥ 1 := by exact_mod_cast hm_pos
+  rw [show ((m:ℝ)+1 - 2*((m:ℝ)+1) : ℝ) = -((m:ℝ)+1) by ring, abs_neg,
+    abs_of_pos hmpos] at hclose
+  linarith
 
 example : ¬ UniformContinuousOn f_9_9_10 (.Ioo 0 2) := by
-  sorry
+  rw [UniformContinuousOn.iff_preserves_equiv]
+  push_neg
+  use (fun n:ℕ ↦ 1/(n+1:ℝ))
+  use (fun n:ℕ ↦ 1/(2*(n+1):ℝ))
+  refine ⟨fun n ↦ seqA_in_ioo02 n, fun n ↦ seqB_in_ioo02 n, seqA_eq_seqB, fseqA_ne_fseqB⟩
 
 /-- Example 9.9.11 -/
 abbrev f_9_9_11 : ℝ → ℝ := fun x ↦ x^2
 
-example : ((fun n:ℕ ↦ (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ (n+1)+1/(n+1:ℝ)):Sequence) := by
-  sorry
+theorem seqC_eq_seqD : ((fun n:ℕ ↦ (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ (n+1)+1/(n+1:ℝ)):Sequence) := by
+  rw [Chapter6.Sequence.equiv_iff]
+  rw [Metric.tendsto_nhds]
+  intro ε hε
+  rw [Filter.eventually_atTop]
+  obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+    |>.eventually_lt_const hε |> Filter.eventually_atTop.mp)
+  use N
+  intro b hb
+  have hb_nonneg : b ≥ 0 := le_trans (by simp) hb
+  simp [hb_nonneg]
+  specialize hN b.toNat (by grind only)
+  simp at hN
+  have : (b.toNat :ℝ) + 1 ≥ 0 := by positivity
+  grind
 
-example : ¬ ((fun n:ℕ ↦ f_9_9_11 (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ f_9_9_11 ((n+1)+1/(n+1:ℝ))):Sequence) := by
-  sorry
+theorem fseqC_neq_fseqD : ¬ ((fun n:ℕ ↦ f_9_9_11 (n+1:ℝ)):Sequence).equiv ((fun n:ℕ ↦ f_9_9_11 ((n+1)+1/(n+1:ℝ))):Sequence) := by
+  intro h
+  obtain ⟨N, hN_ge, _, hclose⟩ := h 1 (by norm_num)
+  set k : ℤ := max N 0 with hk_def
+  have hk_ge : k ≥ N := le_max_left _ _
+  have hk_nonneg : k ≥ 0 := le_max_right _ _
+  have hk_in : k ≥ ((↑(fun n:ℕ ↦ f_9_9_11 (n+1:ℝ)):Sequence).from N).m := by
+    simp only
+    omega
+  specialize hclose k hk_in
+  rw [Sequence.from_eval _ hk_ge, Sequence.from_eval _ hk_ge] at hclose
+  set m : ℕ := k.toNat with hm_def
+  have hmk : (m : ℤ) = k := by simp [hm_def]; omega
+  rw [show k = ((m:ℕ) : ℤ) from hmk.symm] at hclose
+  rw [Sequence.eval_coe, Sequence.eval_coe] at hclose
+  unfold f_9_9_11 at hclose
+  rw [Real.Close, Real.dist_eq] at hclose
+  have hmpos : (0:ℝ) < (m:ℝ) + 1 := by positivity
+  have hexpand : ((m:ℝ)+1)^2 - ((m:ℝ)+1+1/((m:ℝ)+1))^2 = -(2 + 1/((m:ℝ)+1)^2) := by
+    field_simp; ring
+  rw [hexpand, abs_neg, abs_of_pos (by positivity)] at hclose
+  have : (0:ℝ) < 1/((m:ℝ)+1)^2 := by positivity
+  linarith
 
 example : ¬ UniformContinuousOn f_9_9_11 .univ := by
-  sorry
+  rw [UniformContinuousOn.iff_preserves_equiv]
+  push_neg
+  use (fun n:ℕ ↦ (n+1:ℝ))
+  use (fun n:ℕ ↦ (n+1)+1/(n+1:ℝ))
+  constructor
+  . exact fun n ↦ Set.mem_univ _
+  . constructor
+    . exact fun n ↦ Set.mem_univ _
+    . constructor
+      . exact seqC_eq_seqD
+      . exact fseqC_neq_fseqD
 
 /-- Proposition 9.9.12 / Exercise 9.9.3  -/
 theorem UniformContinuousOn.ofCauchy  {X:Set ℝ} (f: ℝ → ℝ)
   (hf: UniformContinuousOn f X) {x: ℕ → ℝ} (hx: (x:Sequence).IsCauchy) (hmem : ∀ n, x n ∈ X) :
   (f ∘ x:Sequence).IsCauchy := by
-  sorry
+  rw [UniformContinuousOn.iff] at hf
+  rw [Sequence.IsCauchy.coe] at hx ⊢
+  intro ε hε
+  specialize hf ε hε
+  obtain ⟨δ, hδ, hf⟩ := hf
+  specialize hx δ hδ
+  obtain ⟨N, h⟩ := hx
+  use N
+  intro m hm n hn
+  specialize hf (x m) (hmem m) (x n) (hmem n)
+  have : δ.Close (x n) (x m) := by
+    rw [Real.Close, Real.dist_symm]
+    exact h m hm n hn
+  specialize hf this
+  rw [Real.Close] at hf
+  rw [Real.dist_symm] at hf
+  exact hf
 
 /-- Example 9.9.13 -/
-example : ((fun n:ℕ ↦ 1/(n+1:ℝ)):Sequence).IsCauchy := by
-  sorry
+theorem seqA_is_cauchy : ((fun n:ℕ ↦ 1/(n+1:ℝ)):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe]
+  intro ε hε
+  obtain ⟨N, hN⟩ := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)
+    |>.eventually_lt_const hε |> Filter.eventually_atTop.mp)
+  use N
+  intro j hj k hk
+  have hj_lt : 1/((j:ℝ)+1) < ε := hN j hj
+  have hk_lt : 1/((k:ℝ)+1) < ε := hN k hk
+  have hj_nn : 0 ≤ 1/((j:ℝ)+1) := by positivity
+  have hk_nn : 0 ≤ 1/((k:ℝ)+1) := by positivity
+  rw [Real.dist_eq, abs_le]
+  constructor <;> linarith
 
-example (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by
-  sorry
+theorem seqA_in_ioo02' (n:ℕ) : 1/(n+1:ℝ) ∈ Set.Ioo 0 2 := by
+  exact seqA_in_ioo02 n
 
-example : ¬ ((fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence).IsCauchy := by
-  sorry
+theorem fseqA_is_not_cauchy : ¬ ((fun n:ℕ ↦ f_9_9_10 (1/(n+1:ℝ))):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe]
+  push_neg
+  use 1
+  simp only [gt_iff_lt, zero_lt_one, ge_iff_le, one_div, div_inv_eq_mul, one_mul, dist_add_right,
+    Nat.dist_cast_real, true_and]
+  intro N
+  use N
+  constructor
+  . omega
+  . use N + 2
+    constructor
+    . omega
+    . rw [Nat.dist_eq]
+      simp
 
 example : ¬ UniformContinuousOn f_9_9_10 (Set.Ioo 0 2) := by
-  sorry
+  by_contra h
+  have h1 := UniformContinuousOn.ofCauchy f_9_9_10 h seqA_is_cauchy seqA_in_ioo02'
+  have h2 := fseqA_is_not_cauchy
+  contradiction
 
 /-- Corollary 9.9.14 / Exercise 9.9.4 -/
 theorem UniformContinuousOn.limit_at_adherent  {X:Set ℝ} (f: ℝ → ℝ)
   (hf: UniformContinuousOn f X) {x₀:ℝ} (hx₀: AdherentPt x₀ X) :
   ∃ L:ℝ, (nhdsWithin x₀ X).Tendsto f (nhds L) := by
-  sorry
+  rw [limit_of_AdherentPt] at hx₀
+  obtain ⟨x, hx, hxlim⟩ := hx₀
+  -- x converges ⇒ Cauchy ⇒ (by 9.9.12) f∘x Cauchy ⇒ converges to some L
+  have hxC : (x:Sequence).IsCauchy :=
+    (Chapter6.Sequence.Cauchy_iff_CauchySeq x).mpr hxlim.cauchySeq
+  obtain ⟨L, hL⟩ := (Chapter6.Sequence.converges_iff_Tendsto _).mp
+    ((Sequence.Cauchy_iff_convergent _).mp (UniformContinuousOn.ofCauchy f hf hxC hx))
+  refine ⟨L, Filter.tendsto_of_seq_tendsto fun y hy => ?_⟩
+  rw [tendsto_nhdsWithin_iff] at hy
+  obtain ⟨hylim, hyX⟩ := hy
+  -- f∘y - f∘x → 0 (by tendsto_sub_zero) and f∘x → L, so f∘y → L
+  have hxy : Tendsto (fun n => y n - x n) atTop (nhds 0) := by
+    simpa using hylim.sub hxlim
+  simpa using (UniformContinuousOn.tendsto_sub_zero hf hyX
+    (Filter.Eventually.of_forall hx) hxy).add hL
 
 /-- Proposition 9.9.15 / Exercise 9.9.5 -/
 theorem UniformContinuousOn.of_bounded {E X:Set ℝ} {f: ℝ → ℝ}
   (hf: UniformContinuousOn f X) (hEX: E ⊆ X) (hE: Bornology.IsBounded E) :
   Bornology.IsBounded (f '' E) := by
-  sorry
+  rw [← BddOn.iff']
+  by_contra! hunbound
+  set x := fun (n:ℕ) ↦ (hunbound n).choose with hx_def
+  have hxE (n:ℕ) : x n ∈ E := (hunbound n).choose_spec.1
+  have hxgrow (n:ℕ) : (n:ℝ) < |f (x n)| := (hunbound n).choose_spec.2
+  -- E bounded ⇒ closure E closed and bounded ⇒ Heine-Borel gives convergent subsequence
+  have hclosed : IsClosed (closure E) := isClosed_closure
+  have hbounded : Bornology.IsBounded (closure E) := hE.closure
+  have hxclE (n:ℕ) : x n ∈ closure E := subset_closure E (hxE n)
+  obtain ⟨φ, hφ, L, hL_clE, hxφ⟩ :=
+    (Heine_Borel (closure E)).mp ⟨hclosed, hbounded⟩ x hxclE
+  -- L ∈ closure E ⊆ closure X, so L is adherent to X; apply 9.9.14
+  have hL_adh : AdherentPt L X := by
+    rw [← closure_def']
+    exact closure_mono hEX hL_clE
+  obtain ⟨M, hM⟩ := UniformContinuousOn.limit_at_adherent f hf hL_adh
+  -- f ∘ x ∘ φ tends to M (since x∘φ → L with values in X)
+  have hxφX (k:ℕ) : x (φ k) ∈ X := hEX (hxE _)
+  have hfxφ : Tendsto (fun k => f (x (φ k))) atTop (nhds M) :=
+    hM.comp (tendsto_nhdsWithin_iff.mpr ⟨hxφ, Filter.Eventually.of_forall hxφX⟩)
+  -- |f (x (φ k))| > k → ∞ contradicts f∘x∘φ → M
+  have hkfx (k:ℕ) : (k:ℝ) < |f (x (φ k))| :=
+    lt_of_le_of_lt (by exact_mod_cast hφ.id_le k) (hxgrow (φ k))
+  have habsto : Tendsto (fun k => |f (x (φ k))|) atTop atTop :=
+    tendsto_atTop_mono (fun k => (hkfx k).le) tendsto_natCast_atTop_atTop
+  exact not_tendsto_nhds_of_tendsto_atTop habsto |M| hfxφ.abs
 
 /-- Theorem 9.9.16 -/
 theorem UniformContinuousOn.of_continuousOn {a b:ℝ} {f:ℝ → ℝ}
@@ -188,8 +617,35 @@ theorem UniformContinuousOn.of_continuousOn {a b:ℝ} {f:ℝ → ℝ}
     rw [←not_finite_iff_infinite]
     by_contra! this
     replace : ε.EventuallyCloseSeqs (fun n ↦ f (x n):Sequence) (fun n ↦ f (y n):Sequence) := by
-      sorry
-    sorry
+      -- E is finite, so any N greater than every element of E works
+      have hEfin : E.Finite := this
+      obtain ⟨N, hN⟩ : ∃ N : ℕ, ∀ n ∈ E, n < N := by
+        classical
+        refine ⟨hEfin.toFinset.sup id + 1, fun n hn => ?_⟩
+        have : n ≤ hEfin.toFinset.sup id :=
+          Finset.le_sup (f := id) (hEfin.mem_toFinset.mpr hn)
+        omega
+      refine ⟨N, by simp, by simp, ?_⟩
+      intro k hk
+      have hk' : (N : ℤ) ≤ k := by simpa using hk
+      have hk_nn : 0 ≤ k := by have : (0 : ℤ) ≤ N := by positivity
+                               linarith
+      lift k to ℕ using hk_nn with kn
+      have hkn : N ≤ kn := by exact_mod_cast hk'
+      have hknotE : kn ∉ E := fun h => absurd (hN kn h) (not_lt.mpr hkn)
+      simp only [E, Set.mem_setOf_eq, not_not] at hknotE
+      simpa [Sequence.from_eval _ hk', hkn] using hknotE
+    rw [Real.EventuallyCloseSeqs] at this
+    obtain ⟨N, hN, hclose⟩ := this
+    specialize h (N : ℤ) (by omega)
+    obtain ⟨L, hL, hL', hconv⟩ := h
+    lift L to ℕ using hL
+    simp [hL'] at hconv
+    rw [Real.CloseSeqs] at hclose
+    simp at hclose
+    specialize hclose L (by simp) hL'
+    simp [hL'] at hclose
+    linarith
   observe : Countable E
   set n : ℕ → ℕ := Nat.nth E
   rw [Set.infinite_coe_iff] at hE
@@ -218,13 +674,43 @@ theorem UniformContinuousOn.of_continuousOn {a b:ℝ} {f:ℝ → ℝ}
   replace hyconv := hyconv.comp_of_continuous hcont (fun k ↦ hymem (j k))
   have : atTop.Tendsto (fun k ↦ f (x (n (j k))) - f (y (n (j k)))) (nhds 0) := by
     convert hconv'.sub hyconv; simp
-  sorry
-
+  rw [Metric.tendsto_nhds] at this
+  specialize this ε hε
+  rw [Filter.eventually_atTop] at this
+  obtain ⟨N, hN⟩ := this
+  specialize hN N (by simp)
+  specialize hsep (j N)
+  rw [Real.dist_eq] at hN
+  simp at hN
+  linarith
 
 /-- Exercise 9.9.6 -/
 theorem UniformContinuousOn.comp {X Y: Set ℝ} {f g:ℝ → ℝ}
   (hf: UniformContinuousOn f X) (hg: UniformContinuousOn g Y)
   (hrange: f '' X ⊆ Y) : UniformContinuousOn (g ∘ f) X := by
-  sorry
+  rw [UniformContinuousOn.iff_preserves_equiv] at hf hg ⊢
+  intro x y hx hy hequiv
+  specialize hf x y hx hy hequiv
+  rw [Set.subset_def] at hrange
+  specialize hg (f ∘ x) (f ∘ y) (by
+    intro n
+    specialize hrange (f (x n))
+    rw [Set.mem_image] at hrange
+    apply hrange
+    use x n
+    constructor
+    . exact hx n
+    . rfl
+  ) (by
+    intro n
+    specialize hrange (f (y n))
+    rw [Set.mem_image] at hrange
+    apply hrange
+    use y n
+    constructor
+    . exact hy n
+    . rfl
+  ) hf
+  exact hg
 
 end Chapter9

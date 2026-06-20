@@ -250,44 +250,12 @@ theorem closure_of_Ioo {a b:ℝ} (h:a < b) : closure (.Ioo a b) = .Icc a b := by
     grind
   intro ε _; use x, (by exact ⟨lt_of_le_of_ne h1 (Ne.symm ha), lt_of_le_of_ne h2 hb⟩); simp; order
 
-
-/-- Exercise 9.1.5 -/
-theorem closure_closed (X:Set ℝ) : IsClosed (closure X) := by
-  rw [← closure_eq_iff_isClosed]
-  ext x
-  constructor
-  . intro h
-    rw [closure_def] at h
-    rw [closure_def]
-    intro ε hε
-    specialize h (ε / 2) (by positivity)
-    rw [Real.adherent'] at h ⊢
-    obtain ⟨y, hy, hxy⟩ := h
-    rw [closure_def] at hy
-    simp at hy
-    obtain ⟨z, hz, hz'⟩ := hy (ε / 2) (by positivity)
-    use z; simp [hz]
-    grind
-  . intro h
-    exact subset_closure (closure X) h
-
-/-- Exercise 9.1.5 -/
-example {X Y:Set ℝ} (hY: IsClosed Y) (hXY: X ⊆ Y) : closure X ⊆ Y := by
-  intro x hx
-  rw [← closure_eq_iff_isClosed] at hY
-  rw [← hY]
-  exact closure_subset hXY hx
-
 /-- Exercise 9.1.6 -/
 theorem closure_of_subset_closure {X Y:Set ℝ} (h: X ⊆ Y) (h' : Y ⊆ closure X): closure Y = closure X := by
   have h1 := closure_subset h
   have h2 := closure_subset h'
-  have hc := closure_closed X
-  rw [← closure_eq_iff_isClosed] at hc
-  rw [hc] at h2
-  apply subset_antisymm
-  . exact h2
-  . exact h1
+  rw [closure_closure] at h2
+  exact subset_antisymm h2 h1
 
 theorem closure_of_Ioc {a b:ℝ} (h:a < b) : closure (.Ioc a b) = .Icc a b := by
   have : closure (.Ioc a b) = closure (.Ioo a b) := by
@@ -866,12 +834,31 @@ example : ∃ (X Y:Set ℝ), closure (X ∩ Y) ≠ closure X ∩ closure Y := by
   simp
 
 /-- Exercise 9.1.5 -/
-example (X:Set ℝ) : IsClosed (closure X) := by
-  sorry
+theorem closure_closed (X:Set ℝ) : IsClosed (closure X) := by
+  rw [← closure_eq_iff_isClosed]
+  ext x
+  constructor
+  . intro h
+    rw [closure_def] at h
+    rw [closure_def]
+    intro ε hε
+    specialize h (ε / 2) (by positivity)
+    rw [Real.adherent'] at h ⊢
+    obtain ⟨y, hy, hxy⟩ := h
+    rw [closure_def] at hy
+    simp at hy
+    obtain ⟨z, hz, hz'⟩ := hy (ε / 2) (by positivity)
+    use z; simp [hz]
+    grind
+  . intro h
+    exact subset_closure (closure X) h
 
 /-- Exercise 9.1.6 -/
 example {X Y:Set ℝ} (hY: IsClosed Y) (hXY: X ⊆ Y) : closure X ⊆ Y := by
-  sorry
+  intro x hx
+  rw [← closure_eq_iff_isClosed] at hY
+  rw [← hY]
+  exact closure_subset hXY hx
 
 /-- Exercise 9.1.7 -/
 

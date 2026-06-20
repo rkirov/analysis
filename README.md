@@ -15,7 +15,7 @@ Completed
 - Chapter 6 - all
 - Chapter 7 - all
 - Chapter 8 - all
-- Chapter 9 - all except Exercises 9.1.5 and 9.1.6
+- Chapter 9 - all
 - Chapter 10 - all
 - Chapter 11 - all
 

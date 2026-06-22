@@ -97,20 +97,59 @@ example : ¬ ∃ m:ℤ, ∀ n:ℤ, m > n := by
 /-- Exercise A.5.1 -/
 def Exercise_A_5_1a : Decidable (∀ x > (0:ℝ), ∀ y > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push Not
+  use 1
+  norm_num
+  use 2
+  norm_num
 
 def Exercise_A_5_1b : Decidable (∃ x > (0:ℝ), ∀ y > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push Not
+  intro x hx
+  by_cases ho : x = 1
+  . use 2
+    subst x
+    norm_num
+  use x
+  constructor
+  . positivity
+  . by_contra h
+    ring_nf at h
+    field_simp [hx] at h
+    contradiction
 
 def Exercise_A_5_1c : Decidable (∃ x > (0:ℝ), ∃ y > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  use 1
+  norm_num
+  use 1
+  norm_num
 
 def Exercise_A_5_1d : Decidable (∀ y > (0:ℝ), ∃ x > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intro y hy
+  use y * y
+  constructor
+  . positivity
+  . ring
 
 def Exercise_A_5_1e : Decidable (∃ y > (0:ℝ), ∀ x > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push Not
+  intro y hy
+  by_cases ho: y = 1
+  . use 2
+    subst y
+    norm_num
+  use y
+  constructor
+  . positivity
+  . by_contra he
+    field_simp [ho] at he
+    contradiction
